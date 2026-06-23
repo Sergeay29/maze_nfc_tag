@@ -1,8 +1,10 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { MainLayout } from './layouts';
+import ProtectedRoute from './auth/ProtectedRoute';
 import {
   LoginPage,
+  RegisterPage,
   AdminDashboard,
   EnterprisesPage,
   NFCCardsPage,
@@ -35,34 +37,39 @@ const App: React.FC = () => {
       <Routes>
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
 
         {/* Admin Routes */}
-        <Route element={<MainLayout type="admin" userName="Admin Principal" userRole="Super Admin" />}>
-          <Route path="/admin/dashboard" element={<AdminDashboard />} />
-          <Route path="/admin/enterprises" element={<EnterprisesPage />} />
-          <Route path="/admin/enterprises/:id" element={<EnterpriseDetailPage />} />
-          <Route path="/admin/nfc-cards" element={<NFCCardsPage />} />
-          <Route path="/admin/nfc-cards/generate" element={<GenerateCardsPage />} />
-          <Route path="/admin/nfc-cards/assign" element={<CardAttributionPage />} />
-          <Route path="/admin/scans" element={<ScansPage />} />
-          <Route path="/admin/subscriptions" element={<SubscriptionsPage />} />
-          <Route path="/admin/modules" element={<ModulesPage />} />
-          <Route path="/admin/users" element={<UsersPage />} />
-          <Route path="/admin/settings" element={<SettingsPage />} />
+        <Route element={<ProtectedRoute allowedRoles={['SUPER_ADMIN']} />}>
+          <Route element={<MainLayout type="admin" />}>
+            <Route path="/admin/dashboard" element={<AdminDashboard />} />
+            <Route path="/admin/enterprises" element={<EnterprisesPage />} />
+            <Route path="/admin/enterprises/:id" element={<EnterpriseDetailPage />} />
+            <Route path="/admin/nfc-cards" element={<NFCCardsPage />} />
+            <Route path="/admin/nfc-cards/generate" element={<GenerateCardsPage />} />
+            <Route path="/admin/nfc-cards/assign" element={<CardAttributionPage />} />
+            <Route path="/admin/scans" element={<ScansPage />} />
+            <Route path="/admin/subscriptions" element={<SubscriptionsPage />} />
+            <Route path="/admin/modules" element={<ModulesPage />} />
+            <Route path="/admin/users" element={<UsersPage />} />
+            <Route path="/admin/settings" element={<SettingsPage />} />
+          </Route>
         </Route>
 
         {/* Enterprise Routes */}
-        <Route element={<MainLayout type="enterprise" userName="Marie Dupont" userRole="Admin Entreprise" />}>
-          <Route path="/enterprise/dashboard" element={<EnterpriseDashboard />} />
-          <Route path="/enterprise/clients" element={<ClientsPage />} />
-          <Route path="/enterprise/clients/:id/add-points" element={<AddPointsPage />} />
-          <Route path="/enterprise/clients/:id/history" element={<PointsHistoryPage />} />
-          <Route path="/enterprise/cards" element={<EnterpriseCardsPage />} />
-          <Route path="/enterprise/scans" element={<EnterpriseScansPage />} />
-          <Route path="/enterprise/rewards" element={<RewardsPage />} />
-          <Route path="/enterprise/levels" element={<LevelsPage />} />
-          <Route path="/enterprise/notifications" element={<NotificationsPage />} />
-          <Route path="/enterprise/settings" element={<EnterpriseSettingsPage />} />
+        <Route element={<ProtectedRoute allowedRoles={['OWNER', 'MANAGER', 'EMPLOYEE']} />}>
+          <Route element={<MainLayout type="enterprise" />}>
+            <Route path="/enterprise/dashboard" element={<EnterpriseDashboard />} />
+            <Route path="/enterprise/clients" element={<ClientsPage />} />
+            <Route path="/enterprise/clients/:id/add-points" element={<AddPointsPage />} />
+            <Route path="/enterprise/clients/:id/history" element={<PointsHistoryPage />} />
+            <Route path="/enterprise/cards" element={<EnterpriseCardsPage />} />
+            <Route path="/enterprise/scans" element={<EnterpriseScansPage />} />
+            <Route path="/enterprise/rewards" element={<RewardsPage />} />
+            <Route path="/enterprise/levels" element={<LevelsPage />} />
+            <Route path="/enterprise/notifications" element={<NotificationsPage />} />
+            <Route path="/enterprise/settings" element={<EnterpriseSettingsPage />} />
+          </Route>
         </Route>
 
         {/* Client Mobile Routes */}

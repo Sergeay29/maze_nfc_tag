@@ -1,5 +1,5 @@
-import User from "./users.js";
-import Role from "./roles.js";
+const User = require("./users");
+const Role = require("./roles");
 
 Role.hasMany(User, {
   foreignKey: "roleId",
@@ -9,4 +9,4 @@ User.belongsTo(Role, {
   foreignKey: "roleId",
 });
 
-export { User, Role };
+module.exports = { User, Role };

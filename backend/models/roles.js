@@ -1,7 +1,7 @@
 // models/Role.js
 
-import { DataTypes } from "sequelize";
-import sequelize from "../config/database.js";
+const DataTypes = require("sequelize");
+const sequelize = require("../config/database.js");
 
 const Role = sequelize.define(
   "Role",
@@ -29,4 +29,4 @@ const Role = sequelize.define(
   }
 );
 
-export default Role;
+module.exports = Role;

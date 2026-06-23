@@ -1,14 +1,25 @@
-const express = require('express');
-const app = express();
+require("dotenv").config();
+
+const app = require("./app");
+
+const syncDatabase = require("./config/sync");
+const seedRoles = require("./seeds/role.seed");
+const seedAdminUser = require("./seeds/admin.seed");
+
 const PORT = process.env.PORT || 3000;
 
-app.use(express.json());
+async function start() {
+  if (!process.env.JWT_SECRET) {
+    throw new Error("JWT_SECRET doit être défini dans le fichier .env");
+  }
 
-// Première route de test
-app.get('/', (req, res) => {
-  res.send('Serveur Node.js démarré avec succès !');
-});
+  await syncDatabase();
+  await seedRoles();
+  await seedAdminUser();
 
-app.listen(PORT, () => {
-  console.log(`Le serveur écoute sur http://localhost:${PORT}`);
-});
+  app.listen(PORT, () => {
+    console.log(`Maze NFC API sur le port ${PORT}`);
+  });
+}
+
+start();

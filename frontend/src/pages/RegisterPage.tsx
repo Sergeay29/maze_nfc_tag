@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Mail, Lock, ArrowRight } from 'lucide-react';
-import { Button, Input, Card } from '../components';
+import { Link, useNavigate } from 'react-router-dom';
+import { ArrowRight, Lock, Mail, User } from 'lucide-react';
+import { Button, Card, Input } from '../components';
 import { useAuth } from '../auth/useAuth';
 import type { AuthUser } from '../auth/types';
 
@@ -13,14 +13,16 @@ function getRedirectPath(user: AuthUser) {
   return '/enterprise/dashboard';
 }
 
-const LoginPage: React.FC = () => {
+const RegisterPage: React.FC = () => {
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
-  const location = useLocation();
-  const { user, login, loading } = useAuth();
+  const { user, register, loading } = useAuth();
 
   useEffect(() => {
     if (!loading && user) {
@@ -28,23 +30,32 @@ const LoginPage: React.FC = () => {
     }
   }, [loading, navigate, user]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setFormError('');
+
+    if (password !== confirmPassword) {
+      setFormError('Les mots de passe ne correspondent pas');
+      return;
+    }
+
     setSubmitting(true);
 
     try {
-      const loggedUser = await login({ email, password });
-      const state = location.state as { from?: { pathname?: string } } | null;
-      const redirectTo = state?.from?.pathname || getRedirectPath(loggedUser);
+      const createdUser = await register({
+        firstName,
+        lastName,
+        email,
+        password,
+      });
 
-      navigate(redirectTo, { replace: true });
+      navigate(getRedirectPath(createdUser), { replace: true });
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : 'Connexion impossible');
+      setFormError(error instanceof Error ? error.message : 'Création impossible');
     } finally {
       setSubmitting(false);
     }
-  };
+  }
 
   return (
     <div className="min-h-screen bg-cloud flex">
@@ -64,10 +75,10 @@ const LoginPage: React.FC = () => {
             </div>
           </div>
           <h2 className="text-3xl font-bold font-poppins text-white text-center mb-4">
-            Transform Physical Cards
+            Rejoignez Maze NFC
           </h2>
           <h3 className="text-2xl font-poppins text-white/90 text-center">
-            Into Digital Experiences
+            Créez votre espace entreprise
           </h3>
           <div className="mt-12 flex gap-4">
             <div className="w-3 h-3 rounded-full bg-white/40" />
@@ -89,20 +100,42 @@ const LoginPage: React.FC = () => {
               </div>
             </div>
             <h2 className="text-2xl font-bold font-poppins text-dark mb-2">
-              Bienvenue
+              Créer un utilisateur
             </h2>
             <p className="text-slate">
-              Connectez-vous pour accéder à votre espace
+              Renseignez les informations du nouvel espace
             </p>
           </div>
 
           <Card className="p-8">
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-5">
               {formError && (
                 <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
                   {formError}
                 </div>
               )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input
+                  label="Prénom"
+                  type="text"
+                  placeholder="Marie"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  icon={<User className="w-5 h-5" />}
+                  required
+                />
+                <Input
+                  label="Nom"
+                  type="text"
+                  placeholder="Dupont"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  icon={<User className="w-5 h-5" />}
+                  required
+                />
+              </div>
+
               <Input
                 label="Email"
                 type="email"
@@ -115,27 +148,24 @@ const LoginPage: React.FC = () => {
               <Input
                 label="Mot de passe"
                 type="password"
-                placeholder="Votre mot de passe"
+                placeholder="Minimum 8 caractères"
+                minLength={8}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 icon={<Lock className="w-5 h-5" />}
                 required
               />
-              <div className="flex items-center justify-between">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="w-4 h-4 rounded border-slate/20 text-primary focus:ring-primary/20"
-                  />
-                  <span className="text-sm text-slate">Se souvenir de moi</span>
-                </label>
-                <Link
-                  to="/forgot-password"
-                  className="text-sm text-primary hover:text-primary-light transition-colors duration-200"
-                >
-                  Mot de passe oublié ?
-                </Link>
-              </div>
+              <Input
+                label="Confirmer le mot de passe"
+                type="password"
+                placeholder="Répétez le mot de passe"
+                minLength={8}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                icon={<Lock className="w-5 h-5" />}
+                required
+              />
+
               <Button
                 type="submit"
                 fullWidth
@@ -143,18 +173,18 @@ const LoginPage: React.FC = () => {
                 iconPosition="right"
                 disabled={submitting}
               >
-                {submitting ? 'Connexion...' : 'Se connecter'}
+                {submitting ? 'Création...' : "Créer l'utilisateur"}
               </Button>
             </form>
           </Card>
 
           <p className="text-center text-sm text-slate mt-6">
-            Pas encore de compte ?{' '}
+            Déjà un compte ?{' '}
             <Link
-              to="/register"
+              to="/login"
               className="text-primary font-medium hover:text-primary-light transition-colors duration-200"
             >
-              Créer un compte
+              Se connecter
             </Link>
           </p>
         </div>
@@ -163,4 +193,4 @@ const LoginPage: React.FC = () => {
   );
 };
 
-export default LoginPage;
+export default RegisterPage;

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Bell,
   Search,
@@ -12,14 +13,22 @@ interface HeaderProps {
   userName: string;
   userRole: string;
   userAvatar?: string;
+  onLogout?: () => void;
 }
 
 const Header: React.FC<HeaderProps> = ({
   userName,
   userRole,
   userAvatar,
+  onLogout,
 }) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const navigate = useNavigate();
+
+  function handleLogout() {
+    onLogout?.();
+    navigate('/login', { replace: true });
+  }
 
   return (
     <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-lg border-b border-slate/10">
@@ -88,7 +97,10 @@ const Header: React.FC<HeaderProps> = ({
                     </button>
                   </div>
                   <div className="p-2 border-t border-slate/10">
-                    <button className="flex items-center gap-3 w-full px-3 py-2 text-sm text-red-500 hover:bg-red-50 rounded-lg transition-colors duration-200">
+                    <button
+                      onClick={handleLogout}
+                      className="flex items-center gap-3 w-full px-3 py-2 text-sm text-red-500 hover:bg-red-50 rounded-lg transition-colors duration-200"
+                    >
                       <LogOut className="w-4 h-4" />
                       Déconnexion
                     </button>
