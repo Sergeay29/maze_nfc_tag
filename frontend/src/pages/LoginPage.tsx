@@ -1,16 +1,49 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Mail, Lock, ArrowRight } from 'lucide-react';
 import { Button, Input, Card } from '../components';
+import { useAuth } from '../auth/useAuth';
+import type { AuthUser } from '../auth/types';
+
+function getRedirectPath(user: AuthUser) {
+  if (user.Role?.name === 'SUPER_ADMIN') {
+    return '/admin/dashboard';
+  }
+
+  return '/enterprise/dashboard';
+}
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [formError, setFormError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const { user, login, loading } = useAuth();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (!loading && user) {
+      navigate(getRedirectPath(user), { replace: true });
+    }
+  }, [loading, navigate, user]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    navigate('/admin/dashboard');
+    setFormError('');
+    setSubmitting(true);
+
+    try {
+      const loggedUser = await login({ email, password });
+      const state = location.state as { from?: { pathname?: string } } | null;
+      const redirectTo = state?.from?.pathname || getRedirectPath(loggedUser);
+
+      navigate(redirectTo, { replace: true });
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : 'Connexion impossible');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -65,6 +98,11 @@ const LoginPage: React.FC = () => {
 
           <Card className="p-8">
             <form onSubmit={handleSubmit} className="space-y-6">
+              {formError && (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                  {formError}
+                </div>
+              )}
               <Input
                 label="Email"
                 type="email"
@@ -72,6 +110,7 @@ const LoginPage: React.FC = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 icon={<Mail className="w-5 h-5" />}
+                required
               />
               <Input
                 label="Mot de passe"
@@ -80,6 +119,7 @@ const LoginPage: React.FC = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 icon={<Lock className="w-5 h-5" />}
+                required
               />
               <div className="flex items-center justify-between">
                 <label className="flex items-center gap-2 cursor-pointer">
@@ -96,8 +136,14 @@ const LoginPage: React.FC = () => {
                   Mot de passe oublié ?
                 </Link>
               </div>
-              <Button type="submit" fullWidth icon={<ArrowRight className="w-5 h-5" />} iconPosition="right">
-                Se connecter
+              <Button
+                type="submit"
+                fullWidth
+                icon={<ArrowRight className="w-5 h-5" />}
+                iconPosition="right"
+                disabled={submitting}
+              >
+                {submitting ? 'Connexion...' : 'Se connecter'}
               </Button>
             </form>
           </Card>
