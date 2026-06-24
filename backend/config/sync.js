@@ -7,7 +7,7 @@ async function syncDatabase() {
     console.log("PostgreSQL connecté");
 
     await sequelize.sync({
-      alter: true,
+      force: true,
     });
 
     console.log("Tables synchronisées");

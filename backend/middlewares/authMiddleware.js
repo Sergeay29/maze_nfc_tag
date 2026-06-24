@@ -41,6 +41,34 @@ async function authenticate(req, res, next) {
   }
 }
 
+/**
+ * Middleware de contrôle de rôle.
+ * Usage : requireRole("SUPER_ADMIN") ou requireRole("OWNER", "MANAGER")
+ * Doit être placé APRÈS authenticate.
+ */
+function requireRole(...allowedRoles) {
+  return (req, res, next) => {
+    const userRole = req.user?.Role?.name;
+
+    if (!userRole) {
+      return res.status(403).json({
+        success: false,
+        message: "Rôle utilisateur introuvable",
+      });
+    }
+
+    if (!allowedRoles.includes(userRole)) {
+      return res.status(403).json({
+        success: false,
+        message: "Accès refusé : permissions insuffisantes",
+      });
+    }
+
+    next();
+  };
+}
+
 module.exports = {
   authenticate,
+  requireRole,
 };

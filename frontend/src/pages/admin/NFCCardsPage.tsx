@@ -1,34 +1,52 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Filter } from 'lucide-react';
 import { Button, Badge, Table, SearchInput, Card, Pagination } from '../../components';
-import { nfcCards } from '../../data/mockData';
 import { useNavigate } from 'react-router-dom';
+import { getCards } from '../../api/adminApi';
+import type { NFCCard } from '../../data/mockData';
 
 const NFCCardsPage: React.FC = () => {
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [currentPage, setCurrentPage] = useState(1);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive' | 'unassigned'>('all');
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [cards, setCards] = useState<NFCCard[]>([]);
+  const [total, setTotal] = useState(0);
+  const limit = 10;
   const navigate = useNavigate();
 
-  const filteredCards = nfcCards.filter((card) => {
-    const matchesSearch = card.number.toLowerCase().includes(search.toLowerCase()) ||
-      card.enterpriseName.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || card.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  useEffect(() => {
+    const fetchCards = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const result = await getCards({
+          page,
+          limit,
+          search,
+          status: statusFilter,
+        });
+        setCards(result.data);
+        setTotal(result.total);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Erreur de chargement');
+        console.error('Error fetching cards:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const cardsPerPage = 10;
-  const totalPages = Math.ceil(filteredCards.length / cardsPerPage);
-  const paginatedCards = filteredCards.slice(
-    (currentPage - 1) * cardsPerPage,
-    currentPage * cardsPerPage
-  );
+    fetchCards();
+  }, [page, search, statusFilter]);
+
+  const totalPages = Math.ceil(total / limit);
 
   const columns = [
     {
       key: 'number',
       header: 'Carte',
-      render: (card: typeof nfcCards[0]) => (
+      render: (card: NFCCard) => (
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient flex items-center justify-center">
             <span className="text-white text-xs font-bold">NFC</span>
@@ -45,29 +63,35 @@ const NFCCardsPage: React.FC = () => {
     {
       key: 'type',
       header: 'Type',
-      render: (card: typeof nfcCards[0]) => (
+      render: (card: NFCCard) => (
         <Badge variant="primary">{card.type}</Badge>
       ),
     },
     {
       key: 'status',
       header: 'Statut',
-      render: (card: typeof nfcCards[0]) => (
+      render: (card: NFCCard) => (
         <Badge
           variant={
-            card.status === 'active' ? 'active' :
-            card.status === 'inactive' ? 'inactive' : 'warning'
+            card.status === 'active'
+              ? 'active'
+              : card.status === 'inactive'
+                ? 'inactive'
+                : 'warning'
           }
         >
-          {card.status === 'active' ? 'Active' :
-           card.status === 'inactive' ? 'Inactive' : 'Non attribuée'}
+          {card.status === 'active'
+            ? 'Active'
+            : card.status === 'inactive'
+              ? 'Inactive'
+              : 'Non attribuée'}
         </Badge>
       ),
     },
     {
       key: 'assignedTo',
       header: 'Attribuée à',
-      render: (card: typeof nfcCards[0]) => (
+      render: (card: NFCCard) => (
         <span className="text-slate">{card.assignedTo || '-'}</span>
       ),
       className: 'hidden sm:table-cell',
@@ -75,7 +99,7 @@ const NFCCardsPage: React.FC = () => {
     {
       key: 'createdAt',
       header: 'Créée le',
-      render: (card: typeof nfcCards[0]) => (
+      render: (card: NFCCard) => (
         <span className="text-slate">
           {new Date(card.createdAt).toLocaleDateString('fr-FR')}
         </span>
@@ -99,6 +123,10 @@ const NFCCardsPage: React.FC = () => {
         </Button>
       </div>
 
+      {error && (
+        <div className="p-4 bg-red-100 text-red-700 rounded-lg">{error}</div>
+      )}
+
       <Card padding="none">
         <div className="p-4 border-b border-slate/10">
           <div className="flex flex-col sm:flex-row gap-4">
@@ -113,7 +141,11 @@ const NFCCardsPage: React.FC = () => {
               <Filter className="w-5 h-5 text-slate" />
               <select
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
+                onChange={(e) =>
+                  setStatusFilter(
+                    e.target.value as 'all' | 'active' | 'inactive' | 'unassigned'
+                  )
+                }
                 className="px-4 py-3 bg-cloud border border-slate/20 rounded-xl text-dark focus:outline-none focus:border-primary transition-colors duration-200"
               >
                 <option value="all">Tous les statuts</option>
@@ -124,14 +156,22 @@ const NFCCardsPage: React.FC = () => {
             </div>
           </div>
         </div>
-        <Table data={paginatedCards} columns={columns} />
-        <div className="p-4 border-t border-slate/10">
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
-          />
-        </div>
+        {loading ? (
+          <div className="p-8 text-center text-slate">Chargement...</div>
+        ) : cards.length === 0 ? (
+          <div className="p-8 text-center text-slate">Aucune carte trouvée</div>
+        ) : (
+          <>
+            <Table data={cards} columns={columns} />
+            <div className="p-4 border-t border-slate/10">
+              <Pagination
+                currentPage={page}
+                totalPages={totalPages}
+                onPageChange={setPage}
+              />
+            </div>
+          </>
+        )}
       </Card>
     </div>
   );

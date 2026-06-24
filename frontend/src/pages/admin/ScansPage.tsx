@@ -1,25 +1,46 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Filter, Clock } from 'lucide-react';
 import { Badge, Table, SearchInput, Card } from '../../components';
-import { scans } from '../../data/mockData';
+import { getScans } from '../../api/adminApi';
+import type { Scan } from '../../data/mockData';
 
 const ScansPage: React.FC = () => {
   const [search, setSearch] = useState('');
-  const [actionFilter, setActionFilter] = useState('all');
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [scans, setScans] = useState<Scan[]>([]);
+  const [total, setTotal] = useState(0);
+  const limit = 15;
 
-  const filteredScans = scans.filter((scan) => {
-    const matchesSearch = scan.clientName.toLowerCase().includes(search.toLowerCase()) ||
-      scan.cardNumber.toLowerCase().includes(search.toLowerCase()) ||
-      scan.enterpriseName.toLowerCase().includes(search.toLowerCase());
-    const matchesAction = actionFilter === 'all' || scan.action.includes(actionFilter);
-    return matchesSearch && matchesAction;
-  });
+  useEffect(() => {
+    const fetchScans = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const result = await getScans({
+          page,
+          limit,
+          search,
+        });
+        setScans(result.data);
+        setTotal(result.total);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Erreur de chargement');
+        console.error('Error fetching scans:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchScans();
+  }, [page, search]);
 
   const columns = [
     {
-      key: 'client',
+      key: 'clientName',
       header: 'Client',
-      render: (scan: typeof scans[0]) => (
+      render: (scan: Scan) => (
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-gradient flex items-center justify-center">
             <span className="text-white font-medium text-sm">
@@ -33,7 +54,7 @@ const ScansPage: React.FC = () => {
     {
       key: 'cardNumber',
       header: 'Carte',
-      render: (scan: typeof scans[0]) => (
+      render: (scan: Scan) => (
         <span className="font-mono text-primary">{scan.cardNumber}</span>
       ),
       className: 'hidden md:table-cell',
@@ -46,21 +67,17 @@ const ScansPage: React.FC = () => {
     {
       key: 'action',
       header: 'Action',
-      render: (scan: typeof scans[0]) => {
+      render: (scan: Scan) => {
         let variant: 'success' | 'error' | 'primary' = 'primary';
         if (scan.points > 0) variant = 'success';
         if (scan.points < 0) variant = 'error';
-        return (
-          <Badge variant={variant}>
-            {scan.action}
-          </Badge>
-        );
+        return <Badge variant={variant}>{scan.action}</Badge>;
       },
     },
     {
       key: 'timestamp',
       header: 'Heure',
-      render: (scan: typeof scans[0]) => (
+      render: (scan: Scan) => (
         <div className="flex items-center gap-2 text-slate">
           <Clock className="w-4 h-4" />
           <span>
@@ -82,6 +99,10 @@ const ScansPage: React.FC = () => {
         <p className="text-slate mt-1">Suivi des scans en temps réel</p>
       </div>
 
+      {error && (
+        <div className="p-4 bg-red-100 text-red-700 rounded-lg">{error}</div>
+      )}
+
       <Card padding="none">
         <div className="p-4 border-b border-slate/10">
           <div className="flex flex-col sm:flex-row gap-4">
@@ -92,23 +113,38 @@ const ScansPage: React.FC = () => {
                 onChange={setSearch}
               />
             </div>
-            <div className="flex items-center gap-2">
-              <Filter className="w-5 h-5 text-slate" />
-              <select
-                value={actionFilter}
-                onChange={(e) => setActionFilter(e.target.value)}
-                className="px-4 py-3 bg-cloud border border-slate/20 rounded-xl text-dark focus:outline-none focus:border-primary transition-colors duration-200"
-              >
-                <option value="all">Toutes les actions</option>
-                <option value="Consultation">Consultation</option>
-                <option value="+50 points">+50 points</option>
-                <option value="+100 points">+100 points</option>
-                <option value="Retrait">Retrait points</option>
-              </select>
-            </div>
           </div>
         </div>
-        <Table data={filteredScans} columns={columns} />
+        {loading ? (
+          <div className="p-8 text-center text-slate">Chargement...</div>
+        ) : scans.length === 0 ? (
+          <div className="p-8 text-center text-slate">Aucun scan trouvé</div>
+        ) : (
+          <>
+            <Table data={scans} columns={columns} />
+            <div className="p-4 border-t border-slate/10 flex items-center justify-between">
+              <p className="text-sm text-slate">
+                Affichage 1 à {scans.length} sur {total}
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setPage(Math.max(1, page - 1))}
+                  disabled={page === 1}
+                  className="px-3 py-2 bg-cloud text-dark rounded-lg disabled:opacity-50 hover:bg-slate/10 transition-colors"
+                >
+                  Précédent
+                </button>
+                <button
+                  onClick={() => setPage(page + 1)}
+                  disabled={page * limit >= total}
+                  className="px-3 py-2 bg-cloud text-dark rounded-lg disabled:opacity-50 hover:bg-slate/10 transition-colors"
+                >
+                  Suivant
+                </button>
+              </div>
+            </div>
+          </>
+        )}
       </Card>
     </div>
   );
