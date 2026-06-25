@@ -15,13 +15,11 @@ const Enterprise = sequelize.define(
     name: {
       type: DataTypes.STRING(255),
       allowNull: false,
-      unique: true,
     },
 
     email: {
       type: DataTypes.STRING(255),
       allowNull: false,
-      unique: true,
       validate: {
         isEmail: true,
       },
@@ -89,6 +87,10 @@ const Enterprise = sequelize.define(
   {
     tableName: "enterprises",
     timestamps: true,
+    indexes: [
+      { unique: true, fields: ["name"] },
+      { unique: true, fields: ["email"] },
+    ],
   }
 );
 

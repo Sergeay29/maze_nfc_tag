@@ -329,3 +329,23 @@ export async function updateSettings(
     body: JSON.stringify({ settings }),
   });
 }
+
+// ─── Upload ───────────────────────────────────────────────────
+
+export async function uploadLogo(file: File): Promise<string> {
+  const token = localStorage.getItem('maze_nfc_auth_token');
+  if (!token) throw new Error('Not authenticated');
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await fetch(`${API_BASE_URL}/upload/logo`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData,
+  });
+
+  const payload = await response.json();
+  if (!payload.success) throw new Error(payload.message || 'Erreur upload');
+  return payload.data.url as string;
+}

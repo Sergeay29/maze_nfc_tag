@@ -45,10 +45,11 @@ const enterpriseItems: SidebarItem[] = [
 
 interface SidebarProps {
   type: 'admin' | 'enterprise';
+  collapsed: boolean;
+  setCollapsed: (collapsed: boolean) => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ type }) => {
-  const [collapsed, setCollapsed] = useState(false);
+const Sidebar: React.FC<SidebarProps> = ({ type, collapsed, setCollapsed }) => {
   const items = type === 'admin' ? adminItems : enterpriseItems;
 
   return (

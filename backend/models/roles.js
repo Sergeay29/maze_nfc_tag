@@ -15,7 +15,6 @@ const Role = sequelize.define(
     name: {
       type: DataTypes.STRING(50),
       allowNull: false,
-      unique: true,
     },
 
     description: {
@@ -26,6 +25,7 @@ const Role = sequelize.define(
   {
     tableName: "roles",
     timestamps: true,
+    indexes: [{ unique: true, fields: ["name"] }],
   }
 );
 

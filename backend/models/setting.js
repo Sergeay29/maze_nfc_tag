@@ -16,7 +16,6 @@ const Setting = sequelize.define(
     key: {
       type: DataTypes.STRING(100),
       allowNull: false,
-      unique: true,
       comment: "Clé du paramètre (ex: platform_name, support_email)",
     },
 
@@ -41,6 +40,7 @@ const Setting = sequelize.define(
   {
     tableName: "settings",
     timestamps: true,
+    indexes: [{ unique: true, fields: ["key"] }],
   }
 );
 

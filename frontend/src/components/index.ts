@@ -11,3 +11,6 @@ export { default as Select } from './Select';
 export { default as Pagination } from './Pagination';
 export { default as ProgressBar } from './ProgressBar';
 export { default as Modal } from './Modal';
+export { default as PhoneInput } from './PhoneInput';
+export { default as LogoUpload } from './LogoUpload';
+export { default as Avatar } from './Avatar';

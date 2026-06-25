@@ -1,40 +1,50 @@
-import React, { useState, useEffect } from 'react';
-import { Filter, Clock } from 'lucide-react';
-import { Badge, Table, SearchInput, Card } from '../../components';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Clock } from 'lucide-react';
+import { Badge, Table, SearchInput, Card, Avatar } from '../../components';
 import { getScans } from '../../api/adminApi';
 import type { Scan } from '../../data/mockData';
 
+const PAGE_SIZE = 15;
+
 const ScansPage: React.FC = () => {
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
+  const [allScans, setAllScans] = useState<Scan[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [scans, setScans] = useState<Scan[]>([]);
-  const [total, setTotal] = useState(0);
-  const limit = 15;
+
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     const fetchScans = async () => {
       try {
         setLoading(true);
         setError(null);
-        const result = await getScans({
-          page,
-          limit,
-          search,
-        });
-        setScans(result.data);
-        setTotal(result.total);
+        const result = await getScans({ page: 1, limit: 1000 });
+        setAllScans(result.data);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Erreur de chargement');
-        console.error('Error fetching scans:', err);
       } finally {
         setLoading(false);
       }
     };
-
     fetchScans();
-  }, [page, search]);
+  }, []);
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return allScans;
+    const q = search.trim().toLowerCase();
+    return allScans.filter(
+      (s) =>
+        (s.clientName ?? '').toLowerCase().includes(q) ||
+        (s.cardNumber ?? '').toLowerCase().includes(q) ||
+        (s.enterpriseName ?? '').toLowerCase().includes(q)
+    );
+  }, [allScans, search]);
+
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  const handleSearch = (val: string) => { setSearch(val); setPage(1); };
 
   const columns = [
     {
@@ -42,12 +52,12 @@ const ScansPage: React.FC = () => {
       header: 'Client',
       render: (scan: Scan) => (
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-gradient flex items-center justify-center">
-            <span className="text-white font-medium text-sm">
-              {scan.clientName.charAt(0)}
-            </span>
-          </div>
-          <span className="font-medium">{scan.clientName}</span>
+          <Avatar
+            name={scan.clientName ?? '?'}
+            size="md"
+            shape="circle"
+          />
+          <span className="font-medium text-dark">{scan.clientName}</span>
         </div>
       ),
     },
@@ -55,23 +65,24 @@ const ScansPage: React.FC = () => {
       key: 'cardNumber',
       header: 'Carte',
       render: (scan: Scan) => (
-        <span className="font-mono text-primary">{scan.cardNumber}</span>
+        <span className="font-mono text-primary text-sm">{scan.cardNumber ?? '—'}</span>
       ),
       className: 'hidden md:table-cell',
     },
     {
       key: 'enterpriseName',
       header: 'Entreprise',
+      render: (scan: Scan) => (
+        <span className="text-dark">{scan.enterpriseName ?? '—'}</span>
+      ),
       className: 'hidden sm:table-cell',
     },
     {
       key: 'action',
       header: 'Action',
       render: (scan: Scan) => {
-        let variant: 'success' | 'error' | 'primary' = 'primary';
-        if (scan.points > 0) variant = 'success';
-        if (scan.points < 0) variant = 'error';
-        return <Badge variant={variant}>{scan.action}</Badge>;
+        const variant = scan.points > 0 ? 'active' : scan.points < 0 ? 'inactive' : 'primary';
+        return <Badge variant={variant as 'active' | 'inactive' | 'primary'}>{scan.action}</Badge>;
       },
     },
     {
@@ -80,8 +91,10 @@ const ScansPage: React.FC = () => {
       render: (scan: Scan) => (
         <div className="flex items-center gap-2 text-slate">
           <Clock className="w-4 h-4" />
-          <span>
-            {new Date(scan.timestamp).toLocaleTimeString('fr-FR', {
+          <span className="text-sm">
+            {new Date(scan.timestamp).toLocaleString('fr-FR', {
+              day: '2-digit',
+              month: '2-digit',
               hour: '2-digit',
               minute: '2-digit',
             })}
@@ -96,52 +109,55 @@ const ScansPage: React.FC = () => {
     <div className="space-y-6 animate-fade-in">
       <div>
         <h1 className="text-2xl font-bold font-poppins text-dark">Scans</h1>
-        <p className="text-slate mt-1">Suivi des scans en temps réel</p>
+        <p className="text-slate mt-1">
+          {loading ? 'Chargement...' : `${allScans.length} scan${allScans.length > 1 ? 's' : ''} au total`}
+        </p>
       </div>
 
-      {error && (
-        <div className="p-4 bg-red-100 text-red-700 rounded-lg">{error}</div>
-      )}
+      {error && <div className="p-4 bg-red-100 text-red-700 rounded-lg">{error}</div>}
 
       <Card padding="none">
         <div className="p-4 border-b border-slate/10">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <SearchInput
-                placeholder="Rechercher un client, carte ou entreprise..."
-                value={search}
-                onChange={setSearch}
-              />
-            </div>
-          </div>
+          <SearchInput
+            placeholder="Rechercher par client, carte ou entreprise..."
+            value={search}
+            onChange={handleSearch}
+          />
         </div>
+
         {loading ? (
-          <div className="p-8 text-center text-slate">Chargement...</div>
-        ) : scans.length === 0 ? (
-          <div className="p-8 text-center text-slate">Aucun scan trouvé</div>
+          <div className="p-8 text-center text-slate animate-pulse">Chargement...</div>
+        ) : paginated.length === 0 ? (
+          <div className="p-8 text-center text-slate">
+            {search ? 'Aucun résultat pour cette recherche' : 'Aucun scan'}
+          </div>
         ) : (
           <>
-            <Table data={scans} columns={columns} />
+            <Table data={paginated} columns={columns} />
             <div className="p-4 border-t border-slate/10 flex items-center justify-between">
               <p className="text-sm text-slate">
-                Affichage 1 à {scans.length} sur {total}
+                {filtered.length} résultat{filtered.length > 1 ? 's' : ''}
+                {search && ` · ${allScans.length} au total`}
               </p>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setPage(Math.max(1, page - 1))}
-                  disabled={page === 1}
-                  className="px-3 py-2 bg-cloud text-dark rounded-lg disabled:opacity-50 hover:bg-slate/10 transition-colors"
-                >
-                  Précédent
-                </button>
-                <button
-                  onClick={() => setPage(page + 1)}
-                  disabled={page * limit >= total}
-                  className="px-3 py-2 bg-cloud text-dark rounded-lg disabled:opacity-50 hover:bg-slate/10 transition-colors"
-                >
-                  Suivant
-                </button>
-              </div>
+              {totalPages > 1 && (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setPage(Math.max(1, page - 1))}
+                    disabled={page === 1}
+                    className="px-3 py-2 bg-cloud text-dark rounded-lg disabled:opacity-50 hover:bg-slate/10 transition-colors"
+                  >
+                    Précédent
+                  </button>
+                  <span className="px-3 py-2 text-sm text-slate">{page} / {totalPages}</span>
+                  <button
+                    onClick={() => setPage(Math.min(totalPages, page + 1))}
+                    disabled={page >= totalPages}
+                    className="px-3 py-2 bg-cloud text-dark rounded-lg disabled:opacity-50 hover:bg-slate/10 transition-colors"
+                  >
+                    Suivant
+                  </button>
+                </div>
+              )}
             </div>
           </>
         )}

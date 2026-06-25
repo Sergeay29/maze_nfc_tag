@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, User, CreditCard, Phone, Mail, Award, CheckCircle } from 'lucide-react';
+import { ArrowLeft, User, CreditCard, Mail, Award, CheckCircle } from 'lucide-react';
 import { Button, Input, Select, Card } from '../../components';
+import PhoneInput from '../../components/PhoneInput';
 import { useNavigate } from 'react-router-dom';
 import { getUnassignedCards, getEnterprises, assignCard } from '../../api/adminApi';
 import type { UnassignedCard } from '../../api/adminApi';
@@ -185,12 +186,10 @@ const CardAttributionPage: React.FC = () => {
               placeholder="jean@email.com"
               icon={<Mail className="w-5 h-5" />}
             />
-            <Input
+            <PhoneInput
               label="Téléphone"
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="+33 6 12 34 56 78"
-              icon={<Phone className="w-5 h-5" />}
+              onChange={setPhone}
             />
             <Select
               label="Niveau client"

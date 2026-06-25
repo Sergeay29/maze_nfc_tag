@@ -15,13 +15,11 @@ const NFCCard = sequelize.define(
     cardNumber: {
       type: DataTypes.STRING(100),
       allowNull: false,
-      unique: true,
     },
 
     cardCode: {
       type: DataTypes.STRING(20),
       allowNull: false,
-      unique: true,
       comment: "Unique short code for URL (e.g., ABC123)",
     },
 
@@ -66,6 +64,10 @@ const NFCCard = sequelize.define(
   {
     tableName: "nfc_cards",
     timestamps: true,
+    indexes: [
+      { unique: true, fields: ["cardNumber"] },
+      { unique: true, fields: ["cardCode"] },
+    ],
   }
 );
 

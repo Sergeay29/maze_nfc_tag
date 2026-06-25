@@ -15,7 +15,6 @@ const Subscription = sequelize.define(
     enterpriseId: {
       type: DataTypes.UUID,
       allowNull: false,
-      unique: true,
       references: {
         model: "enterprises",
         key: "id",
@@ -61,6 +60,7 @@ const Subscription = sequelize.define(
   {
     tableName: "subscriptions",
     timestamps: true,
+    indexes: [{ unique: true, fields: ["enterpriseId"] }],
   }
 );
 

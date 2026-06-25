@@ -1,19 +1,21 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Filter } from 'lucide-react';
-import { Button, Badge, Table, SearchInput, Card, Pagination } from '../../components';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Plus, Filter, CreditCard } from 'lucide-react';
+import { Button, Badge, Table, SearchInput, Card } from '../../components';
 import { useNavigate } from 'react-router-dom';
 import { getCards } from '../../api/adminApi';
 import type { NFCCard } from '../../data/mockData';
 
+const PAGE_SIZE = 10;
+
 const NFCCardsPage: React.FC = () => {
+  const [allCards, setAllCards] = useState<NFCCard[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive' | 'unassigned'>('all');
   const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [cards, setCards] = useState<NFCCard[]>([]);
-  const [total, setTotal] = useState(0);
-  const limit = 10;
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -21,70 +23,77 @@ const NFCCardsPage: React.FC = () => {
       try {
         setLoading(true);
         setError(null);
-        const result = await getCards({
-          page,
-          limit,
-          search,
-          status: statusFilter,
-        });
-        setCards(result.data);
-        setTotal(result.total);
+        const result = await getCards({ page: 1, limit: 1000 });
+        setAllCards(result.data);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Erreur de chargement');
-        console.error('Error fetching cards:', err);
       } finally {
         setLoading(false);
       }
     };
-
     fetchCards();
-  }, [page, search, statusFilter]);
+  }, []);
 
-  const totalPages = Math.ceil(total / limit);
+  const filtered = useMemo(() => {
+    let list = allCards;
+    if (statusFilter !== 'all') {
+      list = list.filter((c) => c.status === statusFilter);
+    }
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      list = list.filter(
+        (c) =>
+          (c.cardNumber ?? c.number ?? '').toLowerCase().includes(q) ||
+          (c.enterpriseName ?? c.Enterprise?.name ?? '').toLowerCase().includes(q) ||
+          (c.type ?? '').toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [allCards, search, statusFilter]);
+
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  const handleSearch = (val: string) => { setSearch(val); setPage(1); };
+  const handleStatusFilter = (val: string) => {
+    setStatusFilter(val as typeof statusFilter);
+    setPage(1);
+  };
 
   const columns = [
     {
-      key: 'number',
+      key: 'cardNumber',
       header: 'Carte',
       render: (card: NFCCard) => (
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient flex items-center justify-center">
-            <span className="text-white text-xs font-bold">NFC</span>
+          <div className="w-10 h-10 rounded-xl bg-gradient flex items-center justify-center flex-shrink-0">
+            <CreditCard className="w-5 h-5 text-white" />
           </div>
-          <span className="font-mono font-medium">{card.number}</span>
+          <span className="font-mono text-sm font-medium text-dark">
+            {card.cardNumber ?? card.number}
+          </span>
         </div>
       ),
     },
     {
       key: 'enterpriseName',
       header: 'Entreprise',
+      render: (card: NFCCard) => (
+        <span className="text-dark">{card.enterpriseName ?? card.Enterprise?.name ?? '—'}</span>
+      ),
       className: 'hidden md:table-cell',
     },
     {
       key: 'type',
       header: 'Type',
-      render: (card: NFCCard) => (
-        <Badge variant="primary">{card.type}</Badge>
-      ),
+      render: (card: NFCCard) => <Badge variant="primary">{card.type}</Badge>,
     },
     {
       key: 'status',
       header: 'Statut',
       render: (card: NFCCard) => (
-        <Badge
-          variant={
-            card.status === 'active'
-              ? 'active'
-              : card.status === 'inactive'
-                ? 'inactive'
-                : 'warning'
-          }
-        >
-          {card.status === 'active'
-            ? 'Active'
-            : card.status === 'inactive'
-              ? 'Inactive'
-              : 'Non attribuée'}
+        <Badge variant={card.status === 'active' ? 'active' : card.status === 'inactive' ? 'inactive' : 'warning'}>
+          {card.status === 'active' ? 'Active' : card.status === 'inactive' ? 'Inactive' : 'Non attribuée'}
         </Badge>
       ),
     },
@@ -92,7 +101,7 @@ const NFCCardsPage: React.FC = () => {
       key: 'assignedTo',
       header: 'Attribuée à',
       render: (card: NFCCard) => (
-        <span className="text-slate">{card.assignedTo || '-'}</span>
+        <span className="text-slate">{card.assignedTo ?? card.assignedClient?.name ?? '—'}</span>
       ),
       className: 'hidden sm:table-cell',
     },
@@ -100,7 +109,7 @@ const NFCCardsPage: React.FC = () => {
       key: 'createdAt',
       header: 'Créée le',
       render: (card: NFCCard) => (
-        <span className="text-slate">
+        <span className="text-slate text-sm">
           {new Date(card.createdAt).toLocaleDateString('fr-FR')}
         </span>
       ),
@@ -113,39 +122,32 @@ const NFCCardsPage: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold font-poppins text-dark">Cartes NFC</h1>
-          <p className="text-slate mt-1">Liste de toutes les cartes générées</p>
+          <p className="text-slate mt-1">
+            {loading ? 'Chargement...' : `${allCards.length} carte${allCards.length > 1 ? 's' : ''} au total`}
+          </p>
         </div>
-        <Button
-          icon={<Plus className="w-5 h-5" />}
-          onClick={() => navigate('/admin/nfc-cards/generate')}
-        >
+        <Button icon={<Plus className="w-5 h-5" />} onClick={() => navigate('/admin/nfc-cards/generate')}>
           Générer des cartes
         </Button>
       </div>
 
-      {error && (
-        <div className="p-4 bg-red-100 text-red-700 rounded-lg">{error}</div>
-      )}
+      {error && <div className="p-4 bg-red-100 text-red-700 rounded-lg">{error}</div>}
 
       <Card padding="none">
         <div className="p-4 border-b border-slate/10">
-          <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex flex-col sm:flex-row gap-3">
             <div className="flex-1">
               <SearchInput
-                placeholder="Rechercher par numéro ou entreprise..."
+                placeholder="Rechercher par numéro, entreprise, type..."
                 value={search}
-                onChange={setSearch}
+                onChange={handleSearch}
               />
             </div>
             <div className="flex items-center gap-2">
-              <Filter className="w-5 h-5 text-slate" />
+              <Filter className="w-5 h-5 text-slate flex-shrink-0" />
               <select
                 value={statusFilter}
-                onChange={(e) =>
-                  setStatusFilter(
-                    e.target.value as 'all' | 'active' | 'inactive' | 'unassigned'
-                  )
-                }
+                onChange={(e) => handleStatusFilter(e.target.value)}
                 className="px-4 py-3 bg-cloud border border-slate/20 rounded-xl text-dark focus:outline-none focus:border-primary transition-colors duration-200"
               >
                 <option value="all">Tous les statuts</option>
@@ -156,19 +158,40 @@ const NFCCardsPage: React.FC = () => {
             </div>
           </div>
         </div>
+
         {loading ? (
-          <div className="p-8 text-center text-slate">Chargement...</div>
-        ) : cards.length === 0 ? (
-          <div className="p-8 text-center text-slate">Aucune carte trouvée</div>
+          <div className="p-8 text-center text-slate animate-pulse">Chargement...</div>
+        ) : paginated.length === 0 ? (
+          <div className="p-8 text-center text-slate">
+            {search || statusFilter !== 'all' ? 'Aucun résultat pour ces filtres' : 'Aucune carte'}
+          </div>
         ) : (
           <>
-            <Table data={cards} columns={columns} />
-            <div className="p-4 border-t border-slate/10">
-              <Pagination
-                currentPage={page}
-                totalPages={totalPages}
-                onPageChange={setPage}
-              />
+            <Table data={paginated} columns={columns} />
+            <div className="p-4 border-t border-slate/10 flex items-center justify-between">
+              <p className="text-sm text-slate">
+                {filtered.length} résultat{filtered.length > 1 ? 's' : ''}
+                {(search || statusFilter !== 'all') && ` · ${allCards.length} au total`}
+              </p>
+              {totalPages > 1 && (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setPage(Math.max(1, page - 1))}
+                    disabled={page === 1}
+                    className="px-3 py-2 bg-cloud text-dark rounded-lg disabled:opacity-50 hover:bg-slate/10 transition-colors"
+                  >
+                    Précédent
+                  </button>
+                  <span className="px-3 py-2 text-sm text-slate">{page} / {totalPages}</span>
+                  <button
+                    onClick={() => setPage(Math.min(totalPages, page + 1))}
+                    disabled={page >= totalPages}
+                    className="px-3 py-2 bg-cloud text-dark rounded-lg disabled:opacity-50 hover:bg-slate/10 transition-colors"
+                  >
+                    Suivant
+                  </button>
+                </div>
+              )}
             </div>
           </>
         )}

@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Plus, Filter } from 'lucide-react';
-import { Button, Badge, Table, SearchInput, Card, Modal, Input, Select } from '../../components';
+import { Button, Badge, Table, SearchInput, Card, Modal, Input, Select, PhoneInput, Avatar, LogoUpload } from '../../components';
 import { useNavigate } from 'react-router-dom';
 import { getEnterprises, createEnterprise } from '../../api/adminApi';
+import { isValidPhoneNumber } from 'react-phone-number-input';
 import type { Enterprise } from '../../data/mockData';
 
 const SUBSCRIPTION_OPTIONS = [
@@ -19,6 +20,7 @@ interface CreateEnterpriseForm {
   adminFirstName: string;
   adminLastName: string;
   subscription: string;
+  logo: string;
 }
 
 const EMPTY_FORM: CreateEnterpriseForm = {
@@ -29,32 +31,58 @@ const EMPTY_FORM: CreateEnterpriseForm = {
   adminFirstName: '',
   adminLastName: '',
   subscription: 'Starter',
+  logo: '',
 };
 
+// Validation email simple
+const isValidEmail = (email: string) =>
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+
+const PAGE_SIZE = 10;
+
 const EnterprisesPage: React.FC = () => {
-  const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState<'all' | 'active' | 'suspended'>('all');
-  const [page, setPage] = useState(1);
+  const [allEnterprises, setAllEnterprises] = useState<Enterprise[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [enterprises, setEnterprises] = useState<Enterprise[]>([]);
-  const [total, setTotal] = useState(0);
-  const limit = 10;
+
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'suspended'>('all');
+  const [page, setPage] = useState(1);
+
   const navigate = useNavigate();
 
-  // Modale création
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [form, setForm] = useState<CreateEnterpriseForm>(EMPTY_FORM);
+  const [touched, setTouched] = useState<Partial<Record<keyof CreateEnterpriseForm, boolean>>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+
+  // ── Validation par champ ──────────────────────────────────
+  const fieldErrors = useMemo(() => {
+    const errors: Partial<Record<keyof CreateEnterpriseForm, string>> = {};
+    if (!form.name.trim()) errors.name = 'Le nom est obligatoire';
+    if (!form.email.trim()) {
+      errors.email = "L'email est obligatoire";
+    } else if (!isValidEmail(form.email)) {
+      errors.email = 'Email invalide';
+    }
+    if (form.phone && !isValidPhoneNumber(form.phone)) {
+      errors.phone = 'Numéro invalide';
+    }
+    if (form.logo && !/^https?:\/\/.+/.test(form.logo.trim())) {
+      errors.logo = 'Doit être une URL valide (http/https)';
+    }
+    return errors;
+  }, [form]);
+
+  const isFormValid = Object.keys(fieldErrors).length === 0;
 
   const fetchEnterprises = async () => {
     try {
       setLoading(true);
       setError(null);
-      const result = await getEnterprises({ page, limit, search, status: filter });
-      setEnterprises(result.data);
-      setTotal(result.total);
+      const result = await getEnterprises({ page: 1, limit: 500 });
+      setAllEnterprises(result.data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur de chargement');
     } finally {
@@ -62,29 +90,56 @@ const EnterprisesPage: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    fetchEnterprises();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, limit, search, filter]);
+  useEffect(() => { fetchEnterprises(); }, []);
+
+  const filtered = useMemo(() => {
+    let list = allEnterprises;
+    if (statusFilter !== 'all') list = list.filter((e) => e.status === statusFilter);
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      list = list.filter(
+        (e) =>
+          e.name.toLowerCase().includes(q) ||
+          e.email.toLowerCase().includes(q) ||
+          (e.location ?? '').toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [allEnterprises, search, statusFilter]);
+
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  const handleSearch = (val: string) => { setSearch(val); setPage(1); };
+  const handleStatusFilter = (val: string) => { setStatusFilter(val as typeof statusFilter); setPage(1); };
 
   const handleOpenCreate = () => {
     setForm(EMPTY_FORM);
+    setTouched({});
     setFormError(null);
     setShowCreateModal(true);
   };
 
+  const handleFieldChange = (field: keyof CreateEnterpriseForm, value: string) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    setTouched((prev) => ({ ...prev, [field]: true }));
+  };
+
+  const handleBlur = (field: keyof CreateEnterpriseForm) => {
+    setTouched((prev) => ({ ...prev, [field]: true }));
+  };
+
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name.trim() || !form.email.trim()) {
-      setFormError('Le nom et l\'email sont obligatoires.');
-      return;
-    }
+    // Marquer tous les champs comme touchés pour afficher les erreurs
+    setTouched({ name: true, email: true, phone: true, logo: true });
+    if (!isFormValid) return;
+
     try {
       setCreating(true);
       setFormError(null);
-      await createEnterprise(form);
+      await createEnterprise({ ...form, logo: form.logo.trim() || undefined });
       setShowCreateModal(false);
-      setPage(1);
       await fetchEnterprises();
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Erreur lors de la création');
@@ -93,9 +148,8 @@ const EnterprisesPage: React.FC = () => {
     }
   };
 
-  const handleFieldChange = (field: keyof CreateEnterpriseForm, value: string) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
-  };
+  // Aperçu logo en temps réel dans la modale
+  const logoPreview = form.logo && /^https?:\/\/.+/.test(form.logo.trim()) ? form.logo.trim() : null;
 
   const columns = [
     {
@@ -103,19 +157,7 @@ const EnterprisesPage: React.FC = () => {
       header: 'Entreprise',
       render: (enterprise: Enterprise) => (
         <div className="flex items-center gap-3">
-          {enterprise.logo ? (
-            <img
-              src={enterprise.logo}
-              alt={enterprise.name}
-              className="w-10 h-10 rounded-xl object-cover"
-            />
-          ) : (
-            <div className="w-10 h-10 rounded-xl bg-gradient flex items-center justify-center">
-              <span className="text-white font-bold text-sm">
-                {enterprise.name.charAt(0)}
-              </span>
-            </div>
-          )}
+          <Avatar src={enterprise.logo} name={enterprise.name} size="md" shape="rounded" />
           <div>
             <p className="font-medium text-dark">{enterprise.name}</p>
             <p className="text-sm text-slate">{enterprise.email}</p>
@@ -129,11 +171,8 @@ const EnterprisesPage: React.FC = () => {
       render: (enterprise: Enterprise) => (
         <Badge
           variant={
-            enterprise.subscription === 'Enterprise'
-              ? 'platinum'
-              : enterprise.subscription === 'Pro'
-              ? 'gold'
-              : 'silver'
+            enterprise.subscription === 'Enterprise' ? 'platinum'
+              : enterprise.subscription === 'Pro' ? 'gold' : 'silver'
           }
         >
           {enterprise.subscription}
@@ -144,7 +183,7 @@ const EnterprisesPage: React.FC = () => {
       key: 'cardsCount',
       header: 'Cartes',
       render: (enterprise: Enterprise) => (
-        <span className="font-medium">{enterprise.cardsCount.toLocaleString('fr-FR')}</span>
+        <span className="font-medium">{(enterprise.cardsCount ?? 0).toLocaleString('fr-FR')}</span>
       ),
       className: 'hidden sm:table-cell',
     },
@@ -164,35 +203,32 @@ const EnterprisesPage: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold font-poppins text-dark">Entreprises</h1>
-          <p className="text-slate mt-1">Gérez les entreprises clientes</p>
+          <p className="text-slate mt-1">
+            {loading ? 'Chargement...' : `${allEnterprises.length} entreprise${allEnterprises.length > 1 ? 's' : ''} au total`}
+          </p>
         </div>
         <Button icon={<Plus className="w-5 h-5" />} onClick={handleOpenCreate}>
           Nouvelle entreprise
         </Button>
       </div>
 
-      {error && (
-        <div className="p-4 bg-red-100 text-red-700 rounded-lg">{error}</div>
-      )}
+      {error && <div className="p-4 bg-red-100 text-red-700 rounded-lg">{error}</div>}
 
       <Card padding="none">
         <div className="p-4 border-b border-slate/10">
-          <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex flex-col sm:flex-row gap-3">
             <div className="flex-1">
               <SearchInput
-                placeholder="Rechercher une entreprise..."
+                placeholder="Rechercher par nom, email, ville..."
                 value={search}
-                onChange={(val) => { setSearch(val); setPage(1); }}
+                onChange={handleSearch}
               />
             </div>
             <div className="flex items-center gap-2">
-              <Filter className="w-5 h-5 text-slate" />
+              <Filter className="w-5 h-5 text-slate flex-shrink-0" />
               <select
-                value={filter}
-                onChange={(e) => {
-                  setFilter(e.target.value as typeof filter);
-                  setPage(1);
-                }}
+                value={statusFilter}
+                onChange={(e) => handleStatusFilter(e.target.value)}
                 className="px-4 py-3 bg-cloud border border-slate/20 rounded-xl text-dark focus:outline-none focus:border-primary transition-colors duration-200"
               >
                 <option value="all">Tous les statuts</option>
@@ -205,43 +241,47 @@ const EnterprisesPage: React.FC = () => {
 
         {loading ? (
           <div className="p-8 text-center text-slate animate-pulse">Chargement...</div>
-        ) : enterprises.length === 0 ? (
-          <div className="p-8 text-center text-slate">Aucune entreprise trouvée</div>
+        ) : paginated.length === 0 ? (
+          <div className="p-8 text-center text-slate">
+            {search || statusFilter !== 'all' ? 'Aucun résultat pour ces filtres' : 'Aucune entreprise'}
+          </div>
         ) : (
           <>
             <Table
-              data={enterprises}
+              data={paginated}
               columns={columns}
-              onRowClick={(enterprise) =>
-                navigate(`/admin/enterprises/${enterprise.id}`)
-              }
+              onRowClick={(enterprise) => navigate(`/admin/enterprises/${enterprise.id}`)}
             />
             <div className="p-4 border-t border-slate/10 flex items-center justify-between">
               <p className="text-sm text-slate">
-                {enterprises.length} sur {total} entreprise{total > 1 ? 's' : ''}
+                {filtered.length} résultat{filtered.length > 1 ? 's' : ''}
+                {(search || statusFilter !== 'all') && ` · ${allEnterprises.length} au total`}
               </p>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setPage(Math.max(1, page - 1))}
-                  disabled={page === 1}
-                  className="px-3 py-2 bg-cloud text-dark rounded-lg disabled:opacity-50 hover:bg-slate/10 transition-colors"
-                >
-                  Précédent
-                </button>
-                <button
-                  onClick={() => setPage(page + 1)}
-                  disabled={page * limit >= total}
-                  className="px-3 py-2 bg-cloud text-dark rounded-lg disabled:opacity-50 hover:bg-slate/10 transition-colors"
-                >
-                  Suivant
-                </button>
-              </div>
+              {totalPages > 1 && (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setPage(Math.max(1, page - 1))}
+                    disabled={page === 1}
+                    className="px-3 py-2 bg-cloud text-dark rounded-lg disabled:opacity-50 hover:bg-slate/10 transition-colors"
+                  >
+                    Précédent
+                  </button>
+                  <span className="px-3 py-2 text-sm text-slate">{page} / {totalPages}</span>
+                  <button
+                    onClick={() => setPage(Math.min(totalPages, page + 1))}
+                    disabled={page >= totalPages}
+                    className="px-3 py-2 bg-cloud text-dark rounded-lg disabled:opacity-50 hover:bg-slate/10 transition-colors"
+                  >
+                    Suivant
+                  </button>
+                </div>
+              )}
             </div>
           </>
         )}
       </Card>
 
-      {/* Modale création entreprise */}
+      {/* Modale création */}
       <Modal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
@@ -250,34 +290,53 @@ const EnterprisesPage: React.FC = () => {
       >
         <form onSubmit={handleCreateSubmit} className="space-y-4" noValidate>
           {formError && (
-            <div className="p-3 bg-red-50 text-red-700 rounded-xl text-sm">
-              {formError}
-            </div>
+            <div className="p-3 bg-red-50 text-red-700 rounded-xl text-sm">{formError}</div>
           )}
 
+          {/* Logo upload */}
+          <LogoUpload
+            label="Logo de l'entreprise"
+            value={form.logo}
+            onChange={(url) => handleFieldChange('logo', url)}
+            previewName={form.name}
+          />
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input
-              label="Nom de l'entreprise *"
-              value={form.name}
-              onChange={(e) => handleFieldChange('name', e.target.value)}
-              placeholder="Conciergerie Premium"
-            />
-            <Input
-              label="Email *"
-              type="email"
-              value={form.email}
-              onChange={(e) => handleFieldChange('email', e.target.value)}
-              placeholder="contact@entreprise.fr"
-            />
+            <div>
+              <Input
+                label="Nom de l'entreprise *"
+                value={form.name}
+                onChange={(e) => handleFieldChange('name', e.target.value)}
+                onBlur={() => handleBlur('name')}
+                placeholder="Conciergerie Premium"
+              />
+              {touched.name && fieldErrors.name && (
+                <p className="mt-1 text-xs text-red-500">{fieldErrors.name}</p>
+              )}
+            </div>
+            <div>
+              <Input
+                label="Email *"
+                type="email"
+                value={form.email}
+                onChange={(e) => handleFieldChange('email', e.target.value)}
+                onBlur={() => handleBlur('email')}
+                placeholder="contact@entreprise.fr"
+              />
+              {touched.email && fieldErrors.email && (
+                <p className="mt-1 text-xs text-red-500">{fieldErrors.email}</p>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input
-              label="Téléphone"
-              value={form.phone}
-              onChange={(e) => handleFieldChange('phone', e.target.value)}
-              placeholder="+33 1 23 45 67 89"
-            />
+            <div>
+              <PhoneInput
+                label="Téléphone"
+                value={form.phone}
+                onChange={(val) => handleFieldChange('phone', val)}
+              />
+            </div>
             <Input
               label="Localisation"
               value={form.location}
@@ -317,8 +376,14 @@ const EnterprisesPage: React.FC = () => {
             >
               Annuler
             </Button>
-            <Button type="submit" fullWidth disabled={creating}>
-              {creating ? 'Création...' : 'Créer l\'entreprise'}
+            {/* Bouton désactivé si le formulaire est invalide */}
+            <Button
+              type="submit"
+              fullWidth
+              disabled={creating || !isFormValid}
+              title={!isFormValid ? 'Remplissez les champs obligatoires' : undefined}
+            >
+              {creating ? 'Création...' : "Créer l'entreprise"}
             </Button>
           </div>
         </form>

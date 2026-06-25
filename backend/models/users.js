@@ -25,7 +25,6 @@ const User = sequelize.define(
     email: {
       type: DataTypes.STRING(255),
       allowNull: false,
-      unique: true,
       validate: {
         isEmail: true,
       },
@@ -53,6 +52,7 @@ const User = sequelize.define(
   {
     tableName: "users",
     timestamps: true,
+    indexes: [{ unique: true, fields: ["email"] }],
   }
 );
 

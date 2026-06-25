@@ -6,8 +6,10 @@ async function syncDatabase() {
 
     console.log("PostgreSQL connecté");
 
+    // alter: true met à jour les tables sans effacer les données existantes.
+    // Passer à false une fois le schéma stabilisé pour éviter tout risque.
     await sequelize.sync({
-      force: true,
+      alter: true,
     });
 
     console.log("Tables synchronisées");

@@ -7,9 +7,11 @@ import {
   ArrowUpRight,
   ArrowDownRight,
 } from 'lucide-react';
-import { StatCard, ChartCard, Card } from '../../components';
-import { getDashboard } from '../../api/adminApi';
+import { StatCard, ChartCard, Card, Avatar, Badge } from '../../components';
+import { getDashboard, getEnterprises } from '../../api/adminApi';
 import type { Scan } from '../../data/mockData';
+import type { Enterprise } from '../../data/mockData';
+import { useNavigate } from 'react-router-dom';
 
 interface DashboardStats {
   activeEnterprises: number;
@@ -29,32 +31,31 @@ const AdminDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<DashboardState>({
-    stats: {
-      activeEnterprises: 0,
-      totalCards: 0,
-      scansThisMonth: 0,
-      monthlyRevenue: 0,
-    },
+    stats: { activeEnterprises: 0, totalCards: 0, scansThisMonth: 0, monthlyRevenue: 0 },
     scanTrends: [],
     cardStatusBreakdown: [],
     recentScans: [],
   });
+  const [activeEnterprises, setActiveEnterprises] = useState<Enterprise[]>([]);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
         setError(null);
-        const dashboardData = await getDashboard();
+        const [dashboardData, enterprisesData] = await Promise.all([
+          getDashboard(),
+          getEnterprises({ limit: 5, status: 'active' }),
+        ]);
         setData(dashboardData);
+        setActiveEnterprises(enterprisesData.data);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Erreur de chargement');
-        console.error('Dashboard error:', err);
       } finally {
         setLoading(false);
       }
     };
-
     fetchData();
   }, []);
 
@@ -149,11 +150,7 @@ const AdminDashboard: React.FC = () => {
                   className="flex items-center justify-between p-3 rounded-xl hover:bg-cloud transition-colors duration-200"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient flex items-center justify-center">
-                      <span className="text-white font-medium text-sm">
-                        {scan.clientName.charAt(0)}
-                      </span>
-                    </div>
+                    <Avatar name={scan.clientName ?? '?'} size="md" shape="circle" />
                     <div>
                       <p className="font-medium text-dark">{scan.clientName}</p>
                       <p className="text-sm text-slate">{scan.enterpriseName}</p>
@@ -185,13 +182,32 @@ const AdminDashboard: React.FC = () => {
               Voir tout
             </button>
           </div>
-          <div className="space-y-4">
+          <div className="space-y-3">
             {loading ? (
               <p className="text-slate">Chargement...</p>
+            ) : activeEnterprises.length > 0 ? (
+              activeEnterprises.map((e) => (
+                <div
+                  key={e.id}
+                  onClick={() => navigate(`/admin/enterprises/${e.id}`)}
+                  className="flex items-center justify-between p-3 rounded-xl hover:bg-cloud transition-colors duration-200 cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <Avatar src={e.logo} name={e.name} size="md" shape="rounded" />
+                    <div>
+                      <p className="font-medium text-dark text-sm">{e.name}</p>
+                      <p className="text-xs text-slate">{e.location}</p>
+                    </div>
+                  </div>
+                  <Badge
+                    variant={e.subscription === 'Enterprise' ? 'platinum' : e.subscription === 'Pro' ? 'gold' : 'silver'}
+                  >
+                    {e.subscription}
+                  </Badge>
+                </div>
+              ))
             ) : (
-              <p className="text-slate text-sm">
-                {data.stats.activeEnterprises} entreprises actives
-              </p>
+              <p className="text-slate text-sm">Aucune entreprise active</p>
             )}
           </div>
         </Card>

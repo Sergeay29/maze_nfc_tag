@@ -18,7 +18,7 @@ import {
   QrCode,
   TrendingUp,
 } from 'lucide-react';
-import { Card, Badge, Tabs, StatCard } from '../../components';
+import { Card, Badge, Tabs, StatCard, Avatar } from '../../components';
 import { getEnterpriseDetail, updateEnterprise } from '../../api/adminApi';
 import type { Enterprise } from '../../data/mockData';
 
@@ -143,17 +143,13 @@ const EnterpriseDetailPage: React.FC = () => {
         {/* Sidebar infos */}
         <Card className="lg:w-80 flex-shrink-0">
           <div className="text-center">
-            {enterprise.logo ? (
-              <img
-                src={enterprise.logo}
-                alt={enterprise.name}
-                className="w-24 h-24 rounded-2xl object-cover mx-auto mb-4"
-              />
-            ) : (
-              <div className="w-24 h-24 rounded-2xl bg-gradient mx-auto mb-4 flex items-center justify-center">
-                <Building2 className="w-10 h-10 text-white" />
-              </div>
-            )}
+            <Avatar
+              src={enterprise.logo}
+              name={enterprise.name}
+              size="lg"
+              shape="rounded"
+              className="mx-auto mb-4"
+            />
             <h1 className="text-xl font-bold font-poppins text-dark mb-2">
               {enterprise.name}
             </h1>

@@ -277,15 +277,31 @@ exports.getCards = async (req, res) => {
       offset,
       order: [["createdAt", "DESC"]],
       include: [
-        { model: Enterprise, attributes: ["name"] },
-        { model: Client, as: "assignedClient", attributes: ["name"] },
+        { model: Enterprise, attributes: ["id", "name"] },
+        { model: Client, as: "assignedClient", attributes: ["id", "name"] },
       ],
+      raw: true,
+      nest: true,
     });
+
+    // Aplatir pour le frontend
+    const mapped = rows.map((card) => ({
+      id: card.id,
+      cardNumber: card.cardNumber,
+      number: card.cardNumber,
+      type: card.type,
+      status: card.status,
+      enterpriseId: card.enterpriseId,
+      enterpriseName: card.Enterprise?.name ?? null,
+      assignedTo: card.assignedClient?.name ?? null,
+      assignedToClientId: card.assignedToClientId,
+      createdAt: card.createdAt,
+    }));
 
     res.json({
       success: true,
       data: {
-        data: rows,
+        data: mapped,
         total: count,
         page,
         limit,
@@ -330,18 +346,40 @@ exports.getScans = async (req, res) => {
       include: [
         {
           model: Client,
-          attributes: ["name"],
+          attributes: ["id", "name"],
           ...(search && search.trim() ? { where: clientWhere, required: true } : {}),
         },
-        { model: Enterprise, attributes: ["name"] },
-        { model: NFCCard, attributes: ["cardNumber"] },
+        { model: Enterprise, attributes: ["id", "name"] },
+        { model: NFCCard, attributes: ["id", "cardNumber"] },
       ],
+      raw: true,
+      nest: true,
     });
+
+    // Aplatir les associations pour correspondre au format attendu par le frontend
+    const mapped = rows.map((scan) => ({
+      id: scan.id,
+      clientId: scan.clientId,
+      clientName: scan.Client?.name ?? null,
+      cardNumber: scan.NFCCard?.cardNumber ?? null,
+      enterpriseId: scan.enterpriseId,
+      enterpriseName: scan.Enterprise?.name ?? null,
+      pointsAdded: scan.pointsAdded,
+      action: scan.pointsAdded > 0
+        ? `+${scan.pointsAdded} points`
+        : scan.pointsAdded < 0
+        ? `${scan.pointsAdded} points`
+        : "Consultation",
+      points: scan.pointsAdded ?? 0,
+      timestamp: scan.scannedAt ?? scan.createdAt,
+      scannedAt: scan.scannedAt,
+      createdAt: scan.createdAt,
+    }));
 
     res.json({
       success: true,
       data: {
-        data: rows,
+        data: mapped,
         total: count,
         page,
         limit,

@@ -7,6 +7,7 @@ const seedRoles = require("./seeds/role.seed");
 const seedAdminUser = require("./seeds/admin.seed");
 const seedDashboardData = require("./seeds/dashboard.seed");
 const seedSettings = require("./seeds/settings.seed");
+const seedEnterpriseUser = require("./seeds/enterprise.seed");
 
 const PORT = process.env.PORT || 3000;
 
@@ -20,6 +21,7 @@ async function start() {
   await seedAdminUser();
   await seedDashboardData();
   await seedSettings();
+  await seedEnterpriseUser();
 
   app.listen(PORT, () => {
     console.log(`Maze NFC API sur le port ${PORT}`);
