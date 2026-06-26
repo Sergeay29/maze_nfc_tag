@@ -62,8 +62,12 @@ const Sidebar: React.FC<SidebarProps> = ({ type, collapsed, setCollapsed }) => {
         <div className="flex items-center justify-between p-6 border-b border-slate/10">
           {!collapsed && (
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient flex items-center justify-center">
-                <span className="text-white font-bold text-lg font-poppins">M</span>
+              <div className="w-10 h-10 flex items-center justify-center">
+                <img
+                  src="/images/icons/icons.png"
+                  alt="Maze NFC"
+                  className="max-w-full drop-shadow-2xl animate-float rounded-3xl"
+                />
               </div>
               <div>
                 <h1 className="font-bold font-poppins text-dark text-lg">Maze NFC</h1>
@@ -71,8 +75,12 @@ const Sidebar: React.FC<SidebarProps> = ({ type, collapsed, setCollapsed }) => {
             </div>
           )}
           {collapsed && (
-            <div className="w-10 h-10 mx-auto rounded-xl bg-gradient flex items-center justify-center">
-              <span className="text-white font-bold text-lg font-poppins">M</span>
+            <div className="w-10 h-10 mx-auto flex items-center justify-center">
+              <img
+                src="/images/icons/icons.png"
+                alt="Maze NFC"
+                className="w-[150px] max-w-full drop-shadow-2xl animate-float rounded-3xl"
+              />
             </div>
           )}
         </div>
