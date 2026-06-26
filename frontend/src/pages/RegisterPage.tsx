@@ -91,10 +91,12 @@ const RegisterPage: React.FC = () => {
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
-            <div className="inline-flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 rounded-xl bg-gradient flex items-center justify-center">
-                <span className="text-white font-bold text-xl font-poppins">M</span>
-              </div>
+            <div className="inline-flex items-center gap-3 mb-2">
+              <img
+                src="/images/icons/icons.png"
+                alt="Maze NFC"
+                className="w-[100px] max-w-full drop-shadow-2xl animate-float rounded-3xl"
+              />
               <div>
                 <h1 className="font-bold font-poppins text-dark text-2xl">Maze NFC</h1>
               </div>
