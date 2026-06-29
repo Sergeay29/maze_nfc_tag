@@ -12,6 +12,15 @@ const {
 } = require("../models");
 const { Op } = require("sequelize");
 
+
+/**
+ * 
+ * @param {*} str - Chaîne de caractère(s) à normaliser
+ * @returns - slug de la chaîne de caractère(s) passée.
+ */
+const slugify = (str) => 
+  str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '-').toLowerCase();
+
 /**
  * GET /api/admin/dashboard
  * Dashboard stats pour le super admin
@@ -290,6 +299,8 @@ exports.getCards = async (req, res) => {
       cardNumber: card.cardNumber,
       number: card.cardNumber,
       type: card.type,
+      subtype: card.subtype,
+      scanUrl: card.scanUrl,
       status: card.status,
       enterpriseId: card.enterpriseId,
       enterpriseName: card.Enterprise?.name ?? null,
@@ -537,12 +548,13 @@ exports.updateEnterprise = async (req, res) => {
  */
 exports.generateCards = async (req, res) => {
   try {
-    const { enterpriseId, type, prefix, quantity } = req.body;
+    // On ne demande plus le "prefix", mais le "scanBaseUrl" et le "subtype"
+    const { enterpriseId, type, subtype, scanBaseUrl, quantity } = req.body;
 
-    if (!enterpriseId || !type || !prefix || !quantity) {
+    if (!enterpriseId || !type || !scanBaseUrl || !quantity) {
       return res.status(400).json({
         success: false,
-        message: "enterpriseId, type, prefix et quantity sont requis",
+        message: "enterpriseId, type, scanBaseUrl et quantity sont requis",
       });
     }
 
@@ -562,26 +574,48 @@ exports.generateCards = async (req, res) => {
       });
     }
 
-    // Générer les cartes en batch
+    // 1. Construire le préfixe dynamique (ex: "mon-entreprise-restaurant-luxe")
+    let dynamicPrefix = `${slugify(enterprise.name)}-${slugify(type)}`;
+    if (subtype) {
+      dynamicPrefix += `-${slugify(subtype)}`;
+    }
+
+    // 2. Gérer l'auto-incrémentation
+    // On compte combien de cartes existent déjà avec ce préfixe pour ne pas écraser les numéros
+    const existingCardsCount = await NFCCard.count({
+      where: {
+        cardNumber: {
+          [Op.like]: `${dynamicPrefix}-%`
+        }
+      }
+    });
+
+    // 3. Préparer le tableau de cartes
     const cards = [];
+    // On s'assure que l'URL de base se termine par un "/"
+    const baseUrl = scanBaseUrl.endsWith('/') ? scanBaseUrl : `${scanBaseUrl}/`;
+
     for (let i = 0; i < qty; i++) {
-      // Code unique : 8 caractères alphanumériques
       const code = Math.random().toString(36).substring(2, 10).toUpperCase();
-      const suffix = String(i + 1).padStart(4, "0");
+      
+      // Numéro auto-incrémenté à 4 chiffres (ex: 0001, 0002...)
+      const suffix = String(existingCardsCount + i + 1).padStart(4, "0");
+      
       cards.push({
-        cardNumber: `${prefix}${suffix}`,
+        cardNumber: `${dynamicPrefix}-${suffix}`,
         cardCode: code,
         enterpriseId,
         type,
+        subtype: subtype || null,
+        scanUrl: `${baseUrl}${code}`, // Assemblage du lien final
         status: "unassigned",
       });
     }
 
     const created = await NFCCard.bulkCreate(cards, {
-      ignoreDuplicates: true,
+      ignoreDuplicates: true, // Sécurité au cas où le count aurait eu un léger décalage
     });
 
-    // Mettre à jour le compteur de cartes de l'entreprise
     await Enterprise.increment("cardsCount", {
       by: created.length,
       where: { id: enterpriseId },

@@ -1,25 +1,24 @@
 // config/upload.js
-// Stockage local dans /uploads — à remplacer par Cloudinary en production.
+// Stockage sur Cloudinary (externe et sécurisé)
 
 const multer = require("multer");
-const path = require("path");
-const fs = require("fs");
+const { CloudinaryStorage } = require("multer-storage-cloudinary");
+const cloudinary = require("cloudinary").v2;
 
-const UPLOAD_DIR = path.join(__dirname, "../uploads");
+// Configuration Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
-// Créer le répertoire s'il n'existe pas
-if (!fs.existsSync(UPLOAD_DIR)) {
-  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-}
-
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    cb(null, UPLOAD_DIR);
-  },
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    const unique = `${Date.now()}-${Math.round(Math.random() * 1e6)}${ext}`;
-    cb(null, unique);
+// Configuration du stockage Cloudinary
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: "maze-nfc", // Dossier dans Cloudinary pour organiser les fichiers
+    allowed_formats: ["jpg", "jpeg", "png", "webp", "gif"],
+    transformation: [{ quality: "auto", fetch_format: "auto" }], // Optimise automatiquement les images
   },
 });
 
@@ -35,7 +34,7 @@ const fileFilter = (_req, file, cb) => {
 const upload = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 2 * 1024 * 1024 }, // 2 MB max
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB max (Cloudinary accepte plus)
 });
 
-module.exports = upload;
+module.exports = { upload, cloudinary };
