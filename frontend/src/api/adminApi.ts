@@ -177,8 +177,12 @@ export async function getScans(
 
 export interface GenerateCardsPayload {
   enterpriseId: string;
-  type: 'Loyalty' | 'VIP' | 'Business' | 'Client';
-  prefix: string;
+  // Mise à jour des types
+  type: 'Fidélité Entreprise' | 'Restaurant' | 'Carte de visite';
+  // Ajout du sous-type (optionnel car "Carte de visite" n'en a pas)
+  subtype?: string; 
+  // Remplacement de "prefix" par la nouvelle URL de base
+  scanBaseUrl: string; 
   quantity: number;
 }
 

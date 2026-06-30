@@ -44,8 +44,9 @@ const NFCCardsPage: React.FC = () => {
       list = list.filter(
         (c) =>
           (c.cardNumber ?? c.number ?? '').toLowerCase().includes(q) ||
-          (c.enterpriseName ?? c.Enterprise?.name ?? '').toLowerCase().includes(q) ||
-          (c.type ?? '').toLowerCase().includes(q)
+          (c.enterpriseName ?? '').toLowerCase().includes(q) ||
+          (c.type ?? '').toLowerCase().includes(q) ||
+          (c.subtype ?? '').toLowerCase().includes(q)
       );
     }
     return list;
@@ -79,14 +80,19 @@ const NFCCardsPage: React.FC = () => {
       key: 'enterpriseName',
       header: 'Entreprise',
       render: (card: NFCCard) => (
-        <span className="text-dark">{card.enterpriseName ?? card.Enterprise?.name ?? '—'}</span>
+        <span className="text-dark">{card.enterpriseName ?? '—'}</span>
       ),
       className: 'hidden md:table-cell',
     },
     {
       key: 'type',
       header: 'Type',
-      render: (card: NFCCard) => <Badge variant="primary">{card.type}</Badge>,
+      render: (card: NFCCard) => (
+        <Badge variant="primary">
+          {card.type}
+          {card.subtype && ` (${card.subtype})`}
+        </Badge>
+      ),
     },
     {
       key: 'status',
@@ -101,7 +107,7 @@ const NFCCardsPage: React.FC = () => {
       key: 'assignedTo',
       header: 'Attribuée à',
       render: (card: NFCCard) => (
-        <span className="text-slate">{card.assignedTo ?? card.assignedClient?.name ?? '—'}</span>
+        <span className="text-slate">{card.assignedTo ?? '—'}</span>
       ),
       className: 'hidden sm:table-cell',
     },

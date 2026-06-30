@@ -2,8 +2,7 @@
 
 const express = require("express");
 const router = express.Router();
-const path = require("path");
-const upload = require("../config/upload");
+const { upload } = require("../config/upload");
 const { authenticate, requireRole } = require("../middlewares/authMiddleware");
 
 /**
@@ -11,8 +10,8 @@ const { authenticate, requireRole } = require("../middlewares/authMiddleware");
  * /api/upload/logo:
  *   post:
  *     tags: [Admin]
- *     summary: Uploader un logo (image) — stockage local
- *     description: Accepte JPG, PNG, WEBP, GIF — max 2 MB. Retourne l'URL publique.
+ *     summary: Uploader un logo (image) — stockage sur Cloudinary
+ *     description: Accepte JPG, PNG, WEBP, GIF — max 5 MB. Retourne l'URL publique Cloudinary.
  *     requestBody:
  *       required: true
  *       content:
@@ -35,7 +34,7 @@ const { authenticate, requireRole } = require("../middlewares/authMiddleware");
  *                 data:
  *                   type: object
  *                   properties:
- *                     url: { type: string, example: "http://localhost:3000/uploads/1234567890-abc.png" }
+ *                     url: { type: string, example: "https://res.cloudinary.com/.../image/upload/.../maze-nfc/abc123.jpg" }
  *       400:
  *         description: Fichier manquant ou format invalide
  */
@@ -52,12 +51,10 @@ router.post(
       });
     }
 
-    const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 3000}`;
-    const url = `${baseUrl}/uploads/${req.file.filename}`;
-
+    // Cloudinary renvoie l'URL directement dans req.file.path
     return res.json({
       success: true,
-      data: { url },
+      data: { url: req.file.path },
     });
   }
 );
@@ -65,7 +62,7 @@ router.post(
 // Gestion des erreurs multer
 router.use((err, _req, res, _next) => {
   if (err.code === "LIMIT_FILE_SIZE") {
-    return res.status(400).json({ success: false, message: "Fichier trop lourd (max 2 MB)." });
+    return res.status(400).json({ success: false, message: "Fichier trop lourd (max 5 MB)." });
   }
   return res.status(400).json({ success: false, message: err.message });
 });
