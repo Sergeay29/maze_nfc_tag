@@ -2,6 +2,30 @@
 
 const { Enterprise, NFCCard, Client, Scan, Subscription } = require("../models");
 
+// Fonction pour générer les initiales du nom d'entreprise
+const getEnterpriseInitials = (name) => {
+  return name
+    .split(/\s+/)
+    .filter(word => word.length > 0)
+    .map(word => word[0].toUpperCase())
+    .join('')
+    .slice(0, 4); // Limite à 4 initiales max pour garder le préfixe court
+};
+
+// Mapping des types de carte pour les initiales
+const typeMap = {
+  "Fidélité Entreprise": "FID",
+  "Restaurant": "RES",
+  "Carte de visite": "CDV"
+};
+
+// Mapping des subtypes pour les initiales
+const subtypeMap = {
+  "Basic": "BAS",
+  "Standard": "STD",
+  "Luxe": "LUX"
+};
+
 async function seedDashboardData() {
   try {
     // Vérifier si les données existent déjà
@@ -133,16 +157,37 @@ async function seedDashboardData() {
     ]);
 
     // 4. Créer des cartes NFC
+    const cardTypes = ["Fidélité Entreprise", "Restaurant", "Carte de visite"];
+    const subtypes = ["Basic", "Standard", "Luxe"];
     const cards = [];
+    const baseUrl = "http://localhost:5173/scan/";
+
     for (let i = 0; i < 50; i++) {
       const enterprise = enterprises[Math.floor(Math.random() * enterprises.length)];
       const client = i < 3 ? clients[i] : null;
+      const type = cardTypes[Math.floor(Math.random() * cardTypes.length)];
+      const subtype = type === "Restaurant" ? subtypes[Math.floor(Math.random() * subtypes.length)] : null;
+      const code = Math.random().toString(36).substring(2, 10).toUpperCase();
+
+      // Construire le préfixe avec initiales
+      const enterpriseInitials = getEnterpriseInitials(enterprise.name);
+      const typeInitials = typeMap[type] || "XXX";
+      let dynamicPrefix = `${enterpriseInitials}-${typeInitials}`;
+      
+      if (type === "Restaurant" && subtype) {
+        const subtypeInitials = subtypeMap[subtype] || "XXX";
+        dynamicPrefix += `-${subtypeInitials}`;
+      }
+
+      const suffix = String(i + 1).padStart(4, "0");
 
       const card = await NFCCard.create({
-        cardNumber: `NFC-${enterprise.name.substring(0, 4).toUpperCase()}-${String(i + 1).padStart(4, "0")}`,
-        cardCode: `${Math.random().toString(36).substring(2, 8).toUpperCase()}${Math.random().toString(36).substring(2, 3).toUpperCase()}`,
+        cardNumber: `${dynamicPrefix}-${suffix}`,
+        cardCode: code,
         enterpriseId: enterprise.id,
-        type: i % 4 === 0 ? "VIP" : i % 3 === 0 ? "Business" : "Loyalty",
+        type,
+        subtype,
+        scanUrl: `${baseUrl}${code}`,
         status: client ? "active" : "unassigned",
         assignedToClientId: client?.id || null,
         assignedAt: client ? new Date() : null,

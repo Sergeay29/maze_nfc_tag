@@ -542,6 +542,30 @@ exports.updateEnterprise = async (req, res) => {
 // CARTES NFC
 // ─────────────────────────────────────────────────────────────
 
+// Fonction pour générer les initiales du nom d'entreprise
+const getEnterpriseInitials = (name) => {
+  return name
+    .split(/\s+/)
+    .filter(word => word.length > 0)
+    .map(word => word[0].toUpperCase())
+    .join('')
+    .slice(0, 4); // Limite à 4 initiales max pour garder le préfixe court
+};
+
+// Mapping des types de carte pour les initiales
+const typeMap = {
+  "Fidélité Entreprise": "FID",
+  "Restaurant": "RES",
+  "Carte de visite": "CDV"
+};
+
+// Mapping des subtypes pour les initiales
+const subtypeMap = {
+  "Basic": "BAS",
+  "Standard": "STD",
+  "Luxe": "LUX"
+};
+
 /**
  * POST /api/admin/cards/generate
  * Générer des cartes NFC en masse pour une entreprise
@@ -574,10 +598,14 @@ exports.generateCards = async (req, res) => {
       });
     }
 
-    // 1. Construire le préfixe dynamique (ex: "mon-entreprise-restaurant-luxe")
-    let dynamicPrefix = `${slugify(enterprise.name)}-${slugify(type)}`;
-    if (subtype) {
-      dynamicPrefix += `-${slugify(subtype)}`;
+    // 1. Construire le préfixe dynamique avec initiales (ex: REGA-FID-0003)
+    const enterpriseInitials = getEnterpriseInitials(enterprise.name);
+    const typeInitials = typeMap[type] || "XXX";
+    let dynamicPrefix = `${enterpriseInitials}-${typeInitials}`;
+    
+    if (type === "Restaurant" && subtype) {
+      const subtypeInitials = subtypeMap[subtype] || "XXX";
+      dynamicPrefix += `-${subtypeInitials}`;
     }
 
     // 2. Gérer l'auto-incrémentation

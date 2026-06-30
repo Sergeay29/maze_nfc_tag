@@ -1,5 +1,3 @@
-// models/NFCCard.js
-
 const DataTypes = require("sequelize");
 const sequelize = require("../config/database.js");
 
@@ -41,7 +39,13 @@ const NFCCard = sequelize.define(
       type: DataTypes.STRING(500),
       allowNull: false,
       validate: {
-        isUrl: true,
+        isValidUrl(value) {
+          try {
+            new URL(value);
+          } catch {
+            throw new Error('L\'URL de scan doit être une URL valide');
+          }
+        },
       },
     },
     status: {
