@@ -178,6 +178,25 @@ router.post("/enterprises", adminController.createEnterprise);
  */
 router.put("/enterprises/:id", adminController.updateEnterprise);
 
+/**
+ * @swagger
+ * /api/admin/enterprises/{id}:
+ *   delete:
+ *     tags: [Admin]
+ *     summary: Supprimer une entreprise et toutes ses données liées
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     responses:
+ *       200:
+ *         description: Entreprise supprimée
+ *       404:
+ *         description: Entreprise non trouvée
+ */
+router.delete("/enterprises/:id", adminController.deleteEnterprise);
+
 // ─────────────────────────────────────────────────────────────
 // CARTES NFC
 // ─────────────────────────────────────────────────────────────

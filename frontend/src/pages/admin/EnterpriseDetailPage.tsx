@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
-  Building2,
   Mail,
   Phone,
   MapPin,
@@ -17,9 +16,12 @@ import {
   Users,
   QrCode,
   TrendingUp,
+  Pencil,
+  Trash2,
 } from 'lucide-react';
-import { Card, Badge, Tabs, StatCard, Avatar } from '../../components';
-import { getEnterpriseDetail, updateEnterprise } from '../../api/adminApi';
+import { Card, Badge, Tabs, StatCard, Avatar, Modal, Input, Select, Button, LogoUpload, PhoneInput } from '../../components';
+import { getEnterpriseDetail, updateEnterprise, deleteEnterprise } from '../../api/adminApi';
+import { isValidPhoneNumber } from 'react-phone-number-input';
 import type { Enterprise } from '../../data/mockData';
 
 interface EnterpriseDetailData extends Enterprise {
@@ -32,6 +34,32 @@ interface EnterpriseDetailData extends Enterprise {
   Subscription?: { plan: string; status: string; monthlyPrice: number };
 }
 
+interface EditForm {
+  name: string;
+  email: string;
+  phone: string;
+  location: string;
+  adminFirstName: string;
+  adminLastName: string;
+  subscription: string;
+  status: string;
+  logo: string;
+}
+
+const SUBSCRIPTION_OPTIONS = [
+  { value: 'Starter', label: 'Starter — 29€/mois' },
+  { value: 'Pro', label: 'Pro — 79€/mois' },
+  { value: 'Enterprise', label: 'Enterprise — 199€/mois' },
+];
+
+const STATUS_OPTIONS = [
+  { value: 'active', label: 'Actif' },
+  { value: 'suspended', label: 'Suspendu' },
+  { value: 'inactive', label: 'Inactif' },
+];
+
+const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+
 const EnterpriseDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -41,9 +69,22 @@ const EnterpriseDetailPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [statusUpdating, setStatusUpdating] = useState(false);
 
+  // Edit modal
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editForm, setEditForm] = useState<EditForm>({
+    name: '', email: '', phone: '', location: '',
+    adminFirstName: '', adminLastName: '', subscription: 'Starter', status: 'active', logo: '',
+  });
+  const [editTouched, setEditTouched] = useState<Partial<Record<keyof EditForm, boolean>>>({});
+  const [editError, setEditError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  // Delete
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
   useEffect(() => {
     if (!id) return;
-
     const fetchEnterprise = async () => {
       try {
         setLoading(true);
@@ -56,19 +97,101 @@ const EnterpriseDetailPage: React.FC = () => {
         setLoading(false);
       }
     };
-
     fetchEnterprise();
   }, [id]);
 
+  // ── Edit ──────────────────────────────────────────────────
+  const openEditModal = () => {
+    if (!enterprise) return;
+    setEditForm({
+      name: enterprise.name ?? '',
+      email: enterprise.email ?? '',
+      phone: enterprise.phone ?? '',
+      location: enterprise.location ?? '',
+      adminFirstName: enterprise.adminFirstName ?? '',
+      adminLastName: enterprise.adminLastName ?? '',
+      subscription: enterprise.subscription ?? 'Starter',
+      status: enterprise.status ?? 'active',
+      logo: enterprise.logo ?? '',
+    });
+    setEditTouched({});
+    setEditError(null);
+    setShowEditModal(true);
+  };
+
+  const editFieldErrors = useMemo(() => {
+    const errors: Partial<Record<keyof EditForm, string>> = {};
+    if (!editForm.name.trim()) errors.name = 'Le nom est obligatoire';
+    if (!editForm.email.trim()) {
+      errors.email = "L'email est obligatoire";
+    } else if (!isValidEmail(editForm.email)) {
+      errors.email = 'Email invalide';
+    }
+    if (editForm.phone && !isValidPhoneNumber(editForm.phone)) {
+      errors.phone = 'Numéro invalide';
+    }
+    return errors;
+  }, [editForm]);
+
+  const isEditFormValid = Object.keys(editFieldErrors).length === 0;
+
+  const handleEditField = (field: keyof EditForm, value: string) => {
+    setEditForm((prev) => ({ ...prev, [field]: value }));
+    setEditTouched((prev) => ({ ...prev, [field]: true }));
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEditTouched({ name: true, email: true, phone: true });
+    if (!isEditFormValid || !id) return;
+
+    try {
+      setSaving(true);
+      setEditError(null);
+      await updateEnterprise(id, {
+        name: editForm.name,
+        email: editForm.email,
+        phone: editForm.phone || undefined,
+        location: editForm.location || undefined,
+        adminFirstName: editForm.adminFirstName || undefined,
+        adminLastName: editForm.adminLastName || undefined,
+        subscription: editForm.subscription as Enterprise['subscription'],
+        status: editForm.status as Enterprise['status'],
+        logo: editForm.logo || undefined,
+      });
+      // Recharger
+      const updated = await getEnterpriseDetail(id);
+      setEnterprise(updated as EnterpriseDetailData);
+      setShowEditModal(false);
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : 'Erreur lors de la sauvegarde');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ── Delete ────────────────────────────────────────────────
+  const handleDelete = async () => {
+    if (!id) return;
+    try {
+      setDeleting(true);
+      await deleteEnterprise(id);
+      navigate('/admin/enterprises', { replace: true });
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erreur lors de la suppression');
+      setDeleting(false);
+      setShowDeleteModal(false);
+    }
+  };
+
+  // ── Toggle status rapide ──────────────────────────────────
   const handleToggleStatus = async () => {
     if (!enterprise || !id) return;
-
     const newStatus = enterprise.status === 'active' ? 'suspended' : 'active';
     const confirmMsg =
       newStatus === 'suspended'
-        ? `Suspendre l'entreprise "${enterprise.name}" ? Elle ne pourra plus accéder à la plateforme.`
+        ? `Suspendre l'entreprise "${enterprise.name}" ?`
         : `Réactiver l'entreprise "${enterprise.name}" ?`;
-
     if (!window.confirm(confirmMsg)) return;
 
     try {
@@ -124,20 +247,41 @@ const EnterpriseDetailPage: React.FC = () => {
   const totalCards = enterprise.NFCCards?.length ?? enterprise.cardsCount ?? 0;
   const activeCards =
     enterprise.activeCards ??
-    enterprise.NFCCards?.filter((c) => c.status === 'active').length ??
-    0;
+    enterprise.NFCCards?.filter((c) => c.status === 'active').length ?? 0;
   const totalClients = enterprise.totalClients ?? enterprise.Clients?.length ?? 0;
   const totalScans = enterprise.totalScans ?? enterprise.Scans?.length ?? 0;
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <button
-        onClick={() => navigate(-1)}
-        className="flex items-center gap-2 text-slate hover:text-primary transition-colors duration-200"
-      >
-        <ArrowLeft className="w-5 h-5" />
-        Retour aux entreprises
-      </button>
+      {/* Header navigation */}
+      <div className="flex items-center justify-between">
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-2 text-slate hover:text-primary transition-colors duration-200"
+        >
+          <ArrowLeft className="w-5 h-5" />
+          Retour aux entreprises
+        </button>
+
+        {/* Actions admin */}
+        <div className="flex items-center gap-2">
+          <Button
+            variant="secondary"
+            icon={<Pencil className="w-4 h-4" />}
+            onClick={openEditModal}
+          >
+            Modifier
+          </Button>
+          <Button
+            variant="secondary"
+            icon={<Trash2 className="w-4 h-4" />}
+            onClick={() => setShowDeleteModal(true)}
+            className="text-red-600 border-red-200 hover:bg-red-50"
+          >
+            Supprimer
+          </Button>
+        </div>
+      </div>
 
       <div className="flex flex-col lg:flex-row lg:items-start gap-6">
         {/* Sidebar infos */}
@@ -157,7 +301,7 @@ const EnterpriseDetailPage: React.FC = () => {
               variant={enterprise.status === 'active' ? 'active' : 'inactive'}
               size="md"
             >
-              {enterprise.status === 'active' ? 'Actif' : 'Suspendu'}
+              {enterprise.status === 'active' ? 'Actif' : enterprise.status === 'suspended' ? 'Suspendu' : 'Inactif'}
             </Badge>
           </div>
 
@@ -185,6 +329,14 @@ const EnterpriseDetailPage: React.FC = () => {
                 {new Date(enterprise.createdAt).toLocaleDateString('fr-FR')}
               </span>
             </div>
+            {(enterprise.adminFirstName || enterprise.adminLastName) && (
+              <div className="flex items-center gap-3 text-slate">
+                <Users className="w-5 h-5 flex-shrink-0" />
+                <span>
+                  {enterprise.adminFirstName} {enterprise.adminLastName}
+                </span>
+              </div>
+            )}
           </div>
 
           <div className="mt-6 pt-6 border-t border-slate/10">
@@ -270,9 +422,7 @@ const EnterpriseDetailPage: React.FC = () => {
                         className="flex items-center gap-3 p-3 bg-cloud rounded-xl"
                       >
                         <div className="w-10 h-10 rounded-xl bg-gradient flex items-center justify-center text-white">
-                          {moduleIcons[module] ?? (
-                            <TrendingUp className="w-5 h-5" />
-                          )}
+                          {moduleIcons[module] ?? <TrendingUp className="w-5 h-5" />}
                         </div>
                         <span className="font-medium text-dark">{module}</span>
                       </div>
@@ -298,13 +448,9 @@ const EnterpriseDetailPage: React.FC = () => {
                           <div className="w-8 h-8 rounded-full bg-gradient flex items-center justify-center">
                             <QrCode className="w-4 h-4 text-white" />
                           </div>
-                          <div>
-                            <p className="text-sm font-medium text-dark">
-                              {scan.pointsAdded
-                                ? `+${scan.pointsAdded} points`
-                                : 'Consultation'}
-                            </p>
-                          </div>
+                          <p className="text-sm font-medium text-dark">
+                            {scan.pointsAdded ? `+${scan.pointsAdded} points` : 'Consultation'}
+                          </p>
                         </div>
                         <span className="text-xs text-slate">
                           {new Date(scan.createdAt).toLocaleTimeString('fr-FR', {
@@ -327,8 +473,7 @@ const EnterpriseDetailPage: React.FC = () => {
               {enterprise.NFCCards && enterprise.NFCCards.length > 0 ? (
                 <div className="space-y-3">
                   <h3 className="text-lg font-semibold font-poppins text-dark mb-4">
-                    {enterprise.NFCCards.length} carte
-                    {enterprise.NFCCards.length > 1 ? 's' : ''} NFC
+                    {enterprise.NFCCards.length} carte{enterprise.NFCCards.length > 1 ? 's' : ''} NFC
                   </h3>
                   {enterprise.NFCCards.map((card) => (
                     <div
@@ -337,24 +482,15 @@ const EnterpriseDetailPage: React.FC = () => {
                     >
                       <div className="flex items-center gap-3">
                         <CreditCard className="w-5 h-5 text-primary" />
-                        <span className="font-mono text-sm text-dark">
-                          {card.cardNumber ?? card.id}
-                        </span>
+                        <span className="font-mono text-sm text-dark">{card.cardNumber ?? card.id}</span>
                       </div>
                       <Badge
                         variant={
-                          card.status === 'active'
-                            ? 'active'
-                            : card.status === 'inactive'
-                            ? 'inactive'
-                            : 'warning'
+                          card.status === 'active' ? 'active'
+                            : card.status === 'inactive' ? 'inactive' : 'warning'
                         }
                       >
-                        {card.status === 'active'
-                          ? 'Active'
-                          : card.status === 'inactive'
-                          ? 'Inactive'
-                          : 'Non attribuée'}
+                        {card.status === 'active' ? 'Active' : card.status === 'inactive' ? 'Inactive' : 'Non attribuée'}
                       </Badge>
                     </div>
                   ))}
@@ -370,14 +506,10 @@ const EnterpriseDetailPage: React.FC = () => {
               {enterprise.Clients && enterprise.Clients.length > 0 ? (
                 <div className="space-y-3">
                   <h3 className="text-lg font-semibold font-poppins text-dark mb-4">
-                    {enterprise.Clients.length} client
-                    {enterprise.Clients.length > 1 ? 's' : ''}
+                    {enterprise.Clients.length} client{enterprise.Clients.length > 1 ? 's' : ''}
                   </h3>
                   {enterprise.Clients.map((client) => (
-                    <div
-                      key={client.id}
-                      className="flex items-center gap-3 p-3 bg-cloud rounded-xl"
-                    >
+                    <div key={client.id} className="flex items-center gap-3 p-3 bg-cloud rounded-xl">
                       <div className="w-8 h-8 rounded-full bg-gradient flex items-center justify-center">
                         <span className="text-white text-xs font-medium">
                           {client.name?.charAt(0) ?? '?'}
@@ -398,20 +530,14 @@ const EnterpriseDetailPage: React.FC = () => {
               {enterprise.Scans && enterprise.Scans.length > 0 ? (
                 <div className="space-y-3">
                   <h3 className="text-lg font-semibold font-poppins text-dark mb-4">
-                    {enterprise.Scans.length} scan
-                    {enterprise.Scans.length > 1 ? 's' : ''}
+                    {enterprise.Scans.length} scan{enterprise.Scans.length > 1 ? 's' : ''}
                   </h3>
                   {enterprise.Scans.map((scan) => (
-                    <div
-                      key={scan.id}
-                      className="flex items-center justify-between p-3 bg-cloud rounded-xl"
-                    >
+                    <div key={scan.id} className="flex items-center justify-between p-3 bg-cloud rounded-xl">
                       <div className="flex items-center gap-3">
                         <QrCode className="w-5 h-5 text-primary" />
                         <span className="text-sm text-dark">
-                          {scan.pointsAdded
-                            ? `+${scan.pointsAdded} points`
-                            : 'Consultation'}
+                          {scan.pointsAdded ? `+${scan.pointsAdded} points` : 'Consultation'}
                         </span>
                       </div>
                       <span className="text-xs text-slate">
@@ -427,6 +553,145 @@ const EnterpriseDetailPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* ── Modale d'édition ───────────────────────────────── */}
+      <Modal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        title="Modifier l'entreprise"
+        size="lg"
+      >
+        <form onSubmit={handleEditSubmit} className="space-y-4" noValidate>
+          {editError && (
+            <div className="p-3 bg-red-50 text-red-700 rounded-xl text-sm">{editError}</div>
+          )}
+
+          <LogoUpload
+            label="Logo de l'entreprise"
+            value={editForm.logo}
+            onChange={(url) => handleEditField('logo', url)}
+            previewName={editForm.name}
+          />
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <Input
+                label="Nom de l'entreprise *"
+                value={editForm.name}
+                onChange={(e) => handleEditField('name', e.target.value)}
+                onBlur={() => setEditTouched((p) => ({ ...p, name: true }))}
+              />
+              {editTouched.name && editFieldErrors.name && (
+                <p className="mt-1 text-xs text-red-500">{editFieldErrors.name}</p>
+              )}
+            </div>
+            <div>
+              <Input
+                label="Email *"
+                type="email"
+                value={editForm.email}
+                onChange={(e) => handleEditField('email', e.target.value)}
+                onBlur={() => setEditTouched((p) => ({ ...p, email: true }))}
+              />
+              {editTouched.email && editFieldErrors.email && (
+                <p className="mt-1 text-xs text-red-500">{editFieldErrors.email}</p>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <PhoneInput
+                label="Téléphone"
+                value={editForm.phone}
+                onChange={(val) => handleEditField('phone', val)}
+              />
+              {editTouched.phone && editFieldErrors.phone && (
+                <p className="mt-1 text-xs text-red-500">{editFieldErrors.phone}</p>
+              )}
+            </div>
+            <Input
+              label="Localisation"
+              value={editForm.location}
+              onChange={(e) => handleEditField('location', e.target.value)}
+              placeholder="Paris, France"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Input
+              label="Prénom de l'admin"
+              value={editForm.adminFirstName}
+              onChange={(e) => handleEditField('adminFirstName', e.target.value)}
+            />
+            <Input
+              label="Nom de l'admin"
+              value={editForm.adminLastName}
+              onChange={(e) => handleEditField('adminLastName', e.target.value)}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Select
+              label="Abonnement"
+              options={SUBSCRIPTION_OPTIONS}
+              value={editForm.subscription}
+              onChange={(val) => handleEditField('subscription', val)}
+            />
+            <Select
+              label="Statut"
+              options={STATUS_OPTIONS}
+              value={editForm.status}
+              onChange={(val) => handleEditField('status', val)}
+            />
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <Button type="button" variant="secondary" fullWidth onClick={() => setShowEditModal(false)}>
+              Annuler
+            </Button>
+            <Button type="submit" fullWidth disabled={saving || !isEditFormValid}>
+              {saving ? 'Sauvegarde...' : 'Enregistrer'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* ── Modale de confirmation suppression ─────────────── */}
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="Supprimer l'entreprise"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-slate">
+            Vous êtes sur le point de supprimer <strong className="text-dark">{enterprise.name}</strong>. Cette action est
+            irréversible et supprimera également toutes les cartes NFC, clients, scans et
+            abonnements associés.
+          </p>
+          <div className="flex gap-3">
+            <Button
+              type="button"
+              variant="secondary"
+              fullWidth
+              onClick={() => setShowDeleteModal(false)}
+              disabled={deleting}
+            >
+              Annuler
+            </Button>
+            <Button
+              type="button"
+              fullWidth
+              disabled={deleting}
+              onClick={handleDelete}
+              className="bg-red-600 hover:bg-red-700 text-white border-red-600"
+            >
+              {deleting ? 'Suppression...' : 'Supprimer définitivement'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

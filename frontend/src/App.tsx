@@ -29,6 +29,7 @@ import {
   ClientHomePage,
   ClientRewardsPage,
   ClientProfilePage,
+  EnterpriseProfilePage,
 } from './pages';
 
 const App: React.FC = () => {
@@ -60,6 +61,7 @@ const App: React.FC = () => {
         <Route element={<ProtectedRoute allowedRoles={['OWNER', 'MANAGER', 'EMPLOYEE']} />}>
           <Route element={<MainLayout type="enterprise" />}>
             <Route path="/enterprise/dashboard" element={<EnterpriseDashboard />} />
+            <Route path="/enterprise/profile" element={<EnterpriseProfilePage />} />
             <Route path="/enterprise/clients" element={<ClientsPage />} />
             <Route path="/enterprise/clients/:id/add-points" element={<AddPointsPage />} />
             <Route path="/enterprise/clients/:id/history" element={<PointsHistoryPage />} />

@@ -7,6 +7,7 @@ const swaggerSpec = require("./config/swagger");
 const authRoute = require("./routes/authRoute");
 const adminRoute = require("./routes/adminRoute");
 const uploadRoute = require("./routes/uploadRoute");
+const enterpriseRoute = require("./routes/enterpriseRoute");
 
 const app = express();
 
@@ -80,6 +81,7 @@ app.get("/", (req, res) => {
 
 app.use("/api/auth", authLimiter, authRoute);
 app.use("/api/admin", adminRoute);
+app.use("/api/enterprise", enterpriseRoute);
 app.use("/api/upload", uploadRoute);
 
 // ─── Gestion globale des erreurs (ne pas exposer les détails sensibles) ──────────

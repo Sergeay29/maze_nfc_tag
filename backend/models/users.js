@@ -48,6 +48,16 @@ const User = sequelize.define(
         key: "id",
       },
     },
+
+    // Lien direct vers l'entreprise — NULL pour SUPER_ADMIN, UUID pour OWNER/MANAGER/EMPLOYEE
+    enterpriseId: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      references: {
+        model: "enterprises",
+        key: "id",
+      },
+    },
   },
   {
     tableName: "users",

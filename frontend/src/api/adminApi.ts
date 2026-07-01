@@ -102,10 +102,10 @@ export async function getEnterpriseDetail(
 }
 
 export async function createEnterprise(
-  data: Partial<Enterprise>
+  data: Partial<Enterprise> & { ownerPassword?: string },
 ): Promise<Enterprise> {
-  return request<Enterprise>('/admin/enterprises', {
-    method: 'POST',
+  return request<Enterprise>("/admin/enterprises", {
+    method: "POST",
     body: JSON.stringify(data),
   });
 }
@@ -117,6 +117,12 @@ export async function updateEnterprise(
   return request<Enterprise>(`/admin/enterprises/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),
+  });
+}
+
+export async function deleteEnterprise(id: string): Promise<void> {
+  return request<void>(`/admin/enterprises/${id}`, {
+    method: "DELETE",
   });
 }
 

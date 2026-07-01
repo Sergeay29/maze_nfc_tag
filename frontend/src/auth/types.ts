@@ -13,7 +13,15 @@ export interface AuthUser {
   email: string;
   isActive: boolean;
   roleId: string;
+  enterpriseId?: string | null;
   Role?: Role;
+  enterprise?: {
+    id: string;
+    name: string;
+    logo?: string;
+    status: string;
+    subscription: string;
+  } | null;
 }
 
 export interface LoginCredentials {

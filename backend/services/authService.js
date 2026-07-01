@@ -1,6 +1,6 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const { User, Role } = require("../models");
+const { User, Role, Enterprise } = require("../models");
 
 function sanitizeUser(user) {
   const plainUser = user.get({ plain: true });
@@ -9,12 +9,11 @@ function sanitizeUser(user) {
 }
 
 function signToken(user) {
-  const roleName = user.Role?.name;
-
   return jwt.sign(
     {
       sub: user.id,
-      role: roleName,
+      role: user.Role?.name,
+      enterpriseId: user.enterpriseId ?? null,
     },
     process.env.JWT_SECRET,
     {
@@ -23,14 +22,22 @@ function signToken(user) {
   );
 }
 
+// Inclure toutes les infos utiles au frontend dans un seul objet user
+async function findUserWithIncludes(userId) {
+  return User.findByPk(userId, {
+    include: [
+      { model: Role, attributes: ["id", "name", "description"] },
+      { model: Enterprise, as: "enterprise", attributes: ["id", "name", "logo", "status", "subscription"] },
+    ],
+  });
+}
+
 async function login(email, password) {
   const user = await User.findOne({
     where: { email },
     include: [
-      {
-        model: Role,
-        attributes: ["id", "name", "description"],
-      },
+      { model: Role, attributes: ["id", "name", "description"] },
+      { model: Enterprise, as: "enterprise", attributes: ["id", "name", "logo", "status", "subscription"] },
     ],
   });
 
@@ -41,7 +48,6 @@ async function login(email, password) {
   }
 
   const passwordIsValid = await bcrypt.compare(password, user.password);
-
   if (!passwordIsValid) {
     const error = new Error("Email ou mot de passe incorrect");
     error.statusCode = 401;
@@ -55,20 +61,14 @@ async function login(email, password) {
 }
 
 async function register({ firstName, lastName, email, password }) {
-  const existingUser = await User.findOne({
-    where: { email },
-  });
-
+  const existingUser = await User.findOne({ where: { email } });
   if (existingUser) {
     const error = new Error("Un utilisateur existe déjà avec cet email");
     error.statusCode = 409;
     throw error;
   }
 
-  const role = await Role.findOne({
-    where: { name: "OWNER" },
-  });
-
+  const role = await Role.findOne({ where: { name: "OWNER" } });
   if (!role) {
     const error = new Error("Le rôle utilisateur est introuvable");
     error.statusCode = 500;
@@ -76,23 +76,18 @@ async function register({ firstName, lastName, email, password }) {
   }
 
   const hashedPassword = await bcrypt.hash(password, 10);
-
-  const user = await User.create({
+  await User.create({
     firstName,
     lastName,
     email,
     password: hashedPassword,
     roleId: role.id,
+    enterpriseId: null, // Pas d'entreprise liée à l'inscription libre
   });
 
-  const userWithRole = await User.findByPk(user.id, {
-    include: [
-      {
-        model: Role,
-        attributes: ["id", "name", "description"],
-      },
-    ],
-  });
+  const userWithRole = await findUserWithIncludes(
+    (await User.findOne({ where: { email } })).id
+  );
 
   return {
     token: signToken(userWithRole),
@@ -101,14 +96,7 @@ async function register({ firstName, lastName, email, password }) {
 }
 
 async function getProfile(userId) {
-  const user = await User.findByPk(userId, {
-    include: [
-      {
-        model: Role,
-        attributes: ["id", "name", "description"],
-      },
-    ],
-  });
+  const user = await findUserWithIncludes(userId);
 
   if (!user || !user.isActive) {
     const error = new Error("Utilisateur introuvable");
@@ -119,8 +107,4 @@ async function getProfile(userId) {
   return sanitizeUser(user);
 }
 
-module.exports = {
-  login,
-  register,
-  getProfile,
-};
+module.exports = { login, register, getProfile };

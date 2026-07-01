@@ -1,5 +1,5 @@
 const jwt = require("jsonwebtoken");
-const { User, Role } = require("../models");
+const { User, Role, Enterprise } = require("../models");
 
 async function authenticate(req, res, next) {
   try {
@@ -17,10 +17,8 @@ async function authenticate(req, res, next) {
 
     const user = await User.findByPk(payload.sub, {
       include: [
-        {
-          model: Role,
-          attributes: ["id", "name", "description"],
-        },
+        { model: Role, attributes: ["id", "name", "description"] },
+        { model: Enterprise, as: "enterprise", attributes: ["id", "name", "logo", "status", "subscription"] },
       ],
     });
 
@@ -68,7 +66,4 @@ function requireRole(...allowedRoles) {
   };
 }
 
-module.exports = {
-  authenticate,
-  requireRole,
-};
+module.exports = { authenticate, requireRole };

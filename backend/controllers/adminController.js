@@ -11,6 +11,8 @@ const {
   Setting,
 } = require("../models");
 const { Op } = require("sequelize");
+const sequelize = require("../config/database");
+const bcrypt = require("bcryptjs");
 
 
 /**
@@ -408,42 +410,59 @@ exports.getScans = async (req, res) => {
 
 /**
  * POST /api/admin/enterprises
- * Créer une nouvelle entreprise
+ * Créer une nouvelle entreprise + son compte OWNER en une seule transaction
  */
 exports.createEnterprise = async (req, res) => {
+  const t = await sequelize.transaction();
   try {
     const {
       name,
-      email,
+      email,           // email de l'entreprise (aussi utilisé pour le compte OWNER)
       phone,
       location,
       adminFirstName,
       adminLastName,
       subscription,
       logo,
+      ownerPassword,   // mot de passe du compte de connexion de l'entreprise
     } = req.body;
 
-    // Validation basique
+    // Validation
     if (!name || !email) {
+      await t.rollback();
+      return res.status(400).json({ success: false, message: "Nom et email sont requis" });
+    }
+
+    if (!ownerPassword || ownerPassword.length < 8) {
+      await t.rollback();
       return res.status(400).json({
         success: false,
-        message: "Nom et email sont requis",
+        message: "Le mot de passe du compte entreprise doit contenir au moins 8 caractères",
       });
     }
 
-    // Vérifier si entreprise existe déjà
-    const existingEnterprise = await Enterprise.findOne({
-      where: { email },
-    });
-
+    // Vérifier unicité email entreprise
+    const existingEnterprise = await Enterprise.findOne({ where: { email }, transaction: t });
     if (existingEnterprise) {
-      return res.status(409).json({
-        success: false,
-        message: "Une entreprise avec cet email existe déjà",
-      });
+      await t.rollback();
+      return res.status(409).json({ success: false, message: "Une entreprise avec cet email existe déjà" });
     }
 
-    // Créer entreprise
+    // Vérifier unicité email utilisateur
+    const existingUser = await User.findOne({ where: { email }, transaction: t });
+    if (existingUser) {
+      await t.rollback();
+      return res.status(409).json({ success: false, message: "Un compte utilisateur existe déjà avec cet email" });
+    }
+
+    // Récupérer le rôle OWNER
+    const ownerRole = await Role.findOne({ where: { name: "OWNER" }, transaction: t });
+    if (!ownerRole) {
+      await t.rollback();
+      return res.status(500).json({ success: false, message: "Rôle OWNER introuvable" });
+    }
+
+    // 1. Créer l'entreprise
     const enterprise = await Enterprise.create({
       name,
       email,
@@ -453,27 +472,74 @@ exports.createEnterprise = async (req, res) => {
       adminLastName,
       subscription: subscription || "Starter",
       logo,
-      createdBy: req.user?.id, // Supposer que le user est attaché au req
-    });
+      createdBy: req.user?.id,
+    }, { transaction: t });
 
-    // Créer subscription automatique
+    // 2. Créer le compte User OWNER lié à cette entreprise
+    const hashedPassword = await bcrypt.hash(ownerPassword, 10);
+    await User.create({
+      firstName: adminFirstName || name,
+      lastName: adminLastName || "",
+      email,
+      password: hashedPassword,
+      roleId: ownerRole.id,
+      enterpriseId: enterprise.id,
+      isActive: true,
+    }, { transaction: t });
+
+    // 3. Créer l'abonnement
+    const planPrices = { Starter: 29, Pro: 99, Enterprise: 299 };
     await Subscription.create({
       enterpriseId: enterprise.id,
       plan: subscription || "Starter",
-      monthlyPrice: subscription === "Pro" ? 99 : subscription === "Enterprise" ? 299 : 29,
-    });
+      monthlyPrice: planPrices[subscription] ?? 29,
+    }, { transaction: t });
+
+    await t.commit();
 
     res.status(201).json({
       success: true,
-      message: "Entreprise créée avec succès",
+      message: "Entreprise créée avec succès. Le compte de connexion a été créé.",
       data: { enterprise },
     });
   } catch (error) {
+    await t.rollback();
     console.error("Create enterprise error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Erreur lors de la création de l'entreprise",
-    });
+    res.status(500).json({ success: false, message: "Erreur lors de la création de l'entreprise" });
+  }
+};
+
+/**
+ * DELETE /api/admin/enterprises/:id
+ * Supprimer une entreprise et toutes ses données liées
+ */
+exports.deleteEnterprise = async (req, res) => {
+  const t = await sequelize.transaction();
+  try {
+    const { id } = req.params;
+
+    const enterprise = await Enterprise.findByPk(id, { transaction: t });
+    if (!enterprise) {
+      await t.rollback();
+      return res.status(404).json({ success: false, message: "Entreprise non trouvée" });
+    }
+
+    // Suppression en cascade dans l'ordre
+    await Scan.destroy({ where: { enterpriseId: id }, transaction: t });
+    await NFCCard.destroy({ where: { enterpriseId: id }, transaction: t });
+    await Client.destroy({ where: { enterpriseId: id }, transaction: t });
+    await Subscription.destroy({ where: { enterpriseId: id }, transaction: t });
+    // Supprimer les comptes utilisateurs liés à cette entreprise
+    await User.destroy({ where: { enterpriseId: id }, transaction: t });
+    await enterprise.destroy({ transaction: t });
+
+    await t.commit();
+
+    res.json({ success: true, message: "Entreprise supprimée avec succès" });
+  } catch (error) {
+    await t.rollback();
+    console.error("Delete enterprise error:", error);
+    res.status(500).json({ success: false, message: "Erreur lors de la suppression de l'entreprise" });
   }
 };
 

@@ -16,7 +16,18 @@ User.belongsTo(Role, {
   foreignKey: "roleId",
 });
 
-// User -> Enterprise (created by)
+// Enterprise -> Users (membres de l'entreprise : OWNER, MANAGER, EMPLOYEE)
+Enterprise.hasMany(User, {
+  foreignKey: "enterpriseId",
+  as: "members",
+});
+
+User.belongsTo(Enterprise, {
+  foreignKey: "enterpriseId",
+  as: "enterprise",
+});
+
+// User -> Enterprise (créateur — conservé pour traçabilité)
 User.hasMany(Enterprise, {
   foreignKey: "createdBy",
 });

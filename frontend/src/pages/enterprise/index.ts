@@ -8,3 +8,4 @@ export { default as NotificationsPage } from './NotificationsPage';
 export { default as EnterpriseSettingsPage } from './SettingsPage';
 export { default as AddPointsPage } from './AddPointsPage';
 export { default as PointsHistoryPage } from './PointsHistoryPage';
+export { default as EnterpriseProfilePage } from "./EnterpriseProfilePage";

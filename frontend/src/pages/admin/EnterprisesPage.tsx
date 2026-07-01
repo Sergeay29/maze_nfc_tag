@@ -21,6 +21,8 @@ interface CreateEnterpriseForm {
   adminLastName: string;
   subscription: string;
   logo: string;
+  ownerPassword: string;
+  ownerPasswordConfirm: string;
 }
 
 const EMPTY_FORM: CreateEnterpriseForm = {
@@ -32,6 +34,8 @@ const EMPTY_FORM: CreateEnterpriseForm = {
   adminLastName: '',
   subscription: 'Starter',
   logo: '',
+  ownerPassword: '',
+  ownerPasswordConfirm: '',
 };
 
 // Validation email simple
@@ -71,6 +75,16 @@ const EnterprisesPage: React.FC = () => {
     }
     if (form.logo && !/^https?:\/\/.+/.test(form.logo.trim())) {
       errors.logo = 'Doit être une URL valide (http/https)';
+    }
+    if (!form.ownerPassword) {
+      errors.ownerPassword = 'Le mot de passe est obligatoire';
+    } else if (form.ownerPassword.length < 8) {
+      errors.ownerPassword = 'Minimum 8 caractères';
+    }
+    if (!form.ownerPasswordConfirm) {
+      errors.ownerPasswordConfirm = 'Confirmez le mot de passe';
+    } else if (form.ownerPassword !== form.ownerPasswordConfirm) {
+      errors.ownerPasswordConfirm = 'Les mots de passe ne correspondent pas';
     }
     return errors;
   }, [form]);
@@ -132,13 +146,17 @@ const EnterprisesPage: React.FC = () => {
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     // Marquer tous les champs comme touchés pour afficher les erreurs
-    setTouched({ name: true, email: true, phone: true, logo: true });
+    setTouched({ name: true, email: true, phone: true, logo: true, ownerPassword: true, ownerPasswordConfirm: true });
     if (!isFormValid) return;
 
     try {
       setCreating(true);
       setFormError(null);
-      await createEnterprise({ ...form, logo: form.logo.trim() || undefined });
+      await createEnterprise({
+        ...form,
+        logo: form.logo.trim() || undefined,
+        ownerPassword: form.ownerPassword,
+      } as Parameters<typeof createEnterprise>[0]);
       setShowCreateModal(false);
       await fetchEnterprises();
     } catch (err) {
@@ -366,6 +384,44 @@ const EnterprisesPage: React.FC = () => {
             value={form.subscription}
             onChange={(val) => handleFieldChange('subscription', val)}
           />
+
+          {/* ── Compte de connexion ── */}
+          <div className="pt-2 border-t border-slate/10">
+            <p className="text-sm font-medium text-dark mb-3">
+              Compte de connexion de l'entreprise
+            </p>
+            <p className="text-xs text-slate mb-4">
+              L'entreprise utilisera l'email ci-dessus et ce mot de passe pour se connecter à la plateforme.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Input
+                  label="Mot de passe *"
+                  type="password"
+                  value={form.ownerPassword}
+                  onChange={(e) => handleFieldChange('ownerPassword', e.target.value)}
+                  onBlur={() => handleBlur('ownerPassword')}
+                  placeholder="Minimum 8 caractères"
+                />
+                {touched.ownerPassword && fieldErrors.ownerPassword && (
+                  <p className="mt-1 text-xs text-red-500">{fieldErrors.ownerPassword}</p>
+                )}
+              </div>
+              <div>
+                <Input
+                  label="Confirmer le mot de passe *"
+                  type="password"
+                  value={form.ownerPasswordConfirm}
+                  onChange={(e) => handleFieldChange('ownerPasswordConfirm', e.target.value)}
+                  onBlur={() => handleBlur('ownerPasswordConfirm')}
+                  placeholder="Répéter le mot de passe"
+                />
+                {touched.ownerPasswordConfirm && fieldErrors.ownerPasswordConfirm && (
+                  <p className="mt-1 text-xs text-red-500">{fieldErrors.ownerPasswordConfirm}</p>
+                )}
+              </div>
+            </div>
+          </div>
 
           <div className="flex gap-3 pt-2">
             <Button

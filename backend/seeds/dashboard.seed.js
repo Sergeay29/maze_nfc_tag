@@ -1,6 +1,7 @@
 // seeds/dashboard.seed.js
 
-const { Enterprise, NFCCard, Client, Scan, Subscription } = require("../models");
+const bcrypt = require("bcryptjs");
+const { Enterprise, NFCCard, Client, Scan, Subscription, User, Role } = require("../models");
 
 // Fonction pour générer les initiales du nom d'entreprise
 const getEnterpriseInitials = (name) => {
@@ -99,26 +100,40 @@ async function seedDashboardData() {
       }),
     ]);
 
-    // 2. Créer subscriptions pour chaque entreprise
+    // 2. Créer subscriptions pour chaque entreprise + compte OWNER lié
+    const ownerRole = await Role.findOne({ where: { name: "OWNER" } });
+    const hashedPassword = await bcrypt.hash("owner123456", 10);
+
     for (const enterprise of enterprises) {
       const monthlyPrice =
-        enterprise.subscription === "Pro"
-          ? 99
-          : enterprise.subscription === "Enterprise"
-          ? 299
-          : 29;
+        enterprise.subscription === "Pro" ? 99
+          : enterprise.subscription === "Enterprise" ? 299 : 29;
 
       await Subscription.create({
         enterpriseId: enterprise.id,
         plan: enterprise.subscription,
         monthlyPrice,
         cardsLimit:
-          enterprise.subscription === "Pro"
-            ? 10000
-            : enterprise.subscription === "Enterprise"
-            ? 50000
-            : 1000,
+          enterprise.subscription === "Pro" ? 10000
+            : enterprise.subscription === "Enterprise" ? 50000 : 1000,
       });
+
+      // Créer le compte OWNER pour cette entreprise (email = email de l'entreprise)
+      if (ownerRole) {
+        const existingUser = await User.findOne({ where: { email: enterprise.email } });
+        if (!existingUser) {
+          // Extraire prénom/nom depuis adminFirstName/adminLastName
+          await User.create({
+            firstName: enterprise.adminFirstName || enterprise.name,
+            lastName: enterprise.adminLastName || "",
+            email: enterprise.email,
+            password: hashedPassword,
+            roleId: ownerRole.id,
+            enterpriseId: enterprise.id,
+            isActive: true,
+          });
+        }
+      }
     }
 
     // 3. Créer des clients pour la première entreprise
