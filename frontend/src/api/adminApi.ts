@@ -1,4 +1,4 @@
-import type { Enterprise, NFCCard, Client, Scan } from '../data/mockData';
+import type { Enterprise, NFCCard, Scan } from '../data/mockData';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 const TOKEN_STORAGE_KEY = 'maze_nfc_auth_token';
@@ -102,9 +102,9 @@ export async function getEnterpriseDetail(
 }
 
 export async function createEnterprise(
-  data: Partial<Enterprise> & { ownerPassword?: string },
-): Promise<Enterprise> {
-  return request<Enterprise>("/admin/enterprises", {
+  data: Partial<Enterprise>,
+): Promise<Enterprise & { generatedPassword: string }> {
+  return request<Enterprise & { generatedPassword: string }>("/admin/enterprises", {
     method: "POST",
     body: JSON.stringify(data),
   });

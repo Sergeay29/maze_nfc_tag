@@ -107,4 +107,12 @@ async function getProfile(userId) {
   return sanitizeUser(user);
 }
 
-module.exports = { login, register, getProfile };
+async function changePassword(userId, newPassword) {
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
+  await User.update(
+    { password: hashedPassword, mustChangePassword: false },
+    { where: { id: userId } }
+  );
+}
+
+module.exports = { login, register, getProfile, changePassword };

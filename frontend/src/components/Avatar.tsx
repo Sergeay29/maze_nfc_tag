@@ -43,7 +43,7 @@ const Avatar: React.FC<AvatarProps> = ({
           src={src}
           alt={name}
           className="w-full h-full object-cover"
-          onError={() => setImgError(true)}
+          onError={() => { console.log("voici l'erreurrrrrrrrrrr", src); setImgError(true); }}
         />
       </div>
     );

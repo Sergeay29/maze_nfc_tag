@@ -1,24 +1,97 @@
-import type {
-  Enterprise,
-  NFCCard,
-  Client,
-  Service,
-  Reward,
-  Scan,
-  DashboardStats,
-  ScanStat,
-} from '../data/mockData';
-
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-const TOKEN_STORAGE_KEY = 'maze_nfc_auth_token';
+const TOKEN_KEY = 'maze_nfc_auth_token';
 
-interface ApiResponse<T> {
-  success: boolean;
-  message?: string;
-  data: T;
+async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const token = localStorage.getItem(TOKEN_KEY);
+  const { headers: extraHeaders, ...restOptions } = options;
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...restOptions,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(extraHeaders as Record<string, string> || {}),
+    },
+  });
+
+  const payload = await response.json();
+  if (!response.ok || !payload.success) {
+    throw new Error(payload.message || 'Une erreur est survenue');
+  }
+  return payload.data;
 }
 
-interface PaginatedResponse<T> {
+export interface EnterpriseDashboardData {
+  stats: { totalClients: number; totalCards: number; activeCards: number; totalScans: number; totalPointsGiven: number };
+  scanStats: Array<{ day: string; scans: number }>;
+  topClients: Array<{ id: string; name: string; points: number; level: string }>;
+  recentScans: Array<{ id: string; pointsAdded: number; scannedAt: string; Client?: { name: string }; NFCCard?: { cardCode: string } }>;
+}
+
+export interface MyEnterpriseData {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  location?: string;
+  logo?: string;
+  status: string;
+  subscription?: string;
+  modules?: string[];
+  adminFirstName?: string;
+  adminLastName?: string;
+  createdAt: string;
+  stats: { totalCards: number; activeCards: number; totalClients: number; totalScansThisMonth: number };
+  Subscription?: { status: string; monthlyPrice?: number };
+  Scans?: Array<{ id: string; pointsAdded?: number; createdAt: string }>;
+}
+
+export async function getEnterpriseDashboard(): Promise<EnterpriseDashboardData> {
+  return request<EnterpriseDashboardData>('/enterprise/dashboard');
+}
+
+export async function getMyEnterprise(): Promise<MyEnterpriseData> {
+  return request<MyEnterpriseData>('/enterprise/me');
+}
+
+export async function updateMyEnterprise(body: {
+  name?: string; phone?: string; location?: string;
+  logo?: string; adminFirstName?: string; adminLastName?: string;
+}): Promise<MyEnterpriseData> {
+  return request<MyEnterpriseData>('/enterprise/me', {
+    method: 'PUT',
+    body: JSON.stringify(body),
+  });
+}
+
+// ─── CLIENTS ────────────────────────────────────────────────
+
+export interface ClientData {
+  id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  photo?: string;
+  points: number;
+  level: string;
+  status: string;
+  lastActivity?: string;
+  enterpriseId: string;
+  createdAt: string;
+}
+
+export interface ScanData {
+  id: string;
+  pointsAdded: number;
+  notes?: string;
+  scannedAt: string;
+  Client?: { id: string; name: string };
+  NFCCard?: { cardCode: string };
+  Service?: { id: string; name: string };
+  service?: { name: string };
+}
+
+export interface PaginatedResponse<T> {
   data: T[];
   total: number;
   page: number;
@@ -26,273 +99,146 @@ interface PaginatedResponse<T> {
   pages: number;
 }
 
-interface EnterpriseDashboardData {
-  stats: DashboardStats;
-  scanStats: ScanStat[];
-  topClients: Client[];
-  recentScans: Scan[];
+export async function getClients(params?: { page?: number; limit?: number; search?: string }): Promise<PaginatedResponse<ClientData>> {
+  const qs = new URLSearchParams();
+  if (params?.page) qs.set('page', String(params.page));
+  if (params?.limit) qs.set('limit', String(params.limit));
+  if (params?.search) qs.set('search', params.search);
+  return request<PaginatedResponse<ClientData>>(`/enterprise/clients${qs.toString() ? '?' + qs : ''}`);
 }
 
-async function getAuthToken(): Promise<string> {
-  const token = localStorage.getItem(TOKEN_STORAGE_KEY);
-  if (!token) {
-    throw new Error('Not authenticated');
-  }
-  return token;
+export async function getClientDetail(id: string): Promise<ClientData> {
+  return request<ClientData>(`/enterprise/clients/${id}`);
 }
 
-async function request<T>(
-  path: string,
-  options: RequestInit = {}
-): Promise<T> {
-  const token = await getAuthToken();
-
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-      ...(options.headers || {}),
-    },
-    ...options,
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.message || 'Une erreur est survenue');
-  }
-
-  const payload = (await response.json()) as ApiResponse<T>;
-
-  if (!payload.success) {
-    throw new Error(payload.message || 'Une erreur est survenue');
-  }
-
-  return payload.data;
+export async function createClient(body: { name: string; email?: string; phone?: string; photo?: string }): Promise<ClientData> {
+  return request<ClientData>('/enterprise/clients', { method: 'POST', body: JSON.stringify(body) });
 }
 
-// Enterprise
-export async function getMyEnterprise(): Promise<
-  Enterprise & { stats: DashboardStats }
-> {
-  return request<Enterprise & { stats: DashboardStats }>('/enterprise/me');
+export async function updateClient(id: string, body: Partial<ClientData>): Promise<ClientData> {
+  return request<ClientData>(`/enterprise/clients/${id}`, { method: 'PUT', body: JSON.stringify(body) });
 }
 
-export async function updateMyEnterprise(
-  data: Partial<Enterprise>
-): Promise<Enterprise> {
-  return request<Enterprise>('/enterprise/me', {
-    method: 'PUT',
-    body: JSON.stringify(data),
-  });
+export async function adjustPoints(body: { clientId: string; points: number; reason?: string }): Promise<ClientData> {
+  return request<ClientData>('/enterprise/points/adjust', { method: 'POST', body: JSON.stringify(body) });
 }
 
-// Dashboard
-export async function getEnterpriseDashboard(): Promise<EnterpriseDashboardData> {
-  return request<EnterpriseDashboardData>('/enterprise/dashboard');
+export async function getEnterpriseScans(params?: { page?: number; limit?: number; clientId?: string; startDate?: string; endDate?: string }): Promise<PaginatedResponse<ScanData>> {
+  const qs = new URLSearchParams();
+  if (params?.page) qs.set('page', String(params.page));
+  if (params?.limit) qs.set('limit', String(params.limit));
+  if (params?.clientId) qs.set('clientId', params.clientId);
+  if (params?.startDate) qs.set('startDate', params.startDate);
+  if (params?.endDate) qs.set('endDate', params.endDate);
+  return request<PaginatedResponse<ScanData>>(`/enterprise/scans${qs.toString() ? '?' + qs : ''}`);
 }
 
-// Clients
-export interface GetClientsParams {
-  page?: number;
-  limit?: number;
-  search?: string;
+// ─── SERVICES ────────────────────────────────────────────────
+
+export interface ServiceData {
+  id: string;
+  name: string;
+  description?: string;
+  pointsToAdd: number;
+  icon?: string;
+  color: string;
+  isActive: boolean;
+  enterpriseId: string;
+  createdAt: string;
 }
 
-export async function getClients(
-  params: GetClientsParams = {}
-): Promise<PaginatedResponse<Client>> {
-  const query = new URLSearchParams();
-  if (params.page) query.append('page', String(params.page));
-  if (params.limit) query.append('limit', String(params.limit));
-  if (params.search) query.append('search', params.search);
-
-  const queryString = query.toString();
-  return request<PaginatedResponse<Client>>(
-    `/enterprise/clients${queryString ? '?' + queryString : ''}`
-  );
+export async function getServices(params?: { activeOnly?: boolean }): Promise<ServiceData[]> {
+  const qs = params?.activeOnly ? '?activeOnly=true' : '';
+  return request<ServiceData[]>(`/enterprise/services${qs}`);
 }
 
-export async function getClientDetail(id: string): Promise<
-  Client & { scans: Scan[] }
-> {
-  return request<Client & { scans: Scan[] }>(`/enterprise/clients/${id}`);
-}
-
-export async function createClient(data: Partial<Client>): Promise<Client> {
-  return request<Client>('/enterprise/clients', {
+export async function createService(body: Partial<ServiceData>): Promise<ServiceData> {
+  return request<ServiceData>('/enterprise/services', {
     method: 'POST',
-    body: JSON.stringify(data),
+    body: JSON.stringify(body),
   });
 }
 
-export async function updateClient(
-  id: string,
-  data: Partial<Client>
-): Promise<Client> {
-  return request<Client>(`/enterprise/clients/${id}`, {
+export async function updateService(id: string, body: Partial<ServiceData>): Promise<ServiceData> {
+  return request<ServiceData>(`/enterprise/services/${id}`, {
     method: 'PUT',
-    body: JSON.stringify(data),
-  });
-}
-
-// Services
-export interface GetServicesParams {
-  activeOnly?: boolean;
-}
-
-export async function getServices(
-  params: GetServicesParams = {}
-): Promise<Service[]> {
-  const query = new URLSearchParams();
-  if (params.activeOnly) query.append('activeOnly', 'true');
-
-  const queryString = query.toString();
-  return request<Service[]>(
-    `/enterprise/services${queryString ? '?' + queryString : ''}`
-  );
-}
-
-export async function getServiceDetail(id: string): Promise<Service> {
-  return request<Service>(`/enterprise/services/${id}`);
-}
-
-export async function createService(data: Partial<Service>): Promise<Service> {
-  return request<Service>('/enterprise/services', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-}
-
-export async function updateService(
-  id: string,
-  data: Partial<Service>
-): Promise<Service> {
-  return request<Service>(`/enterprise/services/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify(data),
+    body: JSON.stringify(body),
   });
 }
 
 export async function deleteService(id: string): Promise<void> {
-  return request<void>(`/enterprise/services/${id}`, {
-    method: 'DELETE',
-  });
+  return request<void>(`/enterprise/services/${id}`, { method: 'DELETE' });
 }
 
-// Rewards
-export interface GetRewardsParams {
-  activeOnly?: boolean;
+// ─── REWARDS ────────────────────────────────────────────────
+
+export interface RewardData {
+  id: string;
+  title: string;
+  description?: string;
+  pointsRequired: number;
+  isActive: boolean;
+  image?: string;
+  category?: string;
+  stock?: number;
+  enterpriseId: string;
+  createdAt: string;
 }
 
-export async function getRewards(
-  params: GetRewardsParams = {}
-): Promise<Reward[]> {
-  const query = new URLSearchParams();
-  if (params.activeOnly) query.append('activeOnly', 'true');
-
-  const queryString = query.toString();
-  return request<Reward[]>(
-    `/enterprise/rewards${queryString ? '?' + queryString : ''}`
-  );
+export async function getRewards(params?: { activeOnly?: boolean }): Promise<RewardData[]> {
+  const qs = params?.activeOnly ? '?activeOnly=true' : '';
+  return request<RewardData[]>(`/enterprise/rewards${qs}`);
 }
 
-export async function getRewardDetail(id: string): Promise<Reward> {
-  return request<Reward>(`/enterprise/rewards/${id}`);
+export async function createReward(body: Partial<RewardData>): Promise<RewardData> {
+  return request<RewardData>('/enterprise/rewards', { method: 'POST', body: JSON.stringify(body) });
 }
 
-export async function createReward(data: Partial<Reward>): Promise<Reward> {
-  return request<Reward>('/enterprise/rewards', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-}
-
-export async function updateReward(
-  id: string,
-  data: Partial<Reward>
-): Promise<Reward> {
-  return request<Reward>(`/enterprise/rewards/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify(data),
-  });
+export async function updateReward(id: string, body: Partial<RewardData>): Promise<RewardData> {
+  return request<RewardData>(`/enterprise/rewards/${id}`, { method: 'PUT', body: JSON.stringify(body) });
 }
 
 export async function deleteReward(id: string): Promise<void> {
-  return request<void>(`/enterprise/rewards/${id}`, {
-    method: 'DELETE',
-  });
+  return request<void>(`/enterprise/rewards/${id}`, { method: 'DELETE' });
 }
 
-// NFC Cards
-export interface GetEnterpriseCardsParams {
-  page?: number;
-  limit?: number;
-  status?: 'all' | 'active' | 'inactive' | 'unassigned';
-}
+// ─── NFC CARDS ──────────────────────────────────────────────
 
-export async function getEnterpriseCards(
-  params: GetEnterpriseCardsParams = {}
-): Promise<PaginatedResponse<NFCCard>> {
-  const query = new URLSearchParams();
-  if (params.page) query.append('page', String(params.page));
-  if (params.limit) query.append('limit', String(params.limit));
-  if (params.status && params.status !== 'all')
-    query.append('status', params.status);
-
-  const queryString = query.toString();
-  return request<PaginatedResponse<NFCCard>>(
-    `/enterprise/cards${queryString ? '?' + queryString : ''}`
-  );
-}
-
-// Scans & Points
-export interface ScanCardPayload {
+export interface NFCCardData {
+  id: string;
+  cardNumber: string;
   cardCode: string;
-  serviceId?: string;
-  notes?: string;
-  manualPoints?: number;
+  status: 'active' | 'inactive' | 'unassigned';
+  enterpriseId: string;
+  assignedToClientId?: string;
+  assignedClient?: { id: string; name: string; email: string } | null;
+  createdAt: string;
 }
 
-export async function scanCard(data: ScanCardPayload): Promise<Scan> {
-  return request<Scan>('/enterprise/scan', {
+export async function getEnterpriseCards(params?: { page?: number; limit?: number; status?: string }): Promise<PaginatedResponse<NFCCardData>> {
+  const qs = new URLSearchParams();
+  if (params?.page) qs.set('page', String(params.page));
+  if (params?.limit) qs.set('limit', String(params.limit));
+  if (params?.status) qs.set('status', params.status);
+  return request<PaginatedResponse<NFCCardData>>(`/enterprise/cards${qs.toString() ? '?' + qs : ''}`);
+}
+
+// ─── UPLOAD ────────────────────────────────────────────────
+
+export async function uploadFile(file: File): Promise<string> {
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (!token) throw new Error('Non authentifié');
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await fetch(`${API_BASE_URL}/upload/logo`, {
     method: 'POST',
-    body: JSON.stringify(data),
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData,
   });
-}
 
-export interface GetEnterpriseScansParams {
-  page?: number;
-  limit?: number;
-  clientId?: string;
-  startDate?: string;
-  endDate?: string;
-}
-
-export async function getEnterpriseScans(
-  params: GetEnterpriseScansParams = {}
-): Promise<PaginatedResponse<Scan>> {
-  const query = new URLSearchParams();
-  if (params.page) query.append('page', String(params.page));
-  if (params.limit) query.append('limit', String(params.limit));
-  if (params.clientId) query.append('clientId', params.clientId);
-  if (params.startDate) query.append('startDate', params.startDate);
-  if (params.endDate) query.append('endDate', params.endDate);
-
-  const queryString = query.toString();
-  return request<PaginatedResponse<Scan>>(
-    `/enterprise/scans${queryString ? '?' + queryString : ''}`
-  );
-}
-
-export interface AdjustPointsPayload {
-  clientId: string;
-  points: number;
-  reason?: string;
-}
-
-export async function adjustPoints(data: AdjustPointsPayload): Promise<Client> {
-  return request<Client>('/enterprise/points/adjust', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
+  const payload = await response.json();
+  if (!response.ok || !payload.success) throw new Error(payload.message || 'Erreur upload');
+  return payload.data.url as string;
 }

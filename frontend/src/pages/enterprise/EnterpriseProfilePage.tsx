@@ -12,11 +12,14 @@ import {
   Save,
   X,
 } from 'lucide-react';
-import { Card, Badge, StatCard, Avatar, Button, Input, LogoUpload } from '../../components';
-import { getMyEnterprise, updateMyEnterprise } from '../../api/enterpriseApi';
+import { Card, Badge, StatCard, Avatar, Button, Input, LogoUpload, PhoneInput } from '../../components';
+import { getMyEnterprise, updateMyEnterprise, uploadFile } from '../../api/enterpriseApi';
 import type { MyEnterpriseData } from '../../api/enterpriseApi';
+import { useAuth } from '../../auth/useAuth';
+import { isValidPhoneNumber } from 'react-phone-number-input';
 
 const EnterpriseProfilePage: React.FC = () => {
+  const { updateUserEnterprise } = useAuth();
   const [enterprise, setEnterprise] = useState<MyEnterpriseData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -24,8 +27,10 @@ const EnterpriseProfilePage: React.FC = () => {
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState('');
   const [editPhone, setEditPhone] = useState('');
+  const phoneError = editPhone && !isValidPhoneNumber(editPhone) ? 'Numéro de téléphone invalide' : undefined;
   const [editLocation, setEditLocation] = useState('');
   const [editLogo, setEditLogo] = useState('');
+  const [editLogoFile, setEditLogoFile] = useState<File | null>(null);
   const [editAdminFirstName, setEditAdminFirstName] = useState('');
   const [editAdminLastName, setEditAdminLastName] = useState('');
   const [saving, setSaving] = useState(false);
@@ -53,6 +58,7 @@ const EnterpriseProfilePage: React.FC = () => {
     setEditPhone(enterprise.phone ?? '');
     setEditLocation(enterprise.location ?? '');
     setEditLogo(enterprise.logo ?? '');
+    setEditLogoFile(null);
     setEditAdminFirstName(enterprise.adminFirstName ?? '');
     setEditAdminLastName(enterprise.adminLastName ?? '');
     setSaveError(null);
@@ -69,15 +75,22 @@ const EnterpriseProfilePage: React.FC = () => {
     try {
       setSaving(true);
       setSaveError(null);
+      // Upload du logo si un nouveau fichier a été sélectionné
+      let finalLogo = editLogo;
+      if (editLogoFile) {
+        finalLogo = await uploadFile(editLogoFile);
+      }
       const result = await updateMyEnterprise({
         name: editName.trim(),
         phone: editPhone || undefined,
         location: editLocation || undefined,
-        logo: editLogo || undefined,
+        logo: finalLogo || undefined,
         adminFirstName: editAdminFirstName || undefined,
         adminLastName: editAdminLastName || undefined,
       });
-      setEnterprise((prev) => prev ? { ...prev, ...result.enterprise } : prev);
+      setEnterprise((prev) => prev ? { ...prev, ...result, stats: prev.stats } : prev);
+      // Mise à jour instantanée du Header sans rechargement
+      updateUserEnterprise({ name: result.name, logo: result.logo ?? finalLogo });
       setEditing(false);
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'Erreur lors de la sauvegarde');
@@ -121,22 +134,22 @@ const EnterpriseProfilePage: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Cartes NFC"
-          value={enterprise.totalCards.toLocaleString('fr-FR')}
+          value={(enterprise.stats?.totalCards ?? 0).toLocaleString('fr-FR')}
           icon={<CreditCard className="w-5 h-5" />}
         />
         <StatCard
           title="Cartes actives"
-          value={enterprise.activeCards.toLocaleString('fr-FR')}
+          value={(enterprise.stats?.activeCards ?? 0).toLocaleString('fr-FR')}
           icon={<CreditCard className="w-5 h-5" />}
         />
         <StatCard
           title="Clients"
-          value={enterprise.totalClients.toLocaleString('fr-FR')}
+          value={(enterprise.stats?.totalClients ?? 0).toLocaleString('fr-FR')}
           icon={<Users className="w-5 h-5" />}
         />
         <StatCard
-          title="Scans totaux"
-          value={(enterprise.scansCount ?? enterprise.totalScans).toLocaleString('fr-FR')}
+          title="Scans (30j)"
+          value={(enterprise.stats?.totalScansThisMonth ?? 0).toLocaleString('fr-FR')}
           icon={<QrCode className="w-5 h-5" />}
         />
       </div>
@@ -172,6 +185,7 @@ const EnterpriseProfilePage: React.FC = () => {
                   label="Logo"
                   value={editLogo}
                   onChange={setEditLogo}
+                  onFileSelect={setEditLogoFile}
                   previewName={editName}
                 />
 
@@ -182,11 +196,11 @@ const EnterpriseProfilePage: React.FC = () => {
                   icon={<Building2 className="w-5 h-5" />}
                 />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Input
+                  <PhoneInput
                     label="Téléphone"
                     value={editPhone}
-                    onChange={(e) => setEditPhone(e.target.value)}
-                    icon={<Phone className="w-5 h-5" />}
+                    onChange={setEditPhone}
+                    error={phoneError}
                   />
                   <Input
                     label="Localisation"
@@ -217,7 +231,7 @@ const EnterpriseProfilePage: React.FC = () => {
                     fullWidth
                     icon={<Save className="w-4 h-4" />}
                     onClick={handleSave}
-                    disabled={saving || !editName.trim()}
+                    disabled={saving || !editName.trim() || !!phoneError}
                   >
                     {saving ? 'Sauvegarde...' : 'Enregistrer'}
                   </Button>

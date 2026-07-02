@@ -12,6 +12,7 @@ export interface AuthUser {
   lastName: string;
   email: string;
   isActive: boolean;
+  mustChangePassword?: boolean;
   roleId: string;
   enterpriseId?: string | null;
   Role?: Role;

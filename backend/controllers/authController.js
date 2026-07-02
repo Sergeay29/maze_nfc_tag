@@ -82,8 +82,34 @@ async function me(req, res) {
   }
 }
 
+async function changePassword(req, res) {
+  try {
+    const { newPassword } = req.body;
+
+    if (!newPassword || newPassword.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: "Le mot de passe doit contenir au moins 8 caractères",
+      });
+    }
+
+    await authService.changePassword(req.user.id, newPassword);
+
+    return res.json({
+      success: true,
+      message: "Mot de passe mis à jour avec succès",
+    });
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || "Erreur lors du changement de mot de passe",
+    });
+  }
+}
+
 module.exports = {
   login,
   register,
   me,
+  changePassword,
 };

@@ -10,8 +10,8 @@ const { authenticate, requireRole } = require("../middlewares/authMiddleware");
  * /api/upload/logo:
  *   post:
  *     tags: [Admin]
- *     summary: Uploader un logo (image) — stockage sur Cloudinary
- *     description: Accepte JPG, PNG, WEBP, GIF — max 5 MB. Retourne l'URL publique Cloudinary.
+ *     summary: Uploader un logo (image) — stockage local dans /uploads
+ *     description: Accepte JPG, PNG, WEBP, GIF — max 5 MB. Retourne l'URL locale.
  *     requestBody:
  *       required: true
  *       content:
@@ -34,14 +34,13 @@ const { authenticate, requireRole } = require("../middlewares/authMiddleware");
  *                 data:
  *                   type: object
  *                   properties:
- *                     url: { type: string, example: "https://res.cloudinary.com/.../image/upload/.../maze-nfc/abc123.jpg" }
+ *                     url: { type: string, example: "http://localhost:3000/uploads/file-1234567890.jpg" }
  *       400:
  *         description: Fichier manquant ou format invalide
  */
 router.post(
   "/logo",
   authenticate,
-  requireRole("SUPER_ADMIN"),
   upload.single("file"),
   (req, res) => {
     if (!req.file) {
@@ -51,10 +50,14 @@ router.post(
       });
     }
 
-    // Cloudinary renvoie l'URL directement dans req.file.path
+    // Construire l'URL complète du fichier
+    const protocol = req.protocol;
+    const host = req.get("host");
+    const fileUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
+
     return res.json({
       success: true,
-      data: { url: req.file.path },
+      data: { url: fileUrl },
     });
   }
 );

@@ -1,40 +1,39 @@
-import React, { useRef, useState } from 'react';
-import { Upload, X, Loader } from 'lucide-react';
-import { uploadLogo } from '../api/adminApi';
+import React, { useRef, useState, useEffect } from 'react';
+import { Upload, X } from 'lucide-react';
 
 interface LogoUploadProps {
-  value: string;          // URL actuelle
-  onChange: (url: string) => void;
+  value: string;                    // URL actuelle (logo déjà enregistré)
+  onChange: (url: string) => void;  // URL (reset ou existante)
+  onFileSelect?: (file: File | null) => void; // Fichier sélectionné, à uploader au submit
   label?: string;
-  previewName?: string;   // Nom pour afficher les initiales en fallback
+  previewName?: string;
 }
 
 const LogoUpload: React.FC<LogoUploadProps> = ({
   value,
   onChange,
+  onFileSelect,
   label = 'Logo',
   previewName = '',
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
+  const [preview, setPreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const handleFile = async (file: File) => {
-    if (!file) return;
+  // Nettoyer l'object URL pour éviter les fuites mémoire
+  useEffect(() => {
+    return () => { if (preview) URL.revokeObjectURL(preview); };
+  }, [preview]);
+
+  const handleFile = (file: File) => {
     if (file.size > 2 * 1024 * 1024) {
       setError('Fichier trop lourd (max 2 MB)');
       return;
     }
-    try {
-      setUploading(true);
-      setError(null);
-      const url = await uploadLogo(file);
-      onChange(url);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur lors de l'upload");
-    } finally {
-      setUploading(false);
-    }
+    setError(null);
+    const localUrl = URL.createObjectURL(file);
+    setPreview(localUrl);
+    onFileSelect?.(file);
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -43,6 +42,16 @@ const LogoUpload: React.FC<LogoUploadProps> = ({
     if (file) handleFile(file);
   };
 
+  const handleClear = () => {
+    if (preview) URL.revokeObjectURL(preview);
+    setPreview(null);
+    setError(null);
+    onChange('');
+    onFileSelect?.(null);
+    if (inputRef.current) inputRef.current.value = '';
+  };
+
+  const displaySrc = preview || value || null;
   const initials = previewName
     ? previewName.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase()
     : '?';
@@ -56,16 +65,14 @@ const LogoUpload: React.FC<LogoUploadProps> = ({
       )}
 
       <div
-        className={`flex items-center gap-4 p-3 border-2 border-dashed rounded-xl transition-colors duration-200 ${
-          uploading ? 'border-primary/40 bg-primary/5' : 'border-slate/20 hover:border-primary/40 bg-cloud'
-        }`}
+        className="flex items-center gap-4 p-3 border-2 border-dashed rounded-xl transition-colors duration-200 border-slate/20 hover:border-primary/40 bg-cloud"
         onDrop={handleDrop}
         onDragOver={(e) => e.preventDefault()}
       >
         {/* Aperçu */}
         <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center bg-gradient">
-          {value ? (
-            <img src={value} alt="logo" className="w-full h-full object-cover" />
+          {displaySrc ? (
+            <img src={displaySrc} alt="logo" className="w-full h-full object-cover" />
           ) : (
             <span className="text-white font-bold text-lg font-poppins">{initials}</span>
           )}
@@ -73,17 +80,17 @@ const LogoUpload: React.FC<LogoUploadProps> = ({
 
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-dark">
-            {value ? 'Logo uploadé' : 'Glissez une image ou cliquez'}
+            {preview ? 'Image sélectionnée' : value ? 'Logo actuel' : 'Glissez une image ou cliquez'}
           </p>
           <p className="text-xs text-slate mt-0.5">JPG, PNG, WEBP — max 2 MB</p>
           {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
         </div>
 
         <div className="flex items-center gap-2 flex-shrink-0">
-          {value && !uploading && (
+          {displaySrc && (
             <button
               type="button"
-              onClick={() => { onChange(''); setError(null); }}
+              onClick={handleClear}
               className="p-1.5 rounded-lg hover:bg-red-50 text-slate hover:text-red-500 transition-colors"
               title="Supprimer"
             >
@@ -93,15 +100,10 @@ const LogoUpload: React.FC<LogoUploadProps> = ({
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
-            disabled={uploading}
-            className="flex items-center gap-1.5 px-3 py-2 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-2 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary/90 transition-colors"
           >
-            {uploading ? (
-              <Loader className="w-4 h-4 animate-spin" />
-            ) : (
-              <Upload className="w-4 h-4" />
-            )}
-            {uploading ? 'Upload...' : 'Choisir'}
+            <Upload className="w-4 h-4" />
+            Choisir
           </button>
         </div>
       </div>

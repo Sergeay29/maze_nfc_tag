@@ -47,7 +47,7 @@ async function syncDatabase() {
     console.log("PostgreSQL connecté");
 
     // Utiliser sync() global avec force: true pour initialiser la base de données complètement
-    await sequelize.sync({ force: true });
+    await sequelize.sync({ alter: true });
     console.log("Toutes les tables synchronisées avec succès !");
   } catch (error) {
     console.error(error);

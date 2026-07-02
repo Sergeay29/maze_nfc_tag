@@ -21,6 +21,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   const [collapsed, setCollapsed] = useState(false);
   const fullName = user ? `${user.firstName} ${user.lastName}` : userName || '';
   const roleName = user?.Role?.description || user?.Role?.name || userRole || '';
+  const avatar = type === 'enterprise' ? (user?.enterprise?.logo ?? userAvatar) : userAvatar;
 
   return (
     <div className="min-h-screen bg-cloud">
@@ -29,7 +30,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         <Header
           userName={fullName}
           userRole={roleName}
-          userAvatar={userAvatar}
+          userAvatar={avatar}
           onLogout={logout}
         />
         <main className="p-6">

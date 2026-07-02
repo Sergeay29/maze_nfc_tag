@@ -1,53 +1,82 @@
-import React from 'react';
-import { Clock } from 'lucide-react';
-import { Card, Badge, Table } from '../../components';
-import { scans } from '../../data/mockData';
+import React, { useState, useEffect } from 'react';
+import { Clock, QrCode } from 'lucide-react';
+import { Card, Badge, Table, Pagination } from '../../components';
+import { getEnterpriseScans } from '../../api/enterpriseApi';
+import type { ScanData } from '../../api/enterpriseApi';
+
+const SCANS_PER_PAGE = 20;
 
 const EnterpriseScansPage: React.FC = () => {
-  const enterpriseScans = scans.filter(s => s.enterpriseId === '1');
+  const [scans, setScans] = useState<ScanData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+
+  useEffect(() => {
+    const fetch = async () => {
+      try {
+        setLoading(true);
+        const res = await getEnterpriseScans({ page: currentPage, limit: SCANS_PER_PAGE });
+        setScans(res.data);
+        setTotalPages(res.pages);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetch();
+  }, [currentPage]);
 
   const columns = [
     {
       key: 'client',
       header: 'Client',
-      render: (scan: typeof scans[0]) => (
+      render: (scan: ScanData) => (
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-gradient flex items-center justify-center">
+          <div className="w-9 h-9 rounded-full bg-gradient flex items-center justify-center flex-shrink-0">
             <span className="text-white font-medium text-sm">
-              {scan.clientName.charAt(0)}
+              {(scan.Client?.name ?? '?').charAt(0).toUpperCase()}
             </span>
           </div>
-          <span className="font-medium">{scan.clientName}</span>
+          <span className="font-medium text-dark">{scan.Client?.name ?? '—'}</span>
         </div>
       ),
     },
     {
-      key: 'cardNumber',
+      key: 'card',
       header: 'Carte',
-      render: (scan: typeof scans[0]) => (
-        <span className="font-mono text-primary">{scan.cardNumber}</span>
+      render: (scan: ScanData) => (
+        <span className="font-mono text-primary text-sm">{scan.NFCCard?.cardCode ?? '—'}</span>
       ),
+      className: 'hidden md:table-cell',
     },
     {
-      key: 'action',
-      header: 'Action',
-      render: (scan: typeof scans[0]) => (
-        <Badge variant={scan.points > 0 ? 'success' : scan.points < 0 ? 'error' : 'primary'}>
-          {scan.action}
+      key: 'service',
+      header: 'Service',
+      render: (scan: ScanData) => (
+        <span className="text-slate text-sm">{scan.Service?.name ?? scan.service?.name ?? '—'}</span>
+      ),
+      className: 'hidden lg:table-cell',
+    },
+    {
+      key: 'points',
+      header: 'Points',
+      render: (scan: ScanData) => (
+        <Badge variant={scan.pointsAdded > 0 ? 'success' : scan.pointsAdded < 0 ? 'error' : 'primary'}>
+          {scan.pointsAdded > 0 ? `+${scan.pointsAdded}` : scan.pointsAdded === 0 ? 'Consultation' : String(scan.pointsAdded)}
         </Badge>
       ),
     },
     {
-      key: 'timestamp',
-      header: 'Heure',
-      render: (scan: typeof scans[0]) => (
-        <div className="flex items-center gap-2 text-slate">
-          <Clock className="w-4 h-4" />
+      key: 'date',
+      header: 'Date / Heure',
+      render: (scan: ScanData) => (
+        <div className="flex items-center gap-2 text-slate text-sm">
+          <Clock className="w-4 h-4 flex-shrink-0" />
           <span>
-            {new Date(scan.timestamp).toLocaleTimeString('fr-FR', {
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
+            {new Date(scan.scannedAt).toLocaleDateString('fr-FR')}{' '}
+            {new Date(scan.scannedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
           </span>
         </div>
       ),
@@ -58,11 +87,27 @@ const EnterpriseScansPage: React.FC = () => {
     <div className="space-y-6 animate-fade-in">
       <div>
         <h1 className="text-2xl font-bold font-poppins text-dark">Scans</h1>
-        <p className="text-slate mt-1">Historique des scans</p>
+        <p className="text-slate mt-1">Historique de tous les scans de vos cartes NFC</p>
       </div>
 
       <Card padding="none">
-        <Table data={enterpriseScans} columns={columns} />
+        {loading ? (
+          <div className="flex items-center justify-center py-16">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" />
+          </div>
+        ) : scans.length === 0 ? (
+          <div className="flex flex-col items-center gap-3 py-16 text-slate">
+            <QrCode className="w-10 h-10 opacity-30" />
+            <p>Aucun scan enregistré</p>
+          </div>
+        ) : (
+          <Table data={scans} columns={columns} />
+        )}
+        {totalPages > 1 && (
+          <div className="p-4 border-t border-slate/10">
+            <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+          </div>
+        )}
       </Card>
     </div>
   );

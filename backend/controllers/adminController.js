@@ -424,21 +424,12 @@ exports.createEnterprise = async (req, res) => {
       adminLastName,
       subscription,
       logo,
-      ownerPassword,   // mot de passe du compte de connexion de l'entreprise
     } = req.body;
 
     // Validation
     if (!name || !email) {
       await t.rollback();
       return res.status(400).json({ success: false, message: "Nom et email sont requis" });
-    }
-
-    if (!ownerPassword || ownerPassword.length < 8) {
-      await t.rollback();
-      return res.status(400).json({
-        success: false,
-        message: "Le mot de passe du compte entreprise doit contenir au moins 8 caractères",
-      });
     }
 
     // Vérifier unicité email entreprise
@@ -475,8 +466,12 @@ exports.createEnterprise = async (req, res) => {
       createdBy: req.user?.id,
     }, { transaction: t });
 
-    // 2. Créer le compte User OWNER lié à cette entreprise
-    const hashedPassword = await bcrypt.hash(ownerPassword, 10);
+    // 2. Générer un mot de passe fort aléatoire
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%";
+    const plainPassword = Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+    const hashedPassword = await bcrypt.hash(plainPassword, 10);
+
+    // 3. Créer le compte User OWNER lié à cette entreprise
     await User.create({
       firstName: adminFirstName || name,
       lastName: adminLastName || "",
@@ -484,10 +479,11 @@ exports.createEnterprise = async (req, res) => {
       password: hashedPassword,
       roleId: ownerRole.id,
       enterpriseId: enterprise.id,
+      mustChangePassword: true,
       isActive: true,
     }, { transaction: t });
 
-    // 3. Créer l'abonnement
+    // 4. Créer l'abonnement
     const planPrices = { Starter: 29, Pro: 99, Enterprise: 299 };
     await Subscription.create({
       enterpriseId: enterprise.id,
@@ -499,8 +495,8 @@ exports.createEnterprise = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: "Entreprise créée avec succès. Le compte de connexion a été créé.",
-      data: { enterprise },
+      message: "Entreprise créée avec succès.",
+      data: { enterprise, generatedPassword: plainPassword },
     });
   } catch (error) {
     await t.rollback();
@@ -610,12 +606,29 @@ exports.updateEnterprise = async (req, res) => {
 
 // Fonction pour générer les initiales du nom d'entreprise
 const getEnterpriseInitials = (name) => {
-  return name
-    .split(/\s+/)
-    .filter(word => word.length > 0)
+  // Nettoyer le nom : remplacer les tirets, underscores, etc. par des espaces
+  const cleanedName = name.replace(/[-_\s]+/g, ' ').trim();
+  
+  // Séparer en mots
+  const words = cleanedName.split(/\s+/).filter(word => word.length > 0);
+  
+  if (words.length === 0) return 'ENT';
+  
+  // Si 1 mot : prendre les 4 premières lettres
+  if (words.length === 1) {
+    return words[0].slice(0, 4).toUpperCase();
+  }
+  
+  // Si 2 mots : prendre 2 premières lettres du 1er + 2 premières du 2ème
+  if (words.length === 2) {
+    return (words[0].slice(0, 2) + words[1].slice(0, 2)).toUpperCase();
+  }
+  
+  // Si 3+ mots : prendre initiales des 3 premiers mots
+  return words
+    .slice(0, 3)
     .map(word => word[0].toUpperCase())
-    .join('')
-    .slice(0, 4); // Limite à 4 initiales max pour garder le préfixe court
+    .join('');
 };
 
 // Mapping des types de carte pour les initiales

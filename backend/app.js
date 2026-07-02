@@ -7,11 +7,14 @@ const authRoute = require("./routes/authRoute");
 const adminRoute = require("./routes/adminRoute");
 const uploadRoute = require("./routes/uploadRoute");
 const enterpriseRoute = require("./routes/enterpriseRoute");
+const path = require("path");
 
 const app = express();
 
 // Sécurité des headers HTTP avec Helmet
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+}));
 
 app.use(
   cors({
@@ -20,6 +23,9 @@ app.use(
   })
 );
 app.use(express.json());
+
+// Servir les fichiers statiques du dossier uploads
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // ─── Swagger UI ───────────────────────────────────────────────
 app.use(

@@ -364,3 +364,11 @@ export const cardStatusData: CardStatusItem[] = [
   { name: 'Inactives', value: 1200, color: '#BC43FF' },
   { name: 'Non attribuées', value: 340, color: '#F4C8E8' },
 ];
+
+export const pointsHistory: PointsHistory[] = [
+  { id: '1', date: '2024-06-29T20:15:00Z', action: 'Points ajoutés', points: 20, balance: 5800, reason: 'Café ou boisson' },
+  { id: '2', date: '2024-06-28T19:30:00Z', action: 'Points ajoutés', points: 100, balance: 5780, reason: 'Dîner en famille' },
+  { id: '3', date: '2024-06-25T16:45:00Z', action: 'Points retirés', points: -200, balance: 5680, reason: 'Récompense échangée' },
+  { id: '4', date: '2024-06-20T14:20:00Z', action: 'Points ajoutés', points: 50, balance: 5880, reason: 'Achat en boutique' },
+  { id: '5', date: '2024-06-15T11:10:00Z', action: 'Points ajoutés', points: 100, balance: 5830, reason: 'Dîner au restaurant' },
+];

@@ -55,7 +55,7 @@ function Table<T extends { id: string }>({
                   <td key={column.key} className={`table-cell px-6 ${column.className || ''}`}>
                     {column.render ? column.render(item) : (item as Record<string, unknown>)[column.key] as React.ReactNode}
                   </td>
-                ))}
+                ))} 
               </tr>
             ))}
           </tbody>

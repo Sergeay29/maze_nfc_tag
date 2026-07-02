@@ -112,4 +112,6 @@ router.post("/register", authController.register);
  */
 router.get("/me", authenticate, authController.me);
 
+router.put("/change-password", authenticate, authController.changePassword);
+
 module.exports = router;

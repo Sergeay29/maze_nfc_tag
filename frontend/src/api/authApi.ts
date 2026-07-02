@@ -9,12 +9,13 @@ interface ApiResponse<T> {
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const { headers: extraHeaders, ...restOptions } = options;
   const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...restOptions,
     headers: {
       'Content-Type': 'application/json',
-      ...(options.headers || {}),
+      ...(extraHeaders as Record<string, string> || {}),
     },
-    ...options,
   });
 
   const payload = (await response.json()) as ApiResponse<T>;
@@ -37,6 +38,14 @@ export async function register(payload: RegisterPayload): Promise<LoginResult> {
   return request<LoginResult>('/auth/register', {
     method: 'POST',
     body: JSON.stringify(payload),
+  });
+}
+
+export async function changePassword(token: string, newPassword: string): Promise<void> {
+  await request<void>('/auth/change-password', {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ newPassword }),
   });
 }
 

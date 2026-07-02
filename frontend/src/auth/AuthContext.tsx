@@ -11,6 +11,8 @@ export interface AuthContextValue {
   login: (credentials: LoginCredentials) => Promise<AuthUser>;
   register: (payload: RegisterPayload) => Promise<AuthUser>;
   logout: () => void;
+  refreshUser: () => Promise<void>;
+  updateUserEnterprise: (patch: Partial<NonNullable<AuthUser['enterprise']>>) => void;
 }
 
 export const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -78,6 +80,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return result.user;
   }
 
+  async function refreshUser() {
+    if (!token) return;
+    try {
+      const currentUser = await getCurrentUser(token);
+      setUser(currentUser);
+    } catch {
+      logout();
+    }
+  }
+
+  function updateUserEnterprise(patch: Partial<NonNullable<AuthUser['enterprise']>>) {
+    setUser((prev) =>
+      prev ? { ...prev, enterprise: prev.enterprise ? { ...prev.enterprise, ...patch } : prev.enterprise } : prev
+    );
+  }
+
   function logout() {
     localStorage.removeItem(TOKEN_STORAGE_KEY);
     setToken(null);
@@ -92,6 +110,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       login,
       register,
       logout,
+      refreshUser,
+      updateUserEnterprise,
     }),
     [user, token, loading]
   );

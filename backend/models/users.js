@@ -40,6 +40,11 @@ const User = sequelize.define(
       defaultValue: true,
     },
 
+    mustChangePassword: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+    },
+
     roleId: {
       type: DataTypes.UUID,
       allowNull: false,

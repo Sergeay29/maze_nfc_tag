@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Filter } from 'lucide-react';
+import { Plus, Filter, Copy, Check } from 'lucide-react';
 import { Button, Badge, Table, SearchInput, Card, Modal, Input, Select, PhoneInput, Avatar, LogoUpload } from '../../components';
 import { useNavigate } from 'react-router-dom';
-import { getEnterprises, createEnterprise } from '../../api/adminApi';
+import { getEnterprises, createEnterprise, uploadLogo } from '../../api/adminApi';
 import { isValidPhoneNumber } from 'react-phone-number-input';
 import type { Enterprise } from '../../data/mockData';
 
@@ -19,10 +19,8 @@ interface CreateEnterpriseForm {
   location: string;
   adminFirstName: string;
   adminLastName: string;
-  subscription: string;
+  subscription: 'Starter' | 'Pro' | 'Enterprise';
   logo: string;
-  ownerPassword: string;
-  ownerPasswordConfirm: string;
 }
 
 const EMPTY_FORM: CreateEnterpriseForm = {
@@ -34,8 +32,6 @@ const EMPTY_FORM: CreateEnterpriseForm = {
   adminLastName: '',
   subscription: 'Starter',
   logo: '',
-  ownerPassword: '',
-  ownerPasswordConfirm: '',
 };
 
 // Validation email simple
@@ -57,34 +53,25 @@ const EnterprisesPage: React.FC = () => {
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [form, setForm] = useState<CreateEnterpriseForm>(EMPTY_FORM);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
   const [touched, setTouched] = useState<Partial<Record<keyof CreateEnterpriseForm, boolean>>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+
+  const [generatedPassword, setGeneratedPassword] = useState<string | null>(null);
+  const [passwordCopied, setPasswordCopied] = useState(false);
 
   // ── Validation par champ ──────────────────────────────────
   const fieldErrors = useMemo(() => {
     const errors: Partial<Record<keyof CreateEnterpriseForm, string>> = {};
     if (!form.name.trim()) errors.name = 'Le nom est obligatoire';
     if (!form.email.trim()) {
-      errors.email = "L'email est obligatoire";
+      errors.email = "L'adresse mail est obligatoire";
     } else if (!isValidEmail(form.email)) {
-      errors.email = 'Email invalide';
+      errors.email = 'Cette adresse mail est invalide';
     }
     if (form.phone && !isValidPhoneNumber(form.phone)) {
-      errors.phone = 'Numéro invalide';
-    }
-    if (form.logo && !/^https?:\/\/.+/.test(form.logo.trim())) {
-      errors.logo = 'Doit être une URL valide (http/https)';
-    }
-    if (!form.ownerPassword) {
-      errors.ownerPassword = 'Le mot de passe est obligatoire';
-    } else if (form.ownerPassword.length < 8) {
-      errors.ownerPassword = 'Minimum 8 caractères';
-    }
-    if (!form.ownerPasswordConfirm) {
-      errors.ownerPasswordConfirm = 'Confirmez le mot de passe';
-    } else if (form.ownerPassword !== form.ownerPasswordConfirm) {
-      errors.ownerPasswordConfirm = 'Les mots de passe ne correspondent pas';
+      errors.phone = 'Numéro de téléphone invalide';
     }
     return errors;
   }, [form]);
@@ -129,6 +116,7 @@ const EnterprisesPage: React.FC = () => {
 
   const handleOpenCreate = () => {
     setForm(EMPTY_FORM);
+    setLogoFile(null);
     setTouched({});
     setFormError(null);
     setShowCreateModal(true);
@@ -145,19 +133,26 @@ const EnterprisesPage: React.FC = () => {
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Marquer tous les champs comme touchés pour afficher les erreurs
-    setTouched({ name: true, email: true, phone: true, logo: true, ownerPassword: true, ownerPasswordConfirm: true });
+    setTouched({ name: true, email: true, phone: true });
     if (!isFormValid) return;
 
     try {
       setCreating(true);
       setFormError(null);
-      await createEnterprise({
+
+      let logoUrl = form.logo.trim() || undefined;
+      if (logoFile) {
+        logoUrl = await uploadLogo(logoFile);
+      }
+
+      const result = await createEnterprise({
         ...form,
-        logo: form.logo.trim() || undefined,
-        ownerPassword: form.ownerPassword,
-      } as Parameters<typeof createEnterprise>[0]);
+        logo: logoUrl,
+      });
+
       setShowCreateModal(false);
+      setGeneratedPassword(result.generatedPassword ?? null);
+      setPasswordCopied(false);
       await fetchEnterprises();
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Erreur lors de la création');
@@ -166,8 +161,12 @@ const EnterprisesPage: React.FC = () => {
     }
   };
 
-  // Aperçu logo en temps réel dans la modale
-  const logoPreview = form.logo && /^https?:\/\/.+/.test(form.logo.trim()) ? form.logo.trim() : null;
+  const handleCopyPassword = () => {
+    if (!generatedPassword) return;
+    navigator.clipboard.writeText(generatedPassword);
+    setPasswordCopied(true);
+    setTimeout(() => setPasswordCopied(false), 2000);
+  };
 
   const columns = [
     {
@@ -316,6 +315,7 @@ const EnterprisesPage: React.FC = () => {
             label="Logo de l'entreprise"
             value={form.logo}
             onChange={(url) => handleFieldChange('logo', url)}
+            onFileSelect={(file) => setLogoFile(file)}
             previewName={form.name}
           />
 
@@ -385,64 +385,49 @@ const EnterprisesPage: React.FC = () => {
             onChange={(val) => handleFieldChange('subscription', val)}
           />
 
-          {/* ── Compte de connexion ── */}
-          <div className="pt-2 border-t border-slate/10">
-            <p className="text-sm font-medium text-dark mb-3">
-              Compte de connexion de l'entreprise
-            </p>
-            <p className="text-xs text-slate mb-4">
-              L'entreprise utilisera l'email ci-dessus et ce mot de passe pour se connecter à la plateforme.
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <Input
-                  label="Mot de passe *"
-                  type="password"
-                  value={form.ownerPassword}
-                  onChange={(e) => handleFieldChange('ownerPassword', e.target.value)}
-                  onBlur={() => handleBlur('ownerPassword')}
-                  placeholder="Minimum 8 caractères"
-                />
-                {touched.ownerPassword && fieldErrors.ownerPassword && (
-                  <p className="mt-1 text-xs text-red-500">{fieldErrors.ownerPassword}</p>
-                )}
-              </div>
-              <div>
-                <Input
-                  label="Confirmer le mot de passe *"
-                  type="password"
-                  value={form.ownerPasswordConfirm}
-                  onChange={(e) => handleFieldChange('ownerPasswordConfirm', e.target.value)}
-                  onBlur={() => handleBlur('ownerPasswordConfirm')}
-                  placeholder="Répéter le mot de passe"
-                />
-                {touched.ownerPasswordConfirm && fieldErrors.ownerPasswordConfirm && (
-                  <p className="mt-1 text-xs text-red-500">{fieldErrors.ownerPasswordConfirm}</p>
-                )}
-              </div>
-            </div>
-          </div>
-
           <div className="flex gap-3 pt-2">
-            <Button
-              type="button"
-              variant="secondary"
-              fullWidth
-              onClick={() => setShowCreateModal(false)}
-            >
+            <Button type="button" variant="secondary" fullWidth onClick={() => setShowCreateModal(false)}>
               Annuler
             </Button>
-            {/* Bouton désactivé si le formulaire est invalide */}
-            <Button
-              type="submit"
-              fullWidth
-              disabled={creating || !isFormValid}
-              title={!isFormValid ? 'Remplissez les champs obligatoires' : undefined}
-            >
+            <Button type="submit" fullWidth disabled={creating || !isFormValid} title={!isFormValid ? 'Remplissez les champs obligatoires' : undefined}>
               {creating ? 'Création...' : "Créer l'entreprise"}
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Modale mot de passe généré */}
+      <Modal
+        isOpen={!!generatedPassword}
+        onClose={() => setGeneratedPassword(null)}
+        title="Entreprise créée avec succès"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-slate">
+            Voici le mot de passe de connexion généré pour cette entreprise.
+            <strong className="text-dark"> Copiez-le maintenant</strong>, il ne sera plus affiché.
+          </p>
+          <div className="flex items-center gap-2 p-3 bg-cloud rounded-xl border border-slate/20">
+            <code className="flex-1 text-sm font-mono text-dark tracking-widest select-all">
+              {generatedPassword}
+            </code>
+            <button
+              type="button"
+              onClick={handleCopyPassword}
+              className="p-2 rounded-lg hover:bg-primary/10 text-slate hover:text-primary transition-colors flex-shrink-0"
+              title="Copier"
+            >
+              {passwordCopied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+            </button>
+          </div>
+          <p className="text-xs text-slate">
+            L'entreprise devra changer ce mot de passe à sa première connexion.
+          </p>
+          <Button fullWidth onClick={() => setGeneratedPassword(null)}>
+            J'ai copié le mot de passe
+          </Button>
+        </div>
       </Modal>
     </div>
   );

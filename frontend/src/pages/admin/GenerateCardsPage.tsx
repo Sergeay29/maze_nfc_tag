@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Sparkles, CreditCard, CheckCircle, Link } from 'lucide-react'; // Ajout de l'icône Link
+import { ArrowLeft, Sparkles, CreditCard, CheckCircle, Link } from 'lucide-react';
 import { Button, Input, Select, Card } from '../../components';
 import { useNavigate } from 'react-router-dom';
 import { getEnterprises, generateCards } from '../../api/adminApi';
 import type { Enterprise } from '../../data/mockData';
 import { CardType } from '../../@types/types';
+import { getCardPrefix } from '../../utils/cardUtils';
 
 const CARD_TYPE_OPTIONS = [
   { value: 'Fidélité Entreprise', label: 'Fidélité Entreprise' },
@@ -53,11 +54,9 @@ const GenerateCardsPage: React.FC = () => {
   };
 
   // Utilitaire pour simuler l'aperçu du cardNumber (comme le fait le backend)
-  const slugify = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '-').toLowerCase();
   const getMockPrefix = () => {
-    let p = `${slugify(selectedEnterprise?.name || 'entreprise')}-${slugify(cardType || 'type')}`;
-    if (showSubtype && cardSubtype) p += `-${slugify(cardSubtype)}`;
-    return p;
+    if (!selectedEnterprise || !cardType) return 'ENT-TYP';
+    return getCardPrefix(selectedEnterprise.name, cardType, cardSubtype);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

@@ -30,6 +30,7 @@ import {
   ClientRewardsPage,
   ClientProfilePage,
   EnterpriseProfilePage,
+  ServicesPage,
 } from './pages';
 
 const App: React.FC = () => {
