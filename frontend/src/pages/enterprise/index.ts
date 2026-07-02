@@ -3,6 +3,7 @@ export { default as ClientsPage } from './ClientsPage';
 export { default as EnterpriseCardsPage } from './NFCCardsPage';
 export { default as EnterpriseScansPage } from './ScansPage';
 export { default as RewardsPage } from './RewardsPage';
+export { default as ServicesPage } from './ServicesPage';
 export { default as LevelsPage } from './LevelsPage';
 export { default as NotificationsPage } from './NotificationsPage';
 export { default as EnterpriseSettingsPage } from './SettingsPage';

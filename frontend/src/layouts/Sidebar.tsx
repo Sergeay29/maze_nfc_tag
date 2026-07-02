@@ -13,6 +13,7 @@ import {
   Crown,
   ChevronLeft,
   ChevronRight,
+  Zap,
 } from 'lucide-react';
 
 interface SidebarItem {
@@ -37,6 +38,7 @@ const enterpriseItems: SidebarItem[] = [
   { path: '/enterprise/profile', icon: <Building2 className="w-5 h-5" />, label: 'Mon entreprise' },
   { path: '/enterprise/clients', icon: <Users className="w-5 h-5" />, label: 'Clients' },
   { path: '/enterprise/cards', icon: <CreditCard className="w-5 h-5" />, label: 'Cartes NFC' },
+  { path: '/enterprise/services', icon: <Zap className="w-5 h-5" />, label: 'Services' },
   { path: '/enterprise/scans', icon: <QrCode className="w-5 h-5" />, label: 'Scans' },
   { path: '/enterprise/rewards', icon: <Gift className="w-5 h-5" />, label: 'Récompenses' },
   { path: '/enterprise/levels', icon: <Crown className="w-5 h-5" />, label: 'Niveaux' },

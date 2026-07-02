@@ -1,5 +1,6 @@
 const { Sequelize } = require("sequelize");
 const sequelize = require("./database");
+const models = require("../models");
 
 async function createDatabaseIfNotExists() {
   const dbName = process.env.DB_NAME;
@@ -45,14 +46,9 @@ async function syncDatabase() {
 
     console.log("PostgreSQL connecté");
 
-    const isDevelopment = process.env.NODE_ENV === "development";
-
-    await sequelize.sync({
-      force: isDevelopment, // Seulement en développement : recrée les tables (supprime les données)
-      alter: !isDevelopment, // En production : met à jour les tables sans supprimer les données
-    });
-
-    console.log("Tables synchronisées");
+    // Utiliser sync() global avec force: true pour initialiser la base de données complètement
+    await sequelize.sync({ force: true });
+    console.log("Toutes les tables synchronisées avec succès !");
   } catch (error) {
     console.error(error);
     throw error;

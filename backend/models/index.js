@@ -6,6 +6,9 @@ const Client = require("./client");
 const NFCCard = require("./nfcCard");
 const Scan = require("./scan");
 const Setting = require("./setting");
+const Service = require("./service");
+const Reward = require("./reward");
+const Redemption = require("./redemption");
 
 // Role -> User
 Role.hasMany(User, {
@@ -101,4 +104,59 @@ Scan.belongsTo(Client, {
   foreignKey: "clientId",
 });
 
-module.exports = { User, Role, Enterprise, NFCCard, Client, Scan, Subscription, Setting };
+// Enterprise -> Service
+Enterprise.hasMany(Service, {
+  foreignKey: "enterpriseId",
+});
+
+Service.belongsTo(Enterprise, {
+  foreignKey: "enterpriseId",
+});
+
+// Enterprise -> Reward
+Enterprise.hasMany(Reward, {
+  foreignKey: "enterpriseId",
+});
+
+Reward.belongsTo(Enterprise, {
+  foreignKey: "enterpriseId",
+});
+
+// Service -> Scan (optional, to link scan to service used)
+Service.hasMany(Scan, {
+  foreignKey: "serviceId",
+  allowNull: true,
+});
+
+Scan.belongsTo(Service, {
+  foreignKey: "serviceId",
+});
+
+// Client -> Redemption
+Client.hasMany(Redemption, {
+  foreignKey: "clientId",
+});
+
+Redemption.belongsTo(Client, {
+  foreignKey: "clientId",
+});
+
+// Enterprise -> Redemption
+Enterprise.hasMany(Redemption, {
+  foreignKey: "enterpriseId",
+});
+
+Redemption.belongsTo(Enterprise, {
+  foreignKey: "enterpriseId",
+});
+
+// Reward -> Redemption
+Reward.hasMany(Redemption, {
+  foreignKey: "rewardId",
+});
+
+Redemption.belongsTo(Reward, {
+  foreignKey: "rewardId",
+});
+
+module.exports = { User, Role, Enterprise, NFCCard, Client, Scan, Subscription, Setting, Service, Reward, Redemption };

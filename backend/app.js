@@ -1,7 +1,6 @@
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
-const rateLimit = require("express-rate-limit");
 const swaggerUi = require("swagger-ui-express");
 const swaggerSpec = require("./config/swagger");
 const authRoute = require("./routes/authRoute");
@@ -14,35 +13,9 @@ const app = express();
 // Sécurité des headers HTTP avec Helmet
 app.use(helmet());
 
-// Rate Limiting pour éviter les attaques brute force
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limite chaque IP à 100 requêtes par fenêtre
-  message: {
-    success: false,
-    message: "Trop de requêtes depuis cette IP, veuillez réessayer plus tard.",
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-app.use(limiter);
-
-// Limite plus stricte pour les routes d'authentification
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // Seulement 10 tentatives de login par IP
-  message: {
-    success: false,
-    message: "Trop de tentatives de connexion, veuillez réessayer plus tard.",
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL,
+    origin: process.env.FRONTEND_URL || "http://localhost:5173",
     credentials: true,
   })
 );
@@ -79,7 +52,7 @@ app.get("/", (req, res) => {
   });
 });
 
-app.use("/api/auth", authLimiter, authRoute);
+app.use("/api/auth", authRoute);
 app.use("/api/admin", adminRoute);
 app.use("/api/enterprise", enterpriseRoute);
 app.use("/api/upload", uploadRoute);

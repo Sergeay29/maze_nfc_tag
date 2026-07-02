@@ -39,6 +39,15 @@ const Scan = sequelize.define(
       },
     },
 
+    serviceId: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      references: {
+        model: "services",
+        key: "id",
+      },
+    },
+
     scannedAt: {
       type: DataTypes.DATE,
       defaultValue: DataTypes.NOW,
