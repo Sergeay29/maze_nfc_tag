@@ -19,7 +19,7 @@ import { useAuth } from '../../auth/useAuth';
 import { isValidPhoneNumber } from 'react-phone-number-input';
 
 const EnterpriseProfilePage: React.FC = () => {
-  const { updateUserEnterprise } = useAuth();
+  const { updateUserEnterprise, refreshUser, user, setUser } = useAuth();
   const [enterprise, setEnterprise] = useState<MyEnterpriseData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -91,6 +91,19 @@ const EnterpriseProfilePage: React.FC = () => {
       setEnterprise((prev) => prev ? { ...prev, ...result, stats: prev.stats } : prev);
       // Mise à jour instantanée du Header sans rechargement
       updateUserEnterprise({ name: result.name, logo: result.logo ?? finalLogo });
+      
+      // Mettre à jour le prénom/nom de l'utilisateur connecté si modifiés
+      if (user && (editAdminFirstName || editAdminLastName)) {
+        setUser((prev) => prev ? {
+          ...prev,
+          firstName: editAdminFirstName || prev.firstName,
+          lastName: editAdminLastName || prev.lastName
+        } : prev);
+      }
+      
+      // Recharger les données de l'utilisateur pour être sûr d'avoir tout à jour
+      await refreshUser();
+      
       setEditing(false);
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'Erreur lors de la sauvegarde');

@@ -223,6 +223,13 @@ export async function getEnterpriseCards(params?: { page?: number; limit?: numbe
   return request<PaginatedResponse<NFCCardData>>(`/enterprise/cards${qs.toString() ? '?' + qs : ''}`);
 }
 
+export async function assignCard(id: string, clientId: string | null): Promise<NFCCardData> {
+  return request<NFCCardData>(`/enterprise/cards/${id}/assign`, {
+    method: 'PUT',
+    body: JSON.stringify({ clientId }),
+  });
+}
+
 // ─── UPLOAD ────────────────────────────────────────────────
 
 export async function uploadFile(file: File): Promise<string> {

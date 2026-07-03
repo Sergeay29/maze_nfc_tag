@@ -1,5 +1,5 @@
 import React, { createContext, useEffect, useMemo, useState } from 'react';
-import { getCurrentUser, login as loginRequest, register as registerRequest } from '../api/authApi';
+import { getCurrentUser, login as loginRequest, register as registerRequest, updateCurrentUser } from '../api/authApi';
 import type { AuthUser, LoginCredentials, RegisterPayload } from './types';
 
 const TOKEN_STORAGE_KEY = 'maze_nfc_auth_token';
@@ -13,6 +13,8 @@ export interface AuthContextValue {
   logout: () => void;
   refreshUser: () => Promise<void>;
   updateUserEnterprise: (patch: Partial<NonNullable<AuthUser['enterprise']>>) => void;
+  updateUser: (body: { firstName?: string; lastName?: string; email?: string }) => Promise<void>;
+  setUser: React.Dispatch<React.SetStateAction<AuthUser | null>>;
 }
 
 export const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -90,6 +92,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }
 
+  async function updateUser(body: { firstName?: string; lastName?: string; email?: string }) {
+    if (!token) return;
+    const updated = await updateCurrentUser(token, body);
+    setUser(updated);
+  }
+
   function updateUserEnterprise(patch: Partial<NonNullable<AuthUser['enterprise']>>) {
     setUser((prev) =>
       prev ? { ...prev, enterprise: prev.enterprise ? { ...prev.enterprise, ...patch } : prev.enterprise } : prev
@@ -112,6 +120,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       logout,
       refreshUser,
       updateUserEnterprise,
+      updateUser,
+      setUser,
     }),
     [user, token, loading]
   );

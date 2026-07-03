@@ -453,6 +453,7 @@ router.delete("/rewards/:id", enterpriseController.deleteReward);
  *         description: Liste paginée des cartes
  */
 router.get("/cards", enterpriseController.getCards);
+router.put("/cards/:id/assign", enterpriseController.assignCard);
 
 // ─────────────────────────────────────────────────────────────
 // SCANS & POINTS

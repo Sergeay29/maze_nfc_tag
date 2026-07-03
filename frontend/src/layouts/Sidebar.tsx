@@ -15,6 +15,8 @@ import {
   ChevronRight,
   Zap,
 } from 'lucide-react';
+import { Tooltip } from '../components';
+import { useAuth } from '../auth/useAuth';
 
 interface SidebarItem {
   path: string;
@@ -54,6 +56,10 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ type, collapsed, setCollapsed }) => {
   const items = type === 'admin' ? adminItems : enterpriseItems;
+  const { user } = useAuth();
+  const isEnterprise = type === 'enterprise';
+  const displayName = isEnterprise && user?.enterprise?.name ? user.enterprise.name : 'Maze NFC';
+  const displayLogo = isEnterprise && user?.enterprise?.logo ? user.enterprise.logo : '/images/icons/icons.png';
 
   return (
     <aside
@@ -65,24 +71,24 @@ const Sidebar: React.FC<SidebarProps> = ({ type, collapsed, setCollapsed }) => {
         <div className="flex items-center justify-between p-6 border-b border-slate/10">
           {!collapsed && (
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 flex items-center justify-center">
+              <div className="w-10 h-10 flex items-center justify-center overflow-hidden rounded-xl">
                 <img
-                  src="/images/icons/icons.png"
-                  alt="Maze NFC"
-                  className="max-w-full drop-shadow-2xl animate-float rounded-3xl"
+                  src={displayLogo}
+                  alt={displayName}
+                  className="max-w-full h-full object-cover drop-shadow-2xl"
                 />
               </div>
               <div>
-                <h1 className="font-bold font-poppins text-dark text-lg">Maze NFC</h1>
+                <h1 className="font-bold font-poppins text-dark text-lg">{displayName}</h1>
               </div>
             </div>
           )}
           {collapsed && (
-            <div className="w-10 h-10 mx-auto flex items-center justify-center">
+            <div className="w-10 h-10 mx-auto flex items-center justify-center overflow-hidden rounded-xl">
               <img
-                src="/images/icons/icons.png"
-                alt="Maze NFC"
-                className="w-[150px] max-w-full drop-shadow-2xl animate-float rounded-3xl"
+                src={displayLogo}
+                alt={displayName}
+                className="w-full h-full object-cover drop-shadow-2xl"
               />
             </div>
           )}
@@ -92,6 +98,22 @@ const Sidebar: React.FC<SidebarProps> = ({ type, collapsed, setCollapsed }) => {
           <ul className="space-y-1">
             {items.map((item) => (
               <li key={item.path}>
+                {collapsed ? (
+                <Tooltip content={item.label} position="right">
+                  <NavLink
+                    to={item.path}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
+                        isActive
+                          ? 'bg-gradient text-white shadow-soft'
+                          : 'text-slate hover:bg-primary/10 hover:text-primary'
+                      } justify-center px-0`
+                    }
+                  >
+                    <span className="w-5 h-5 flex-shrink-0">{item.icon}</span>
+                  </NavLink>
+                </Tooltip>
+              ) : (
                 <NavLink
                   to={item.path}
                   className={({ isActive }) =>
@@ -99,13 +121,13 @@ const Sidebar: React.FC<SidebarProps> = ({ type, collapsed, setCollapsed }) => {
                       isActive
                         ? 'bg-gradient text-white shadow-soft'
                         : 'text-slate hover:bg-primary/10 hover:text-primary'
-                    } ${collapsed ? 'justify-center px-0' : ''}`
+                    }`
                   }
-                  title={collapsed ? item.label : undefined}
                 >
                   <span className="w-5 h-5 flex-shrink-0">{item.icon}</span>
-                  {!collapsed && <span>{item.label}</span>}
+                  <span>{item.label}</span>
                 </NavLink>
+              )}
               </li>
             ))}
           </ul>

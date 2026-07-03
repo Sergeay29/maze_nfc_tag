@@ -7,7 +7,7 @@ import { useAuth } from '../../auth/useAuth';
 import { isValidPhoneNumber } from 'react-phone-number-input';
 
 const EnterpriseSettingsPage: React.FC = () => {
-  const { updateUserEnterprise } = useAuth();
+  const { updateUserEnterprise, updateUser } = useAuth();
   const [activeTab, setActiveTab] = useState('info');
   const [enterprise, setEnterprise] = useState<MyEnterpriseData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -21,6 +21,7 @@ const EnterpriseSettingsPage: React.FC = () => {
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [adminFirstName, setAdminFirstName] = useState('');
   const [adminLastName, setAdminLastName] = useState('');
+  const [adminEmail, setAdminEmail] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -34,6 +35,7 @@ const EnterpriseSettingsPage: React.FC = () => {
         setLogo(data.logo ?? '');
         setAdminFirstName(data.adminFirstName ?? '');
         setAdminLastName(data.adminLastName ?? '');
+        setAdminEmail(data.email ?? '');
       })
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -48,8 +50,9 @@ const EnterpriseSettingsPage: React.FC = () => {
       const finalLogo = logoFile ? await uploadFile(logoFile) : (logo || undefined);
       const updated = await updateMyEnterprise({ name: name.trim(), phone: phone || undefined, location: location || undefined, logo: finalLogo, adminFirstName: adminFirstName || undefined, adminLastName: adminLastName || undefined });
       setEnterprise((prev) => prev ? { ...prev, ...updated, stats: prev.stats } : prev);
-      // Mise à jour instantanée du Header
       updateUserEnterprise({ name: updated.name, logo: updated.logo ?? finalLogo });
+      // Persiste firstName, lastName, email en BDD + met à jour le Header
+      await updateUser({ firstName: adminFirstName || undefined, lastName: adminLastName || undefined, email: adminEmail || undefined });
       if (logoFile) setLogo(updated.logo ?? logo);
       setLogoFile(null);
       setSaveMsg({ type: 'success', text: 'Informations mises à jour avec succès' });
@@ -97,7 +100,7 @@ const EnterpriseSettingsPage: React.FC = () => {
                 )}
                 <div className="space-y-4">
                   <Input label="Nom de l'entreprise *" value={name} onChange={(e) => setName(e.target.value)} icon={<Building2 className="w-5 h-5" />} required />
-                  <Input label="Email" type="email" value={enterprise?.email ?? ''} disabled />
+                  <Input label="Email" type="email" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} />
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <PhoneInput
                       label="Téléphone"

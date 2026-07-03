@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { CreditCard, User } from 'lucide-react';
-import { Card, Badge, Pagination } from '../../components';
-import { getEnterpriseCards } from '../../api/enterpriseApi';
-import type { NFCCardData } from '../../api/enterpriseApi';
+import { CreditCard, User, UserPlus, X } from 'lucide-react';
+import { Card, Badge, Pagination, Button, Input } from '../../components';
+import { getEnterpriseCards, assignCard, getClients } from '../../api/enterpriseApi';
+import type { NFCCardData, ClientData } from '../../api/enterpriseApi';
 
 const CARDS_PER_PAGE = 12;
 
@@ -19,21 +19,54 @@ const EnterpriseCardsPage: React.FC = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
 
-  useEffect(() => {
-    const fetch = async () => {
-      try {
-        setLoading(true);
-        const res = await getEnterpriseCards({ page: currentPage, limit: CARDS_PER_PAGE, status: statusFilter || undefined });
-        setCards(res.data);
-        setTotalPages(res.pages);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetch();
-  }, [currentPage, statusFilter]);
+  // Modal attribution
+  const [assignModal, setAssignModal] = useState<NFCCardData | null>(null);
+  const [clients, setClients] = useState<ClientData[]>([]);
+  const [clientSearch, setClientSearch] = useState('');
+  const [assigning, setAssigning] = useState(false);
+
+  const fetchCards = async () => {
+    try {
+      setLoading(true);
+      const res = await getEnterpriseCards({ page: currentPage, limit: CARDS_PER_PAGE, status: statusFilter || undefined });
+      setCards(res.data);
+      setTotalPages(res.pages);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchCards(); }, [currentPage, statusFilter]);
+
+  const openAssignModal = async (card: NFCCardData) => {
+    setAssignModal(card);
+    setClientSearch('');
+    try {
+      const res = await getClients({ limit: 100 });
+      setClients(res.data);
+    } catch { }
+  };
+
+  const handleAssign = async (clientId: string | null) => {
+    if (!assignModal) return;
+    try {
+      setAssigning(true);
+      const updated = await assignCard(assignModal.id, clientId);
+      setCards((prev) => prev.map((c) => c.id === updated.id ? updated : c));
+      setAssignModal(null);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setAssigning(false);
+    }
+  };
+
+  const filteredClients = clients.filter((c) =>
+    c.name.toLowerCase().includes(clientSearch.toLowerCase()) ||
+    (c.email ?? '').toLowerCase().includes(clientSearch.toLowerCase())
+  );
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -81,11 +114,18 @@ const EnterpriseCardsPage: React.FC = () => {
                 </div>
                 <p className="font-mono text-primary font-medium mb-1">{card.cardNumber}</p>
                 <p className="text-xs text-slate font-mono mb-3">{card.cardCode}</p>
-                <div className="flex items-center gap-2 text-sm text-slate">
-                  <User className="w-4 h-4 flex-shrink-0" />
-                  <span className="truncate">
-                    {card.assignedClient ? card.assignedClient.name : 'Non attribuée'}
-                  </span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm text-slate">
+                    <User className="w-4 h-4 flex-shrink-0" />
+                    <span className="truncate">{card.assignedClient ? card.assignedClient.name : 'Non attribuée'}</span>
+                  </div>
+                  <button
+                    onClick={() => openAssignModal(card)}
+                    className="p-1.5 rounded-lg hover:bg-cloud transition-colors text-slate hover:text-primary"
+                    title="Attribuer / modifier"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                  </button>
                 </div>
               </Card>
             ))}
@@ -94,6 +134,51 @@ const EnterpriseCardsPage: React.FC = () => {
             <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
           )}
         </>
+      )}
+
+      {/* MODAL ATTRIBUTION */}
+      {assignModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+            <div className="flex items-center justify-between p-6 border-b border-cloud">
+              <div>
+                <h3 className="font-semibold font-poppins text-dark">Attribuer la carte</h3>
+                <p className="text-xs text-slate font-mono mt-0.5">{assignModal.cardCode}</p>
+              </div>
+              <button onClick={() => setAssignModal(null)} className="p-2 rounded-xl hover:bg-cloud"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="p-6 space-y-4">
+              <Input placeholder="Rechercher un client..." value={clientSearch} onChange={(e) => setClientSearch(e.target.value)} />
+              <div className="max-h-60 overflow-y-auto space-y-2">
+                {assignModal.assignedClient && (
+                  <button
+                    onClick={() => handleAssign(null)}
+                    disabled={assigning}
+                    className="w-full text-left px-4 py-3 rounded-xl border border-red-200 bg-red-50 text-red-700 text-sm hover:bg-red-100 transition-colors"
+                  >
+                    Désassigner (retirer le client)
+                  </button>
+                )}
+                {filteredClients.map((client) => (
+                  <button
+                    key={client.id}
+                    onClick={() => handleAssign(client.id)}
+                    disabled={assigning}
+                    className={`w-full text-left px-4 py-3 rounded-xl border transition-colors text-sm ${
+                      assignModal.assignedClient?.id === client.id
+                        ? 'border-primary bg-primary/5 text-primary'
+                        : 'border-cloud hover:border-primary hover:bg-primary/5'
+                    }`}
+                  >
+                    <p className="font-medium text-dark">{client.name}</p>
+                    {client.email && <p className="text-xs text-slate">{client.email}</p>}
+                  </button>
+                ))}
+                {filteredClients.length === 0 && <p className="text-center text-slate text-sm py-4">Aucun client trouvé</p>}
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -82,6 +82,30 @@ async function me(req, res) {
   }
 }
 
+async function updateMe(req, res) {
+  try {
+    const { firstName, lastName, email } = req.body;
+    const userId = req.user.id;
+
+    if (email) {
+      const existing = await require('../models').User.findOne({ where: { email } });
+      if (existing && existing.id !== userId) {
+        return res.status(409).json({ success: false, message: "Cet email est déjà utilisé" });
+      }
+    }
+
+    await require('../models').User.update(
+      { firstName: firstName || undefined, lastName: lastName || undefined, email: email || undefined },
+      { where: { id: userId } }
+    );
+
+    const user = await authService.getProfile(userId);
+    return res.json({ success: true, message: "Profil mis à jour", data: user });
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({ success: false, message: error.message || "Erreur" });
+  }
+}
+
 async function changePassword(req, res) {
   try {
     const { newPassword } = req.body;
@@ -111,5 +135,6 @@ module.exports = {
   login,
   register,
   me,
+  updateMe,
   changePassword,
 };

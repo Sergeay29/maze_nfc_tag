@@ -82,11 +82,12 @@ const GenerateCardsPage: React.FC = () => {
 
     try {
       setLoading(true);
+      const normalizedUrl = scanBaseUrl.trim().replace(/\/?$/, '/');
       await generateCards({
         enterpriseId: enterprise,
         type: cardType,
         subtype: cardSubtype,
-        scanBaseUrl: scanBaseUrl.trim(),
+        scanBaseUrl: normalizedUrl,
         quantity: qty,
       });
       setSuccess({ generated: qty }); // Le backend renvoie le vrai nombre, mais on simplifie ici
@@ -190,7 +191,7 @@ const GenerateCardsPage: React.FC = () => {
             )}
             {scanBaseUrl && (
               <p className="text-xs text-slate mt-2 max-w-[250px] truncate">
-                Url: {scanBaseUrl}ABC12345
+                Url: {scanBaseUrl.trim().replace(/\/?$/, '/')}ABC12345
               </p>
             )}
           </div>

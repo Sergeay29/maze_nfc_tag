@@ -49,6 +49,14 @@ export async function changePassword(token: string, newPassword: string): Promis
   });
 }
 
+export async function updateCurrentUser(token: string, body: { firstName?: string; lastName?: string; email?: string }): Promise<AuthUser> {
+  return request<AuthUser>('/auth/me', {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(body),
+  });
+}
+
 export async function getCurrentUser(token: string): Promise<AuthUser> {
   const data = await request<{ user: AuthUser }>('/auth/me', {
     headers: {

@@ -258,24 +258,26 @@ const ServicesPage: React.FC = () => {
           </div>
           <div>
             <label className="block text-sm font-medium text-dark mb-2">Icône</label>
-            <div className="grid grid-cols-6 gap-3">
-              {ICON_OPTIONS.map((option) => {
-                const Icon = option.icon;
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => setFormData({ ...formData, icon: option.value })}
-                    className={`p-3 rounded-xl border-2 transition-all ${
-                      formData.icon === option.value
-                        ? 'border-primary bg-primary/10'
-                        : 'border-slate/20 hover:border-slate/40'
-                    }`}
-                  >
-                    <Icon className="w-6 h-6 mx-auto text-dark" />
-                  </button>
-                );
-              })}
+            <div className="max-h-48 overflow-y-auto border border-slate/20 rounded-xl p-3">
+              <div className="grid grid-cols-6 gap-3">
+                {ICON_OPTIONS.map((option) => {
+                  const Icon = option.icon;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, icon: option.value })}
+                      className={`p-3 rounded-xl border-2 transition-all ${
+                        formData.icon === option.value
+                          ? 'border-primary bg-primary/10'
+                          : 'border-slate/20 hover:border-slate/40'
+                      }`}
+                    >
+                      <Icon className="w-6 h-6 mx-auto text-dark" />
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
           <div>

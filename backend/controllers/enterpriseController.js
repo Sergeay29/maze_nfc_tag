@@ -1,6 +1,6 @@
 // controllers/enterpriseController.js
 
-const { Enterprise, NFCCard, Client, Scan, Service, Reward, Redemption } = require("../models");
+const { Enterprise, NFCCard, Client, Scan, Service, Reward, Redemption, User } = require("../models");
 const { Op } = require("sequelize");
 
 // ─────────────────────────────────────────────────────────────
@@ -109,6 +109,17 @@ exports.updateMyEnterprise = async (req, res) => {
       adminFirstName: adminFirstName || enterprise.adminFirstName,
       adminLastName: adminLastName || enterprise.adminLastName,
     });
+
+    // Mettre à jour l'utilisateur connecté (OWNER) si adminFirstName/adminLastName changent
+    if (adminFirstName || adminLastName) {
+      const user = await User.findByPk(req.user.id);
+      if (user) {
+        await user.update({
+          firstName: adminFirstName || user.firstName,
+          lastName: adminLastName || user.lastName,
+        });
+      }
+    }
 
     res.json({
       success: true,
@@ -646,6 +657,39 @@ exports.getCards = async (req, res) => {
       success: false,
       message: "Erreur lors de la récupération des cartes",
     });
+  }
+};
+
+exports.assignCard = async (req, res) => {
+  try {
+    const enterpriseId = req.user.enterpriseId;
+    const { id } = req.params;
+    const { clientId } = req.body;
+
+    const card = await NFCCard.findOne({ where: { id, enterpriseId } });
+    if (!card) {
+      return res.status(404).json({ success: false, message: "Carte non trouvée" });
+    }
+
+    if (clientId) {
+      const client = await Client.findOne({ where: { id: clientId, enterpriseId } });
+      if (!client) {
+        return res.status(404).json({ success: false, message: "Client non trouvé" });
+      }
+      await card.update({ assignedToClientId: clientId, assignedAt: new Date(), status: "active" });
+    } else {
+      // Désassigner
+      await card.update({ assignedToClientId: null, assignedAt: null, status: "unassigned" });
+    }
+
+    const updated = await NFCCard.findByPk(id, {
+      include: [{ model: Client, as: "assignedClient", attributes: ["id", "name", "email"] }],
+    });
+
+    res.json({ success: true, message: clientId ? "Carte attribuée avec succès" : "Carte désattribuée", data: updated });
+  } catch (error) {
+    console.error("assignCard error:", error);
+    res.status(500).json({ success: false, message: "Erreur lors de l'attribution de la carte" });
   }
 };
 

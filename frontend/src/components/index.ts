@@ -16,3 +16,4 @@ export { default as LogoUpload } from './LogoUpload';
 export { default as Avatar } from './Avatar';
 export { default as Toast } from './Toast';
 export type { ToastVariant } from './Toast';
+export { default as Tooltip } from './Tooltip';

@@ -111,6 +111,7 @@ router.post("/register", authController.register);
  *         description: Non authentifié
  */
 router.get("/me", authenticate, authController.me);
+router.put("/me", authenticate, authController.updateMe);
 
 router.put("/change-password", authenticate, authController.changePassword);
 
