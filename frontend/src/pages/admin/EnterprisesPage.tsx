@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Filter, Copy, Check } from 'lucide-react';
+import { Plus, Filter, Copy, Check, Sparkles, Link } from 'lucide-react';
 import { Button, Badge, Table, SearchInput, Card, Modal, Input, Select, PhoneInput, Avatar, LogoUpload } from '../../components';
 import { useNavigate } from 'react-router-dom';
 import { getEnterprises, createEnterprise, uploadLogo } from '../../api/adminApi';
 import { isValidPhoneNumber } from 'react-phone-number-input';
 import type { Enterprise } from '../../data/mockData';
+import type { CardType } from '../../@types/types';
 
 const SUBSCRIPTION_OPTIONS = [
   { value: 'Starter', label: 'Starter — 29€/mois' },
@@ -23,6 +24,14 @@ interface CreateEnterpriseForm {
   logo: string;
 }
 
+interface CreateCardsOptions {
+  enabled: boolean;
+  type: CardType | '';
+  subtype: string;
+  scanBaseUrl: string;
+  quantity: string;
+}
+
 const EMPTY_FORM: CreateEnterpriseForm = {
   name: '',
   email: '',
@@ -33,6 +42,26 @@ const EMPTY_FORM: CreateEnterpriseForm = {
   subscription: 'Starter',
   logo: '',
 };
+
+const EMPTY_CARD_OPTIONS: CreateCardsOptions = {
+  enabled: false,
+  type: 'Fidélité Entreprise',
+  subtype: '',
+  scanBaseUrl: 'https://mzg.cards/c/',
+  quantity: '100',
+};
+
+const CARD_TYPE_OPTIONS = [
+  { value: 'Fidélité Entreprise', label: 'Fidélité Entreprise' },
+  { value: 'Restaurant', label: 'Restaurant' },
+  { value: 'Carte de visite', label: 'Carte de visite' },
+];
+
+const CARD_SUBTYPE_OPTIONS = [
+  { value: 'Basic', label: 'Basic' },
+  { value: 'Standard', label: 'Standard' },
+  { value: 'Luxe', label: 'Luxe' },
+];
 
 // Validation email simple
 const isValidEmail = (email: string) =>
@@ -53,6 +82,7 @@ const EnterprisesPage: React.FC = () => {
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [form, setForm] = useState<CreateEnterpriseForm>(EMPTY_FORM);
+  const [cardOptions, setCardOptions] = useState<CreateCardsOptions>(EMPTY_CARD_OPTIONS);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [touched, setTouched] = useState<Partial<Record<keyof CreateEnterpriseForm, boolean>>>({});
   const [formError, setFormError] = useState<string | null>(null);
@@ -116,6 +146,7 @@ const EnterprisesPage: React.FC = () => {
 
   const handleOpenCreate = () => {
     setForm(EMPTY_FORM);
+    setCardOptions(EMPTY_CARD_OPTIONS);
     setLogoFile(null);
     setTouched({});
     setFormError(null);
@@ -136,6 +167,26 @@ const EnterprisesPage: React.FC = () => {
     setTouched({ name: true, email: true, phone: true });
     if (!isFormValid) return;
 
+    if (cardOptions.enabled) {
+      if (!cardOptions.type) {
+        setFormError('Veuillez choisir un type de carte si vous souhaitez en générer.');
+        return;
+      }
+      if (cardOptions.type === 'Restaurant' && !cardOptions.subtype) {
+        setFormError('Veuillez choisir un sous-type pour les cartes Restaurant.');
+        return;
+      }
+      if (!cardOptions.scanBaseUrl.trim()) {
+        setFormError('Veuillez renseigner l’URL de base du scan.');
+        return;
+      }
+      const qty = Number(cardOptions.quantity);
+      if (!Number.isInteger(qty) || qty < 1 || qty > 1000) {
+        setFormError('La quantité doit être comprise entre 1 et 1000.');
+        return;
+      }
+    }
+
     try {
       setCreating(true);
       setFormError(null);
@@ -148,6 +199,13 @@ const EnterprisesPage: React.FC = () => {
       const result = await createEnterprise({
         ...form,
         logo: logoUrl,
+        cardGeneration: cardOptions.enabled ? {
+          enabled: true,
+          type: cardOptions.type,
+          subtype: cardOptions.type === 'Restaurant' ? cardOptions.subtype : undefined,
+          scanBaseUrl: cardOptions.scanBaseUrl.trim().replace(/\/?$/, '/'),
+          quantity: Number(cardOptions.quantity),
+        } : undefined,
       });
 
       setShowCreateModal(false);
@@ -384,6 +442,63 @@ const EnterprisesPage: React.FC = () => {
             value={form.subscription}
             onChange={(val) => handleFieldChange('subscription', val)}
           />
+
+          <div className="rounded-2xl border border-slate/20 bg-cloud/70 p-4 space-y-4">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={cardOptions.enabled}
+                onChange={(e) => setCardOptions((prev) => ({ ...prev, enabled: e.target.checked }))}
+                className="h-4 w-4 rounded border-slate/30 text-primary focus:ring-primary"
+              />
+              <span className="text-sm font-semibold text-dark">Générer des cartes NFC pour cette entreprise</span>
+            </label>
+
+            {cardOptions.enabled && (
+              <div className="space-y-4 pl-7">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Select
+                    label="Type de carte"
+                    options={CARD_TYPE_OPTIONS}
+                    value={cardOptions.type}
+                    onChange={(value) => setCardOptions((prev) => ({ ...prev, type: value as CardType, subtype: '' }))}
+                    placeholder="Sélectionner un type"
+                  />
+                  {cardOptions.type === 'Restaurant' ? (
+                    <Select
+                      label="Sous-type"
+                      options={CARD_SUBTYPE_OPTIONS}
+                      value={cardOptions.subtype}
+                      onChange={(value) => setCardOptions((prev) => ({ ...prev, subtype: value }))}
+                      placeholder="Sous-type"
+                    />
+                  ) : (
+                    <div />
+                  )}
+                </div>
+
+                <Input
+                  label="URL de base du scan"
+                  icon={<Link className="w-4 h-4 text-slate" />}
+                  value={cardOptions.scanBaseUrl}
+                  onChange={(e) => setCardOptions((prev) => ({ ...prev, scanBaseUrl: e.target.value }))}
+                  placeholder="https://mzg.cards/c/"
+                />
+                <Input
+                  label="Quantité"
+                  type="number"
+                  value={cardOptions.quantity}
+                  onChange={(e) => setCardOptions((prev) => ({ ...prev, quantity: e.target.value }))}
+                  min={1}
+                  max={1000}
+                />
+                <div className="flex items-center gap-2 rounded-xl bg-white/70 p-3 text-xs text-slate">
+                  <Sparkles className="w-4 h-4 text-primary" />
+                  Les cartes seront créées immédiatement après l’ajout de l’entreprise.
+                </div>
+              </div>
+            )}
+          </div>
 
           <div className="flex gap-3 pt-2">
             <Button type="button" variant="secondary" fullWidth onClick={() => setShowCreateModal(false)}>

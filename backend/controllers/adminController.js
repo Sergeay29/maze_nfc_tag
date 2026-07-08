@@ -424,6 +424,7 @@ exports.createEnterprise = async (req, res) => {
       adminLastName,
       subscription,
       logo,
+      cardGeneration,
     } = req.body;
 
     // Validation
@@ -491,12 +492,61 @@ exports.createEnterprise = async (req, res) => {
       monthlyPrice: planPrices[subscription] ?? 29,
     }, { transaction: t });
 
+    let generatedCards = 0;
+    if (cardGeneration?.enabled && cardGeneration?.type) {
+      const { type, subtype, scanBaseUrl, quantity } = cardGeneration;
+      const qty = parseInt(quantity, 10);
+      if (Number.isInteger(qty) && qty > 0 && qty <= 1000) {
+        const enterpriseInitials = getEnterpriseInitials(enterprise.name);
+        const typeInitials = typeMap[type] || "XXX";
+        let dynamicPrefix = `${enterpriseInitials}-${typeInitials}`;
+
+        if (type === "Restaurant" && subtype) {
+          const subtypeInitials = subtypeMap[subtype] || "XXX";
+          dynamicPrefix += `-${subtypeInitials}`;
+        }
+
+        const existingCardsCount = await NFCCard.count({
+          where: {
+            cardNumber: {
+              [Op.like]: `${dynamicPrefix}-%`
+            }
+          },
+          transaction: t,
+        });
+
+        const baseUrl = scanBaseUrl?.endsWith('/') ? scanBaseUrl : `${scanBaseUrl || 'https://mzg.cards/c/'}/`;
+        const cards = [];
+        for (let i = 0; i < qty; i++) {
+          const code = Math.random().toString(36).substring(2, 10).toUpperCase();
+          const suffix = String(existingCardsCount + i + 1).padStart(4, '0');
+          cards.push({
+            cardNumber: `${dynamicPrefix}-${suffix}`,
+            cardCode: code,
+            enterpriseId: enterprise.id,
+            type,
+            subtype: subtype || null,
+            scanUrl: `${baseUrl}${code}`,
+            status: "unassigned",
+          });
+        }
+
+        const created = await NFCCard.bulkCreate(cards, { transaction: t, ignoreDuplicates: true });
+        generatedCards = created.length;
+        await Enterprise.increment("cardsCount", {
+          by: created.length,
+          where: { id: enterprise.id },
+          transaction: t,
+        });
+      }
+    }
+
     await t.commit();
 
     res.status(201).json({
       success: true,
       message: "Entreprise créée avec succès.",
-      data: { enterprise, generatedPassword: plainPassword },
+      data: { enterprise, generatedPassword: plainPassword, generatedCards },
     });
   } catch (error) {
     await t.rollback();
