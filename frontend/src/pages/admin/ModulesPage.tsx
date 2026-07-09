@@ -1,42 +1,272 @@
-import React from 'react';
-import { Card } from '../../components';
-import { Gift, Bell, ConciergeBell, Star, QrCode, BarChart3 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { CreditCard, QrCode, Users, ChevronRight, ArrowLeft, Plus, Edit, Trash2 } from 'lucide-react';
+import { Card, Badge, Avatar, StatCard, Button, Modal, Input, Toast } from '../../components';
+import { getCardTypes, getCardTypeDetail, createCardType, updateCardType, deleteCardType } from '../../api/adminApi';
+import type { CardTypeData, CardTypeDetail } from '../../api/adminApi';
 
-const modules = [
-  { id: 'loyalty', name: 'Fidélité', icon: <Gift className="w-6 h-6" />, description: 'Système de points et fidélisation', active: 156 },
-  { id: 'concierge', name: 'Conciergerie', icon: <ConciergeBell className="w-6 h-6" />, description: 'Services et réservations', active: 89 },
-  { id: 'notifications', name: 'Notifications', icon: <Bell className="w-6 h-6" />, description: 'Alertes et communications', active: 134 },
-  { id: 'rewards', name: 'Récompenses', icon: <Star className="w-6 h-6" />, description: 'Avantages et cadeaux', active: 112 },
-  { id: 'scans', name: 'Scans', icon: <QrCode className="w-6 h-6" />, description: 'Suivi des scans NFC', active: 156 },
-  { id: 'analytics', name: 'Analytics', icon: <BarChart3 className="w-6 h-6" />, description: 'Tableaux de bord et rapports', active: 145 },
-];
+const DEFAULT_ICON = <CreditCard className="w-6 h-6" />;
+const TYPE_ICONS: Record<string, React.ReactNode> = {
+  'Fidélité Entreprise': <CreditCard className="w-6 h-6" />,
+  'Restaurant': <QrCode className="w-6 h-6" />,
+  'Carte de visite': <Users className="w-6 h-6" />,
+};
+
+const EMPTY_FORM = { name: '', description: '' };
 
 const ModulesPage: React.FC = () => {
+  const [types, setTypes] = useState<CardTypeData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [detail, setDetail] = useState<CardTypeDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editing, setEditing] = useState<CardTypeData | null>(null);
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deletingType, setDeletingType] = useState<CardTypeData | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const [toast, setToast] = useState<{ message: string; variant: 'success' | 'error' | 'info' } | null>(null);
+
+  const fetchTypes = () => {
+    setLoading(true);
+    getCardTypes()
+      .then(setTypes)
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { fetchTypes(); }, []);
+
+  const handleSelect = async (t: CardTypeData) => {
+    setSelected(t.type);
+    setDetail(null);
+    setDetailLoading(true);
+    try {
+      const data = await getCardTypeDetail(t.id);
+      setDetail(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const openCreate = () => {
+    setEditing(null);
+    setForm(EMPTY_FORM);
+    setSaveError(null);
+    setModalOpen(true);
+  };
+
+  const openEdit = (e: React.MouseEvent, t: CardTypeData) => {
+    e.stopPropagation();
+    setEditing(t);
+    setForm({ name: t.type, description: t.description ?? '' });
+    setSaveError(null);
+    setModalOpen(true);
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent, t: CardTypeData) => {
+    e.stopPropagation();
+    setDeletingType(t);
+    setDeleteModalOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingType) return;
+    try {
+      setDeleting(true);
+      await deleteCardType(deletingType.id);
+      fetchTypes();
+      setDeleteModalOpen(false);
+      setToast({ message: `Type "${deletingType.type}" supprimé avec succès !`, variant: 'success' });
+    } catch (err) {
+      setToast({ message: err instanceof Error ? err.message : 'Erreur lors de la suppression', variant: 'error' });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleSubmit = async (ev: React.FormEvent) => {
+    ev.preventDefault();
+    if (!form.name.trim()) { setSaveError('Le nom est requis'); return; }
+    try {
+      setSaving(true);
+      setSaveError(null);
+      if (editing) {
+        await updateCardType(editing.id, { name: form.name.trim(), description: form.description || undefined });
+        setToast({ message: `Type "${form.name.trim()}" mis à jour avec succès !`, variant: 'success' });
+      } else {
+        await createCardType({ name: form.name.trim(), description: form.description || undefined });
+        setToast({ message: `Type "${form.name.trim()}" créé avec succès !`, variant: 'success' });
+      }
+      setModalOpen(false);
+      fetchTypes();
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Erreur lors de la sauvegarde');
+      setToast({ message: err instanceof Error ? err.message : 'Erreur lors de la sauvegarde', variant: 'error' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (selected) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        {toast && (
+          <Toast
+            message={toast.message}
+            variant={toast.variant}
+            onClose={() => setToast(null)}
+          />
+        )}
+        <div className="flex items-center gap-4">
+          <button onClick={() => setSelected(null)} className="p-2 rounded-xl hover:bg-cloud transition-colors">
+            <ArrowLeft className="w-5 h-5 text-slate" />
+          </button>
+          <div>
+            <h1 className="text-2xl font-bold font-poppins text-dark">{selected}</h1>
+            <p className="text-slate mt-1">Entreprises utilisant ce type de carte</p>
+          </div>
+        </div>
+
+        {detailLoading ? (
+          <div className="flex items-center justify-center py-16">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" />
+          </div>
+        ) : detail && detail.enterprises.length === 0 ? (
+          <Card className="py-16 text-center">
+            <p className="text-slate">Aucune entreprise n'utilise ce type de carte</p>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {detail?.enterprises.map((e) => (
+              <Card key={e.id} hover>
+                <div className="flex items-center gap-3 mb-4">
+                  <Avatar src={e.logo} name={e.name} size="md" shape="rounded" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-dark truncate">{e.name}</p>
+                    <Badge variant={e.status === 'active' ? 'active' : 'inactive'} size="sm">
+                      {e.status === 'active' ? 'Actif' : 'Inactif'}
+                    </Badge>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="bg-cloud rounded-xl p-2">
+                    <p className="text-lg font-bold text-dark">{e.totalCards}</p>
+                    <p className="text-xs text-slate">Cartes</p>
+                  </div>
+                  <div className="bg-cloud rounded-xl p-2">
+                    <p className="text-lg font-bold text-primary">{e.activeCards}</p>
+                    <p className="text-xs text-slate">Actives</p>
+                  </div>
+                  <div className="bg-cloud rounded-xl p-2">
+                    <p className="text-lg font-bold text-dark">{e.totalScans}</p>
+                    <p className="text-xs text-slate">Scans</p>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-fade-in">
-      <div>
-        <h1 className="text-2xl font-bold font-poppins text-dark">Modules</h1>
-        <p className="text-slate mt-1">Modules disponibles sur la plateforme</p>
+      {toast && (
+        <Toast
+          message={toast.message}
+          variant={toast.variant}
+          onClose={() => setToast(null)}
+        />
+      )}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold font-poppins text-dark">Types de cartes</h1>
+          <p className="text-slate mt-1">Gérez les types de cartes NFC disponibles</p>
+        </div>
+        <Button icon={<Plus className="w-5 h-5" />} onClick={openCreate}>Nouveau type</Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {modules.map((module) => (
-          <Card key={module.id} hover>
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-xl bg-gradient flex items-center justify-center text-white">
-                {module.icon}
+      {loading ? (
+        <div className="flex items-center justify-center py-16">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {types.map((t) => (
+            <Card key={t.id} hover className="cursor-pointer" onClick={() => handleSelect(t)}>
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-xl bg-gradient flex items-center justify-center text-white flex-shrink-0">
+                  {TYPE_ICONS[t.type] ?? DEFAULT_ICON}
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold font-poppins text-dark mb-1">{t.type}</h3>
+                  {t.description && <p className="text-xs text-slate mb-1">{t.description}</p>}
+                  <p className="text-sm text-slate mb-3">{t.enterprises.length} entreprise{t.enterprises.length > 1 ? 's' : ''}</p>
+                  <div className="flex items-center justify-between">
+                    <div className="flex gap-3 text-xs text-slate">
+                      <span><strong className="text-dark">{t.totalCards}</strong> cartes</span>
+                      <span><strong className="text-dark">{t.totalScans}</strong> scans</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={(e) => openEdit(e, t)}
+                        className="p-1 rounded-lg hover:bg-cloud text-slate hover:text-dark transition-colors"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={(e) => handleDeleteClick(e, t)}
+                        className="p-1 rounded-lg hover:bg-red-50 text-slate hover:text-red-500 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                      <ChevronRight className="w-4 h-4 text-slate" />
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold font-poppins text-dark mb-1">
-                  {module.name}
-                </h3>
-                <p className="text-sm text-slate mb-3">{module.description}</p>
-                <p className="text-xs text-primary font-medium">{module.active} entreprises actives</p>
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editing ? 'Modifier le type' : 'Nouveau type de carte'}>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {saveError && <div className="p-3 bg-red-50 text-red-700 rounded-xl text-sm">{saveError}</div>}
+          <Input label="Nom *" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Ex: Carte Fidélité" required />
+          <Input label="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Description optionnelle" />
+          <div className="flex gap-3 pt-2">
+            <Button type="button" variant="secondary" fullWidth onClick={() => setModalOpen(false)} disabled={saving}>Annuler</Button>
+            <Button type="submit" fullWidth disabled={saving}>{saving ? 'Sauvegarde...' : editing ? 'Mettre à jour' : 'Créer'}</Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Modale de confirmation de suppression */}
+      <Modal isOpen={deleteModalOpen} onClose={() => setDeleteModalOpen(false)} title="Supprimer le type de carte" size="sm">
+        <div className="space-y-4">
+          <p className="text-sm text-slate">
+            Êtes-vous sûr de vouloir supprimer le type <strong className="text-dark">"{deletingType?.type}"</strong> ?
+          </p>
+          <div className="flex gap-3 pt-2">
+            <Button type="button" variant="secondary" fullWidth onClick={() => setDeleteModalOpen(false)} disabled={deleting}>
+              Annuler
+            </Button>
+            <Button type="button" variant="danger" fullWidth onClick={handleConfirmDelete} disabled={deleting}>
+              {deleting ? 'Suppression...' : 'Supprimer'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

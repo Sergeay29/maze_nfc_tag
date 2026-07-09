@@ -18,6 +18,11 @@ const NFCCard = sequelize.define(
       allowNull: false,
       comment: "Unique short code for URL (e.g., ABC123)",
     },
+    cardTypeId: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      references: { model: 'card_types', key: 'id' },
+    },
     enterpriseId: {
       type: DataTypes.UUID,
       allowNull: false,
@@ -27,12 +32,12 @@ const NFCCard = sequelize.define(
       },
     },
     type: {
-      type: DataTypes.ENUM("Fidélité Entreprise", "Restaurant", "Carte de visite"),
+      type: DataTypes.STRING(100),
       allowNull: false,
     },
     subtype: {
-      type: DataTypes.ENUM("Basic", "Standard", "Luxe"),
-      allowNull: true, // Null pour "Fidélité Entreprise" et "Carte de visite"
+      type: DataTypes.STRING(50),
+      allowNull: true,
     },
     scanUrl: {
       // AJOUT DU LIEN DE SCAN

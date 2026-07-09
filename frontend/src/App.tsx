@@ -14,6 +14,7 @@ import {
   ScansPage,
   SubscriptionsPage,
   ModulesPage,
+  StockPage,
   UsersPage,
   SettingsPage,
   EnterpriseDashboard,
@@ -53,6 +54,7 @@ const App: React.FC = () => {
             <Route path="/admin/scans" element={<ScansPage />} />
             <Route path="/admin/subscriptions" element={<SubscriptionsPage />} />
             <Route path="/admin/modules" element={<ModulesPage />} />
+            <Route path="/admin/stock" element={<StockPage />} />
             <Route path="/admin/users" element={<UsersPage />} />
             <Route path="/admin/settings" element={<SettingsPage />} />
           </Route>

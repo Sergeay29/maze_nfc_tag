@@ -26,10 +26,15 @@ export const getEnterpriseInitials = (name: string): string => {
 };
 
 // Mapping des types de carte pour les initiales
-export const typeMap: Record<string, string> = {
-  "Fidélité Entreprise": "FID",
-  "Restaurant": "RES",
-  "Carte de visite": "CDV"
+export const typeMap: Record<string, string> = {};
+
+// Génère les initiales d'un type de carte dynamiquement
+export const getTypeInitials = (typeName: string): string => {
+  const words = typeName.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[-_]+/g, ' ').trim().split(/\s+/).filter(w => w.length > 0);
+  if (words.length === 0) return 'TYP';
+  if (words.length === 1) return words[0].slice(0, 3).toUpperCase();
+  return words.slice(0, 3).map(w => w[0].toUpperCase()).join('');
 };
 
 // Mapping des subtypes pour les initiales
@@ -46,13 +51,11 @@ export const getCardPrefix = (
   cardSubtype?: string
 ): string => {
   const enterpriseInitials = getEnterpriseInitials(enterpriseName);
-  const typeInitials = typeMap[cardType] || "XXX";
+  const typeInitials = getTypeInitials(cardType);
   let prefix = `${enterpriseInitials}-${typeInitials}`;
-  
-  if (cardType === "Restaurant" && cardSubtype) {
-    const subtypeInitials = subtypeMap[cardSubtype] || "XXX";
+  if (cardSubtype) {
+    const subtypeInitials = getTypeInitials(cardSubtype);
     prefix += `-${subtypeInitials}`;
   }
-  
   return prefix;
 };

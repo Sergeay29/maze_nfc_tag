@@ -293,6 +293,14 @@ router.post("/cards/generate", adminController.generateCards);
  *         description: Carte introuvable ou déjà attribuée
  */
 router.post("/cards/assign", adminController.assignCard);
+router.get("/cards/stock", adminController.getCardStock);
+
+// Types de cartes
+router.get("/card-types", adminController.getCardTypes);
+router.post("/card-types", adminController.createCardType);
+router.get("/card-types/:type", adminController.getCardTypeDetail);
+router.put("/card-types/:id", adminController.updateCardType);
+router.delete("/card-types/:id", adminController.deleteCardType);
 
 // ─────────────────────────────────────────────────────────────
 // SCANS

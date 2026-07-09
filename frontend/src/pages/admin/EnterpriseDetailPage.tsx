@@ -30,7 +30,11 @@ interface EnterpriseDetailData extends Enterprise {
   activeCards: number;
   NFCCards?: Array<{ id: string; status: string; cardNumber?: string }>;
   Clients?: Array<{ id: string; name: string }>;
-  Scans?: Array<{ id: string; createdAt: string; pointsAdded?: number }>;
+  Scans?: Array<{
+    id: string; createdAt: string; pointsAdded?: number; notes?: string;
+    Client?: { id: string; name: string };
+    NFCCard?: { id: string; cardNumber: string; cardCode: string };
+  }>;
   Subscription?: { plan: string; status: string; monthlyPrice: number };
 }
 
@@ -535,14 +539,32 @@ const EnterpriseDetailPage: React.FC = () => {
                   {enterprise.Scans.map((scan) => (
                     <div key={scan.id} className="flex items-center justify-between p-3 bg-cloud rounded-xl">
                       <div className="flex items-center gap-3">
-                        <QrCode className="w-5 h-5 text-primary" />
-                        <span className="text-sm text-dark">
-                          {scan.pointsAdded ? `+${scan.pointsAdded} points` : 'Consultation'}
-                        </span>
+                        <div className="w-9 h-9 rounded-full bg-gradient flex items-center justify-center flex-shrink-0">
+                          <QrCode className="w-4 h-4 text-white" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-dark">
+                            {scan.Client?.name ?? 'Client inconnu'}
+                          </p>
+                          <p className="text-xs text-slate font-mono">
+                            {scan.NFCCard?.cardCode ?? scan.NFCCard?.cardNumber ?? '—'}
+                          </p>
+                        </div>
                       </div>
-                      <span className="text-xs text-slate">
-                        {new Date(scan.createdAt).toLocaleDateString('fr-FR')}
-                      </span>
+                      <div className="text-right">
+                        <p className={`text-sm font-semibold ${
+                          (scan.pointsAdded ?? 0) > 0 ? 'text-green-600' :
+                          (scan.pointsAdded ?? 0) < 0 ? 'text-red-500' : 'text-slate'
+                        }`}>
+                          {(scan.pointsAdded ?? 0) > 0 ? '+' : ''}{scan.pointsAdded ?? 0} pts
+                        </p>
+                        <p className="text-xs text-slate">
+                          {new Date(scan.createdAt).toLocaleString('fr-FR', {
+                            day: '2-digit', month: '2-digit',
+                            hour: '2-digit', minute: '2-digit',
+                          })}
+                        </p>
+                      </div>
                     </div>
                   ))}
                 </div>

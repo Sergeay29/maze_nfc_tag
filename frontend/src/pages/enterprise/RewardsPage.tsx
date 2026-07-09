@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Gift, Edit, Trash2 } from 'lucide-react';
-import { Card, Button, Badge, Modal, Input } from '../../components';
-import { getRewards, createReward, updateReward, deleteReward } from '../../api/enterpriseApi';
-import type { RewardData } from '../../api/enterpriseApi';
+import { Card, Button, Badge, Modal, Input, Select } from '../../components';
+import { getRewards, createReward, updateReward, deleteReward, getServices } from '../../api/enterpriseApi';
+import type { RewardData, ServiceData } from '../../api/enterpriseApi';
 
-const EMPTY_FORM = { title: '', description: '', pointsRequired: 100, category: '', stock: '', isActive: true };
+const EMPTY_FORM = { title: '', description: '', pointsRequired: 100, category: '', stock: '', isActive: true, serviceId: '' };
 
 const RewardsPage: React.FC = () => {
   const [rewards, setRewards] = useState<RewardData[]>([]);
+  const [services, setServices] = useState<ServiceData[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<RewardData | null>(null);
@@ -18,7 +19,9 @@ const RewardsPage: React.FC = () => {
   const fetchRewards = async () => {
     try {
       setLoading(true);
-      setRewards(await getRewards());
+      const [r, s] = await Promise.all([getRewards(), getServices()]);
+      setRewards(r);
+      setServices(s);
     } catch (err) {
       console.error(err);
     } finally {
@@ -44,6 +47,7 @@ const RewardsPage: React.FC = () => {
       category: r.category ?? '',
       stock: r.stock != null ? String(r.stock) : '',
       isActive: r.isActive,
+      serviceId: (r as any).serviceId ?? '',
     });
     setSaveError(null);
     setModalOpen(true);
@@ -52,6 +56,7 @@ const RewardsPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.title.trim() || !form.pointsRequired) { setSaveError('Titre et points requis sont obligatoires'); return; }
+    if (!form.serviceId) { setSaveError('Veuillez sélectionner un service lié'); return; }
     try {
       setSaving(true);
       setSaveError(null);
@@ -62,6 +67,7 @@ const RewardsPage: React.FC = () => {
         category: form.category || undefined,
         stock: form.stock !== '' ? Number(form.stock) : undefined,
         isActive: form.isActive,
+        serviceId: form.serviceId,
       };
       if (editing) {
         await updateReward(editing.id, body);
@@ -154,6 +160,9 @@ const RewardsPage: React.FC = () => {
                 {reward.stock != null && (
                   <p className="text-xs text-slate mt-2">Stock : {reward.stock}</p>
                 )}
+                {(reward as any).serviceId && (
+                  <p className="text-xs text-slate mt-1">Service : {services.find(s => s.id === (reward as any).serviceId)?.name ?? '—'}</p>
+                )}
               </div>
             </Card>
           ))}
@@ -170,6 +179,12 @@ const RewardsPage: React.FC = () => {
             <Input label="Stock (optionnel)" type="number" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} placeholder="Illimité" min="0" />
           </div>
           <Input label="Catégorie" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="Ex: Restaurant, Boutique..." />
+          <Select
+            label="Service lié *"
+            options={services.map(s => ({ value: s.id, label: s.name }))}
+            value={form.serviceId}
+            onChange={(val) => setForm({ ...form, serviceId: val })}
+          />
           <label className="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} className="w-4 h-4 text-primary rounded border-slate focus:ring-primary" />
             <span className="text-sm font-medium text-dark">Récompense active</span>
