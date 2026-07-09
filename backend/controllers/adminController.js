@@ -9,6 +9,7 @@ const {
   User,
   Role,
   Setting,
+  CardType,
 } = require("../models");
 const { Op } = require("sequelize");
 const sequelize = require("../config/database");
@@ -233,9 +234,13 @@ exports.getEnterpriseDetail = async (req, res) => {
         },
         {
           model: Scan,
-          attributes: ["id", "createdAt", "pointsAdded"],
-          order: [["createdAt", "DESC"]],
-          limit: 10,
+          attributes: ['id', 'createdAt', 'pointsAdded', 'notes'],
+          include: [
+            { model: Client, attributes: ['id', 'name'] },
+            { model: NFCCard, attributes: ['id', 'cardNumber', 'cardCode'] },
+          ],
+          order: [['createdAt', 'DESC']],
+          limit: 20,
         },
       ],
     });
@@ -682,11 +687,10 @@ const getEnterpriseInitials = (name) => {
 };
 
 // Mapping des types de carte pour les initiales
-const typeMap = {
-  "Fidélité Entreprise": "FID",
-  "Restaurant": "RES",
-  "Carte de visite": "CDV"
-};
+const getTypeInitials = (typeName) =>
+  typeName.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[-_]+/g, ' ').trim().split(/\s+/).filter(w => w.length > 0)
+    .slice(0, 3).map((w, i, arr) => arr.length === 1 ? w.slice(0, 3).toUpperCase() : w[0].toUpperCase()).join('');
 
 // Mapping des subtypes pour les initiales
 const subtypeMap = {
@@ -702,12 +706,12 @@ const subtypeMap = {
 exports.generateCards = async (req, res) => {
   try {
     // On ne demande plus le "prefix", mais le "scanBaseUrl" et le "subtype"
-    const { enterpriseId, type, subtype, scanBaseUrl, quantity } = req.body;
+    const { enterpriseId, cardTypeId, subtype, scanBaseUrl, quantity } = req.body;
 
-    if (!enterpriseId || !type || !scanBaseUrl || !quantity) {
+    if (!enterpriseId || !cardTypeId || !scanBaseUrl || !quantity) {
       return res.status(400).json({
         success: false,
-        message: "enterpriseId, type, scanBaseUrl et quantity sont requis",
+        message: "enterpriseId, cardTypeId, scanBaseUrl et quantity sont requis",
       });
     }
 
@@ -721,19 +725,22 @@ exports.generateCards = async (req, res) => {
 
     const enterprise = await Enterprise.findByPk(enterpriseId);
     if (!enterprise) {
-      return res.status(404).json({
-        success: false,
-        message: "Entreprise non trouvée",
-      });
+      return res.status(404).json({ success: false, message: "Entreprise non trouvée" });
     }
 
-    // 1. Construire le préfixe dynamique avec initiales (ex: REGA-FID-0003)
+    const cardTypeRecord = await CardType.findByPk(cardTypeId);
+    if (!cardTypeRecord) {
+      return res.status(404).json({ success: false, message: "Type de carte introuvable" });
+    }
+    const type = cardTypeRecord.name;
+
+    // 1. Construire le préfixe dynamique avec initiales
     const enterpriseInitials = getEnterpriseInitials(enterprise.name);
-    const typeInitials = typeMap[type] || "XXX";
+    const typeInitials = getTypeInitials(type);
     let dynamicPrefix = `${enterpriseInitials}-${typeInitials}`;
-    
-    if (type === "Restaurant" && subtype) {
-      const subtypeInitials = subtypeMap[subtype] || "XXX";
+
+    if (subtype) {
+      const subtypeInitials = getTypeInitials(subtype);
       dynamicPrefix += `-${subtypeInitials}`;
     }
 
@@ -762,9 +769,10 @@ exports.generateCards = async (req, res) => {
         cardNumber: `${dynamicPrefix}-${suffix}`,
         cardCode: code,
         enterpriseId,
+        cardTypeId,
         type,
         subtype: subtype || null,
-        scanUrl: `${baseUrl}${code}`, // Assemblage du lien final
+        scanUrl: `${baseUrl}${code}`,
         status: "unassigned",
       });
     }
@@ -1051,6 +1059,164 @@ exports.getUsers = async (req, res) => {
       success: false,
       message: "Erreur lors de la récupération des utilisateurs",
     });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────
+// TYPES DE CARTES
+// ─────────────────────────────────────────────────────────────
+
+exports.getCardTypes = async (req, res) => {
+  try {
+    const types = await CardType.findAll({ order: [['createdAt', 'ASC']] });
+    const result = await Promise.all(types.map(async (ct) => {
+      const [totalCards, enterprises, totalScans] = await Promise.all([
+        NFCCard.count({ where: { cardTypeId: ct.id } }),
+        Enterprise.findAll({
+          include: [{ model: NFCCard, where: { cardTypeId: ct.id }, attributes: [] }],
+          attributes: ['id', 'name', 'logo', 'status'],
+          group: ['Enterprise.id'],
+        }),
+        Scan.count({
+          include: [{ model: NFCCard, where: { cardTypeId: ct.id }, attributes: [] }],
+        }),
+      ]);
+      return { id: ct.id, type: ct.name, description: ct.description, totalCards, totalScans, enterprises };
+    }));
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('getCardTypes error:', error);
+    res.status(500).json({ success: false, message: 'Erreur lors de la récupération des types' });
+  }
+};
+
+exports.getCardTypeDetail = async (req, res) => {
+  try {
+    const { type } = req.params;
+    const cardType = await CardType.findByPk(type);
+    if (!cardType) return res.status(404).json({ success: false, message: 'Type introuvable' });
+    const enterprises = await Enterprise.findAll({
+      include: [{ model: NFCCard, where: { cardTypeId: type }, attributes: ['id', 'status'] }],
+      attributes: ['id', 'name', 'logo', 'status'],
+    });
+    const enriched = await Promise.all(enterprises.map(async (e) => {
+      const scans = await Scan.count({
+        include: [{ model: NFCCard, where: { cardTypeId: type, enterpriseId: e.id }, attributes: [] }],
+      });
+      return {
+        id: e.id, name: e.name, logo: e.logo, status: e.status,
+        totalCards: e.NFCCards.length,
+        activeCards: e.NFCCards.filter(c => c.status === 'active').length,
+        totalScans: scans,
+      };
+    }));
+    res.json({ success: true, data: { type: cardType.name, enterprises: enriched } });
+  } catch (error) {
+    console.error('getCardTypeDetail error:', error);
+    res.status(500).json({ success: false, message: 'Erreur lors de la récupération du détail' });
+  }
+};
+
+exports.createCardType = async (req, res) => {
+  try {
+    const { name, description } = req.body;
+    if (!name || !name.trim()) return res.status(400).json({ success: false, message: 'Le nom est requis' });
+    const existing = await CardType.findOne({ where: { name: name.trim() } });
+    if (existing) return res.status(409).json({ success: false, message: 'Ce type de carte existe déjà' });
+    const cardType = await CardType.create({ name: name.trim(), description: description || null });
+    res.status(201).json({ success: true, data: cardType });
+  } catch (error) {
+    console.error('createCardType error:', error);
+    res.status(500).json({ success: false, message: 'Erreur lors de la création du type' });
+  }
+};
+
+exports.updateCardType = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, description } = req.body;
+    const cardType = await CardType.findByPk(id);
+    if (!cardType) return res.status(404).json({ success: false, message: 'Type introuvable' });
+    if (name && name.trim() !== cardType.name) {
+      const existing = await CardType.findOne({ where: { name: name.trim() } });
+      if (existing) return res.status(409).json({ success: false, message: 'Ce nom est déjà utilisé' });
+    }
+    await cardType.update({ name: name?.trim() ?? cardType.name, description: description ?? cardType.description });
+    res.json({ success: true, data: cardType });
+  } catch (error) {
+    console.error('updateCardType error:', error);
+    res.status(500).json({ success: false, message: 'Erreur lors de la mise à jour du type' });
+  }
+};
+
+exports.deleteCardType = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const cardType = await CardType.findByPk(id);
+    if (!cardType) return res.status(404).json({ success: false, message: 'Type introuvable' });
+    const inUse = await NFCCard.count({ where: { cardTypeId: id } });
+    if (inUse > 0) return res.status(400).json({ success: false, message: `Impossible de supprimer : ${inUse} carte(s) utilisent ce type` });
+    await cardType.destroy();
+    res.json({ success: true, message: 'Type supprimé' });
+  } catch (error) {
+    console.error('deleteCardType error:', error);
+    res.status(500).json({ success: false, message: 'Erreur lors de la suppression du type' });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────
+// STOCK CARTES
+// ─────────────────────────────────────────────────────────────
+
+exports.getCardStock = async (req, res) => {
+  try {
+    const [total, active, inactive, unassigned] = await Promise.all([
+      NFCCard.count(),
+      NFCCard.count({ where: { status: 'active' } }),
+      NFCCard.count({ where: { status: 'inactive' } }),
+      NFCCard.count({ where: { status: 'unassigned' } }),
+    ]);
+
+    const byEnterprise = await NFCCard.findAll({
+      attributes: [
+        'enterpriseId',
+        [require('sequelize').fn('COUNT', require('sequelize').col('NFCCard.id')), 'total'],
+        [require('sequelize').fn('SUM', require('sequelize').literal("CASE WHEN \"NFCCard\".status = 'active' THEN 1 ELSE 0 END")), 'active'],
+        [require('sequelize').fn('SUM', require('sequelize').literal("CASE WHEN \"NFCCard\".status = 'unassigned' THEN 1 ELSE 0 END")), 'unassigned'],
+      ],
+      include: [{ model: Enterprise, attributes: ['name', 'logo'] }],
+      group: ['enterpriseId', 'Enterprise.id'],
+      raw: true,
+      nest: true,
+    });
+
+    const byType = await NFCCard.findAll({
+      attributes: [
+        'type',
+        [require('sequelize').fn('COUNT', require('sequelize').col('id')), 'total'],
+      ],
+      group: ['type'],
+      raw: true,
+    });
+
+    res.json({
+      success: true,
+      data: {
+        summary: { total, active, inactive, unassigned, sold: active },
+        byEnterprise: byEnterprise.map(r => ({
+          enterpriseId: r.enterpriseId,
+          name: r.Enterprise?.name,
+          logo: r.Enterprise?.logo,
+          total: parseInt(r.total),
+          active: parseInt(r.active) || 0,
+          unassigned: parseInt(r.unassigned) || 0,
+        })),
+        byType: byType.map(r => ({ type: r.type, total: parseInt(r.total) })),
+      },
+    });
+  } catch (error) {
+    console.error('getCardStock error:', error);
+    res.status(500).json({ success: false, message: 'Erreur lors de la récupération du stock' });
   }
 };
 

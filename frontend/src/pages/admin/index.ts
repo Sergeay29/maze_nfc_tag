@@ -7,5 +7,6 @@ export { default as EnterpriseDetailPage } from './EnterpriseDetailPage';
 export { default as ScansPage } from './ScansPage';
 export { default as SubscriptionsPage } from './SubscriptionsPage';
 export { default as ModulesPage } from './ModulesPage';
+export { default as StockPage } from './StockPage';
 export { default as UsersPage } from './UsersPage';
 export { default as SettingsPage } from './SettingsPage';

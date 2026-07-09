@@ -9,6 +9,11 @@ const Setting = require("./setting");
 const Service = require("./service");
 const Reward = require("./reward");
 const Redemption = require("./redemption");
+const CardType = require("./cardType");
+
+// CardType -> NFCCard
+CardType.hasMany(NFCCard, { foreignKey: 'cardTypeId' });
+NFCCard.belongsTo(CardType, { foreignKey: 'cardTypeId' });
 
 // Role -> User
 Role.hasMany(User, {
@@ -159,4 +164,4 @@ Redemption.belongsTo(Reward, {
   foreignKey: "rewardId",
 });
 
-module.exports = { User, Role, Enterprise, NFCCard, Client, Scan, Subscription, Setting, Service, Reward, Redemption };
+module.exports = { User, Role, Enterprise, NFCCard, Client, Scan, Subscription, Setting, Service, Reward, Redemption, CardType };

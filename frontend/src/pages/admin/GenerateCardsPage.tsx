@@ -2,75 +2,65 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Sparkles, CreditCard, CheckCircle, Link } from 'lucide-react';
 import { Button, Input, Select, Card } from '../../components';
 import { useNavigate } from 'react-router-dom';
-import { getEnterprises, generateCards } from '../../api/adminApi';
+import { getEnterprises, generateCards, getCardTypes } from '../../api/adminApi';
 import type { Enterprise } from '../../data/mockData';
-import { CardType } from '../../@types/types';
+import type { CardTypeData } from '../../api/adminApi';
 import { getCardPrefix } from '../../utils/cardUtils';
-
-const CARD_TYPE_OPTIONS = [
-  { value: 'Fidélité Entreprise', label: 'Fidélité Entreprise' },
-  { value: 'Restaurant', label: 'Restaurant' },
-  { value: 'Carte de visite', label: 'Carte de visite' },
-];
-
-const CARD_SUBTYPE_OPTIONS = [
-  { value: 'Basic', label: 'Basic' },
-  { value: 'Standard', label: 'Standard' },
-  { value: 'Luxe', label: 'Luxe' },
-];
 
 
 const GenerateCardsPage: React.FC = () => {
   const [enterprise, setEnterprise] = useState('');
-  const [cardType, setCardType] = useState<CardType | ''>('');
+  const [cardTypeId, setCardTypeId] = useState('');
   const [cardSubtype, setCardSubtype] = useState('');
-  const [scanBaseUrl, setScanBaseUrl] = useState(''); // NOUVEAU : Remplace le préfixe
+  const [scanBaseUrl, setScanBaseUrl] = useState('');
   const [quantity, setQuantity] = useState('100');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<{ generated: number } | null>(null);
   const [enterprises, setEnterprises] = useState<Enterprise[]>([]);
   const [enterprisesLoading, setEnterprisesLoading] = useState(true);
+  const [cardTypes, setCardTypes] = useState<CardTypeData[]>([]);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchEnterprises = async () => {
+    const fetchData = async () => {
       try {
-        const result = await getEnterprises({ limit: 100, status: 'active' });
-        setEnterprises(result.data);
+        const [enterprisesResult, typesResult] = await Promise.all([
+          getEnterprises({ limit: 100, status: 'active' }),
+          getCardTypes(),
+        ]);
+        setEnterprises(enterprisesResult.data);
+        setCardTypes(typesResult);
       } catch { }
       finally { setEnterprisesLoading(false); }
     };
-    fetchEnterprises();
+    fetchData();
   }, []);
 
   const enterpriseOptions = enterprises.map((e) => ({ value: e.id, label: e.name }));
   const selectedEnterprise = enterprises.find((e) => e.id === enterprise);
-  const showSubtype = cardType === 'Restaurant';
+  const selectedCardType = cardTypes.find((t) => t.id === cardTypeId);
+  const cardTypeOptions = cardTypes.map(t => ({ value: t.id, label: t.type }));
 
-  const handleCardTypeChange = (value: CardType) => {
-    setCardType(value);
+  const handleCardTypeChange = (value: string) => {
+    setCardTypeId(value);
     setCardSubtype('');
   };
 
-  // Utilitaire pour simuler l'aperçu du cardNumber (comme le fait le backend)
   const getMockPrefix = () => {
-    if (!selectedEnterprise || !cardType) return 'ENT-TYP';
-    return getCardPrefix(selectedEnterprise.name, cardType, cardSubtype);
+    if (!selectedEnterprise || !selectedCardType) return 'ENT-TYP';
+    return getCardPrefix(selectedEnterprise.name, selectedCardType.type, cardSubtype);
   };
+
+  const previewTypeText = selectedCardType ? selectedCardType.type : 'Type';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSuccess(null);
 
-    if (!enterprise || !cardType || !scanBaseUrl.trim()) {
+    if (!enterprise || !cardTypeId || !scanBaseUrl.trim()) {
       setError("Veuillez remplir tous les champs obligatoires.");
-      return;
-    }
-
-    if (showSubtype && !cardSubtype) {
-      setError("Veuillez sélectionner un sous-type.");
       return;
     }
 
@@ -85,7 +75,7 @@ const GenerateCardsPage: React.FC = () => {
       const normalizedUrl = scanBaseUrl.trim().replace(/\/?$/, '/');
       await generateCards({
         enterpriseId: enterprise,
-        type: cardType,
+        cardTypeId,
         subtype: cardSubtype,
         scanBaseUrl: normalizedUrl,
         quantity: qty,
@@ -98,8 +88,6 @@ const GenerateCardsPage: React.FC = () => {
       setLoading(false);
     }
   };
-
-  const previewTypeText = showSubtype && cardSubtype ? `${cardType} (${cardSubtype})` : cardType || 'Type';
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -132,12 +120,8 @@ const GenerateCardsPage: React.FC = () => {
             <Select label="Entreprise *" options={enterprisesLoading ? [{ value: '', label: 'Chargement...' }] : enterpriseOptions} value={enterprise} onChange={setEnterprise} placeholder="Sélectionner une entreprise" />
 
             <div className="grid grid-cols-2 gap-4">
-              <Select label="Type de carte *" options={CARD_TYPE_OPTIONS} value={cardType} onChange={handleCardTypeChange} placeholder="Sélectionner un type" />
-              {showSubtype ? (
-                <Select label="Sous-type *" options={CARD_SUBTYPE_OPTIONS} value={cardSubtype} onChange={setCardSubtype} placeholder="Sous-type" />
-              ) : (
-                <div /> // Placeholder pour garder la grille alignée
-              )}
+              <Select label="Type de carte *" options={cardTypeOptions} value={cardTypeId} onChange={handleCardTypeChange} placeholder="Sélectionner un type" />
+              <div />
             </div>
 
             {/* NOUVEAU CHAMP URL */}
@@ -184,7 +168,7 @@ const GenerateCardsPage: React.FC = () => {
             </div>
           </div>
           <div className="mt-6 text-center">
-            {enterprise && cardType && (!showSubtype || cardSubtype) && (
+            {enterprise && cardTypeId && (
               <p className="text-sm text-slate">
                 <strong>{quantity}</strong> carte{Number(quantity) > 1 ? 's' : ''} seront générées
               </p>

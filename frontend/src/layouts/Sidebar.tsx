@@ -14,6 +14,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Zap,
+  Package,
+  Layers,
 } from 'lucide-react';
 import { Tooltip } from '../components';
 import { useAuth } from '../auth/useAuth';
@@ -28,9 +30,10 @@ const adminItems: SidebarItem[] = [
   { path: '/admin/dashboard', icon: <LayoutDashboard className="w-5 h-5" />, label: 'Dashboard' },
   { path: '/admin/enterprises', icon: <Building2 className="w-5 h-5" />, label: 'Entreprises' },
   { path: '/admin/nfc-cards', icon: <CreditCard className="w-5 h-5" />, label: 'Cartes NFC' },
+  { path: '/admin/stock', icon: <Package className="w-5 h-5" />, label: 'Stock' },
   { path: '/admin/scans', icon: <QrCode className="w-5 h-5" />, label: 'Scans' },
   { path: '/admin/subscriptions', icon: <BarChart3 className="w-5 h-5" />, label: 'Abonnements' },
-  { path: '/admin/modules', icon: <Gift className="w-5 h-5" />, label: 'Modules' },
+  { path: '/admin/modules', icon: <Layers className="w-5 h-5" />, label: 'Types de cartes' },
   { path: '/admin/users', icon: <Users className="w-5 h-5" />, label: 'Utilisateurs' },
   { path: '/admin/settings', icon: <Settings className="w-5 h-5" />, label: 'Paramètres' },
 ];

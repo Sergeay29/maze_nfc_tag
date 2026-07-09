@@ -183,12 +183,9 @@ export async function getScans(
 
 export interface GenerateCardsPayload {
   enterpriseId: string;
-  // Mise à jour des types
-  type: 'Fidélité Entreprise' | 'Restaurant' | 'Carte de visite';
-  // Ajout du sous-type (optionnel car "Carte de visite" n'en a pas)
-  subtype?: string; 
-  // Remplacement de "prefix" par la nouvelle URL de base
-  scanBaseUrl: string; 
+  cardTypeId: string;
+  subtype?: string;
+  scanBaseUrl: string;
   quantity: number;
 }
 
@@ -232,6 +229,53 @@ export async function getUnassignedCards(
 ): Promise<UnassignedCard[]> {
   const query = enterpriseId ? `?enterpriseId=${enterpriseId}` : '';
   return request<UnassignedCard[]>(`/admin/cards/unassigned${query}`);
+}
+
+export interface CardTypeData {
+  id: string;
+  type: string;
+  description?: string;
+  totalCards: number;
+  totalScans: number;
+  enterprises: Array<{ id: string; name: string; logo?: string; status: string }>;
+}
+
+export interface CardTypeDetail {
+  type: string;
+  enterprises: Array<{
+    id: string; name: string; logo?: string; status: string;
+    totalCards: number; activeCards: number; totalScans: number;
+  }>;
+}
+
+export async function getCardTypes(): Promise<CardTypeData[]> {
+  return request<CardTypeData[]>('/admin/card-types');
+}
+
+export async function getCardTypeDetail(id: string): Promise<CardTypeDetail> {
+  return request<CardTypeDetail>(`/admin/card-types/${id}`);
+}
+
+export async function createCardType(data: { name: string; description?: string }): Promise<CardTypeData> {
+  return request<CardTypeData>('/admin/card-types', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function updateCardType(id: string, data: { name?: string; description?: string }): Promise<CardTypeData> {
+  return request<CardTypeData>(`/admin/card-types/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+}
+
+export async function deleteCardType(id: string): Promise<void> {
+  return request<void>(`/admin/card-types/${id}`, { method: 'DELETE' });
+}
+
+export interface CardStockData {
+  summary: { total: number; active: number; inactive: number; unassigned: number; sold: number };
+  byEnterprise: Array<{ enterpriseId: string; name: string; logo?: string; total: number; active: number; unassigned: number }>;
+  byType: Array<{ type: string; total: number }>;
+}
+
+export async function getCardStock(): Promise<CardStockData> {
+  return request<CardStockData>('/admin/cards/stock');
 }
 
 // ─── Subscriptions ────────────────────────────────────────────
