@@ -22,13 +22,14 @@ export interface NFCCard {
   cardCode: string;
   enterpriseId: string;
   enterpriseName?: string;
-  type: 'Fidélité Entreprise' | 'Restaurant' | 'Carte de visite';
-  subtype?: 'Basic' | 'Standard' | 'Luxe';
+  type: "Fidélité Entreprise" | "Restaurant" | "Carte de visite";
+  subtype?: "Basic" | "Standard" | "Luxe";
   scanUrl?: string;
-  status: 'active' | 'inactive' | 'unassigned';
+  status: "active" | "inactive" | "unassigned";
   assignedTo?: string | null;
   assignedToClientId?: string;
   assignedClient?: { id: string; name: string; email: string } | null;
+  scanCount?: number;
   createdAt: string;
 }
 

@@ -67,11 +67,12 @@ const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.
 const EnterpriseDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('cards'); // ✅ Commencer par "cards" au lieu de "overview"
   const [enterprise, setEnterprise] = useState<EnterpriseDetailData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusUpdating, setStatusUpdating] = useState(false);
+  const [cardStatusFilter, setCardStatusFilter] = useState<string>('all'); // ✅ Ajout du filtre
 
   // Edit modal
   const [showEditModal, setShowEditModal] = useState(false);
@@ -210,11 +211,10 @@ const EnterpriseDetailPage: React.FC = () => {
   };
 
   const tabs = [
-    { id: 'overview', label: "Vue d'ensemble" },
     { id: 'cards', label: 'Cartes' },
     { id: 'clients', label: 'Clients' },
     { id: 'scans', label: 'Scans' },
-  ];
+  ]; // ✅ Suppression de l'onglet "Vue d'ensemble"
 
   const moduleIcons: Record<string, React.ReactNode> = {
     Fidélité: <Gift className="w-5 h-5" />,
@@ -412,92 +412,56 @@ const EnterpriseDetailPage: React.FC = () => {
 
           <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
 
-          {activeTab === 'overview' && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <h3 className="text-lg font-semibold font-poppins text-dark mb-4">
-                  Modules actifs
-                </h3>
-                {enterprise.modules && enterprise.modules.length > 0 ? (
-                  <div className="space-y-3">
-                    {enterprise.modules.map((module) => (
-                      <div
-                        key={module}
-                        className="flex items-center gap-3 p-3 bg-cloud rounded-xl"
-                      >
-                        <div className="w-10 h-10 rounded-xl bg-gradient flex items-center justify-center text-white">
-                          {moduleIcons[module] ?? <TrendingUp className="w-5 h-5" />}
-                        </div>
-                        <span className="font-medium text-dark">{module}</span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-slate text-sm">Aucun module actif</p>
-                )}
-              </Card>
-
-              <Card>
-                <h3 className="text-lg font-semibold font-poppins text-dark mb-4">
-                  Activité récente
-                </h3>
-                {enterprise.Scans && enterprise.Scans.length > 0 ? (
-                  <div className="space-y-3">
-                    {enterprise.Scans.slice(0, 5).map((scan) => (
-                      <div
-                        key={scan.id}
-                        className="flex items-center justify-between p-3 bg-cloud rounded-xl"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-gradient flex items-center justify-center">
-                            <QrCode className="w-4 h-4 text-white" />
-                          </div>
-                          <p className="text-sm font-medium text-dark">
-                            {scan.pointsAdded ? `+${scan.pointsAdded} points` : 'Consultation'}
-                          </p>
-                        </div>
-                        <span className="text-xs text-slate">
-                          {new Date(scan.createdAt).toLocaleTimeString('fr-FR', {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-slate text-sm">Aucune activité récente</p>
-                )}
-              </Card>
-            </div>
-          )}
-
           {activeTab === 'cards' && (
             <Card>
               {enterprise.NFCCards && enterprise.NFCCards.length > 0 ? (
-                <div className="space-y-3">
-                  <h3 className="text-lg font-semibold font-poppins text-dark mb-4">
-                    {enterprise.NFCCards.length} carte{enterprise.NFCCards.length > 1 ? 's' : ''} NFC
-                  </h3>
-                  {enterprise.NFCCards.map((card) => (
-                    <div
-                      key={card.id}
-                      className="flex items-center justify-between p-3 bg-cloud rounded-xl"
-                    >
-                      <div className="flex items-center gap-3">
-                        <CreditCard className="w-5 h-5 text-primary" />
-                        <span className="font-mono text-sm text-dark">{card.cardNumber ?? card.id}</span>
-                      </div>
-                      <Badge
-                        variant={
-                          card.status === 'active' ? 'active'
-                            : card.status === 'inactive' ? 'inactive' : 'warning'
-                        }
-                      >
-                        {card.status === 'active' ? 'Active' : card.status === 'inactive' ? 'Inactive' : 'Non attribuée'}
-                      </Badge>
-                    </div>
-                  ))}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold font-poppins text-dark">
+                      {enterprise.NFCCards.filter(card =>
+                        cardStatusFilter === 'all' || card.status === cardStatusFilter
+                      ).length} carte{enterprise.NFCCards.filter(card =>
+                        cardStatusFilter === 'all' || card.status === cardStatusFilter
+                      ).length > 1 ? 's' : ''} NFC
+                    </h3>
+                    <Select
+                      options={[
+                        { value: 'all', label: 'Toutes les cartes' },
+                        { value: 'active', label: 'Actives' },
+                        { value: 'inactive', label: 'Inactives' },
+                        { value: 'unassigned', label: 'Non attribuées' },
+                      ]}
+                      value={cardStatusFilter}
+                      onChange={setCardStatusFilter}
+                      className="w-48"
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    {enterprise.NFCCards
+                      .filter(card => cardStatusFilter === 'all' || card.status === cardStatusFilter)
+                      .map((card) => (
+                        <div
+                          key={card.id}
+                          className="flex items-center justify-between p-3 bg-cloud rounded-xl"
+                        >
+                          <div className="flex items-center gap-3">
+                            <CreditCard className="w-5 h-5 text-primary" />
+                            <span className="font-mono text-sm text-dark">{card.cardNumber ?? card.id}</span>
+                          </div>
+                          <Badge
+                            variant={
+                              card.status === 'active' ? 'active'
+                                : card.status === 'inactive' ? 'inactive' : 'warning'
+                            }
+                          >
+                            {card.status === 'active' ? 'Active' : card.status === 'inactive' ? 'Inactive' : 'Non attribuée'}
+                          </Badge>
+                        </div>
+                      ))}
+                  </div>
+                  {enterprise.NFCCards.filter(card => cardStatusFilter === 'all' || card.status === cardStatusFilter).length === 0 && (
+                    <p className="text-slate text-center py-4">Aucune carte dans cette catégorie</p>
+                  )}
                 </div>
               ) : (
                 <p className="text-slate">Aucune carte pour cette entreprise</p>

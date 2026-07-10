@@ -300,6 +300,26 @@ exports.getCards = async (req, res) => {
       nest: true,
     });
 
+    // Récupérer le nombre de scans pour chaque carte
+    const cardIds = rows.map(card => card.id);
+    const scanCounts = await Scan.findAll({
+      attributes: [
+        'cardId',
+        [sequelize.fn('COUNT', sequelize.col('id')), 'scanCount']
+      ],
+      where: {
+        cardId: { [Op.in]: cardIds }
+      },
+      group: ['cardId'],
+      raw: true,
+    });
+
+    // Créer un map pour accès rapide
+    const scanCountMap = {};
+    scanCounts.forEach(sc => {
+      scanCountMap[sc.cardId] = parseInt(sc.scanCount) || 0;
+    });
+
     // Aplatir pour le frontend
     const mapped = rows.map((card) => ({
       id: card.id,
@@ -314,6 +334,7 @@ exports.getCards = async (req, res) => {
       assignedTo: card.assignedClient?.name ?? null,
       assignedToClientId: card.assignedToClientId,
       createdAt: card.createdAt,
+      scanCount: scanCountMap[card.id] || 0, // ✅ Ajout du nombre de scans
     }));
 
     res.json({

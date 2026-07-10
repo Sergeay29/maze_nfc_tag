@@ -80,8 +80,8 @@ const EnterpriseProfilePage: React.FC = () => {
       if (editLogoFile) {
         finalLogo = await uploadFile(editLogoFile);
       }
+      // Ne pas envoyer le nom de l'entreprise car il ne peut pas être modifié
       const result = await updateMyEnterprise({
-        name: editName.trim(),
         phone: editPhone || undefined,
         location: editLocation || undefined,
         logo: finalLogo || undefined,
@@ -90,7 +90,7 @@ const EnterpriseProfilePage: React.FC = () => {
       });
       setEnterprise((prev) => prev ? { ...prev, ...result, stats: prev.stats } : prev);
       // Mise à jour instantanée du Header sans rechargement
-      updateUserEnterprise({ name: result.name, logo: result.logo ?? finalLogo });
+      updateUserEnterprise({ name: enterprise?.name ?? editName, logo: result.logo ?? finalLogo });
       
       // Mettre à jour le prénom/nom de l'utilisateur connecté si modifiés
       if (user && (editAdminFirstName || editAdminLastName)) {
@@ -207,7 +207,11 @@ const EnterpriseProfilePage: React.FC = () => {
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
                   icon={<Building2 className="w-5 h-5" />}
+                  disabled
                 />
+                <p className="text-xs text-slate -mt-2">
+                  Le nom de l'entreprise ne peut pas être modifié. Contactez l'administrateur si nécessaire.
+                </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <PhoneInput
                     label="Téléphone"

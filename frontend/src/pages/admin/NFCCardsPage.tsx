@@ -119,6 +119,14 @@ const NFCCardsPage: React.FC = () => {
       ),
     },
     {
+      key: 'scanCount',
+      header: 'Scans',
+      render: (card: NFCCard) => (
+        <span className="text-dark font-medium">{card.scanCount ?? 0}</span>
+      ),
+      className: 'hidden xl:table-cell',
+    },
+    {
       key: 'assignedTo',
       header: 'Attribuée à',
       render: (card: NFCCard) => (
