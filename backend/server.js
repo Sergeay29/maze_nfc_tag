@@ -52,7 +52,7 @@ async function start() {
     await seedDashboardData();
     await seedSettings();
     await seedEnterpriseUser();
-    // await seedCardTypes();
+    await seedCardTypes();
 
     app.listen(PORT, () => {
       console.log(`🚀 Maze NFC API sur le port ${PORT}`);

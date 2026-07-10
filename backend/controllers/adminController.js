@@ -498,8 +498,11 @@ exports.createEnterprise = async (req, res) => {
     }, { transaction: t });
 
     let generatedCards = 0;
-    if (cardGeneration?.enabled && cardGeneration?.serviceId) {
-      const { cardTypeId, serviceId, subtype, quantity } = cardGeneration;
+    let defaultService = null;
+
+    // 5. Si génération de cartes activée, créer automatiquement un service par défaut
+    if (cardGeneration?.enabled && cardGeneration?.cardTypeId) {
+      const { cardTypeId, subtype, quantity, serviceName, servicePoints } = cardGeneration;
       const qty = parseInt(quantity, 10);
 
       if (Number.isInteger(qty) && qty > 0 && qty <= 1000) {
@@ -511,18 +514,6 @@ exports.createEnterprise = async (req, res) => {
         }
         const type = cardTypeRecord.name;
 
-        // Charger le service pour obtenir le scanToken
-        const { Service } = require("../models");
-        const service = await Service.findOne({
-          where: { id: serviceId, enterpriseId: enterprise.id },
-          transaction: t,
-        });
-
-        if (!service) {
-          await t.rollback();
-          return res.status(404).json({ success: false, message: "Service introuvable" });
-        }
-
         // Vérifier la variable d'environnement SCAN_BASE_URL
         const scanBaseUrl = process.env.SCAN_BASE_URL;
         if (!scanBaseUrl) {
@@ -532,6 +523,17 @@ exports.createEnterprise = async (req, res) => {
             message: "SCAN_BASE_URL n'est pas configuré dans les variables d'environnement",
           });
         }
+
+        // Créer automatiquement un service par défaut pour cette entreprise
+        const { Service } = require("../models");
+        defaultService = await Service.create({
+          name: serviceName || "Service par défaut",
+          description: "Service créé automatiquement lors de la génération de cartes",
+          pointsToAdd: servicePoints || 10,
+          isActive: true,
+          enterpriseId: enterprise.id,
+          // scanToken sera généré automatiquement par le modèle
+        }, { transaction: t });
 
         // Importer l'utilitaire de génération d'URL
         const { generateScanUrl, generateCardCode } = require("../utils/urlGenerator");
@@ -564,7 +566,7 @@ exports.createEnterprise = async (req, res) => {
             cardType: type,
             enterpriseName: enterprise.name,
             subtype: subtype || null,
-            scanToken: service.scanToken,
+            scanToken: defaultService.scanToken,
             baseUrl: scanBaseUrl,
           });
 
@@ -573,7 +575,7 @@ exports.createEnterprise = async (req, res) => {
             cardCode,
             enterpriseId: enterprise.id,
             cardTypeId,
-            serviceId,
+            serviceId: defaultService.id,
             type,
             subtype: subtype || null,
             scanUrl,
@@ -593,10 +595,26 @@ exports.createEnterprise = async (req, res) => {
 
     await t.commit();
 
+    const responseData = {
+      enterprise,
+      generatedPassword: plainPassword,
+      generatedCards
+    };
+
+    // Ajouter les infos du service si créé
+    if (defaultService) {
+      responseData.defaultService = {
+        id: defaultService.id,
+        name: defaultService.name,
+        scanToken: defaultService.scanToken,
+        pointsToAdd: defaultService.pointsToAdd,
+      };
+    }
+
     res.status(201).json({
       success: true,
       message: "Entreprise créée avec succès.",
-      data: { enterprise, generatedPassword: plainPassword, generatedCards },
+      data: responseData,
     });
   } catch (error) {
     await t.rollback();
@@ -636,6 +654,41 @@ exports.deleteEnterprise = async (req, res) => {
     await t.rollback();
     console.error("Delete enterprise error:", error);
     res.status(500).json({ success: false, message: "Erreur lors de la suppression de l'entreprise" });
+  }
+};
+
+/**
+ * GET /api/admin/enterprises/:id/services
+ * Récupérer tous les services d'une entreprise
+ */
+exports.getEnterpriseServices = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const enterprise = await Enterprise.findByPk(id);
+    if (!enterprise) {
+      return res.status(404).json({
+        success: false,
+        message: "Entreprise non trouvée",
+      });
+    }
+
+    const { Service } = require("../models");
+    const services = await Service.findAll({
+      where: { enterpriseId: id },
+      order: [["createdAt", "DESC"]],
+    });
+
+    res.json({
+      success: true,
+      data: services,
+    });
+  } catch (error) {
+    console.error("Get enterprise services error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Erreur lors de la récupération des services",
+    });
   }
 };
 

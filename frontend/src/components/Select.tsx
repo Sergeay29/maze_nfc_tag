@@ -13,6 +13,7 @@ interface SelectProps {
   placeholder?: string;
   label?: string;
   className?: string;
+  disabled?: boolean;
 }
 
 const Select: React.FC<SelectProps> = ({
@@ -22,6 +23,7 @@ const Select: React.FC<SelectProps> = ({
   placeholder = 'Sélectionner...',
   label,
   className = '',
+  disabled = false,
 }) => {
   return (
     <div className={`w-full ${className}`}>
@@ -34,7 +36,9 @@ const Select: React.FC<SelectProps> = ({
         <select
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full px-4 py-3 bg-white border border-slate/20 rounded-xl text-dark appearance-none cursor-pointer focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200"
+          disabled={disabled}
+          className={`w-full px-4 py-3 bg-white border border-slate/20 rounded-xl text-dark appearance-none cursor-pointer focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200 ${disabled ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
         >
           <option value="" disabled>
             {placeholder}

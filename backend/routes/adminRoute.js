@@ -197,6 +197,25 @@ router.put("/enterprises/:id", adminController.updateEnterprise);
  */
 router.delete("/enterprises/:id", adminController.deleteEnterprise);
 
+/**
+ * @swagger
+ * /api/admin/enterprises/{id}/services:
+ *   get:
+ *     tags: [Admin]
+ *     summary: Récupérer les services d'une entreprise
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     responses:
+ *       200:
+ *         description: Liste des services de l'entreprise
+ *       404:
+ *         description: Entreprise non trouvée
+ */
+router.get("/enterprises/:id/services", adminController.getEnterpriseServices);
+
 // ─────────────────────────────────────────────────────────────
 // CARTES NFC
 // ─────────────────────────────────────────────────────────────
