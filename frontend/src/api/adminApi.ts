@@ -185,17 +185,20 @@ export interface GenerateCardsPayload {
   enterpriseId: string;
   cardTypeId: string;
   subtype?: string;
-  scanBaseUrl: string;
+  serviceId: string; // ✅ Changé de scanBaseUrl à serviceId
   quantity: number;
 }
 
 export async function generateCards(
-  payload: GenerateCardsPayload
-): Promise<{ generated: number }> {
-  return request<{ generated: number }>('/admin/cards/generate', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  });
+  payload: GenerateCardsPayload,
+): Promise<{ generated: number; scanUrl?: string }> {
+  return request<{ generated: number; scanUrl?: string }>(
+    "/admin/cards/generate",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
 }
 
 export interface AssignCardPayload {
@@ -203,15 +206,15 @@ export interface AssignCardPayload {
   clientName: string;
   email?: string;
   phone?: string;
-  level?: 'Silver' | 'Gold' | 'Platinum';
+  level?: "Silver" | "Gold" | "Platinum";
   enterpriseId: string;
 }
 
 export async function assignCard(
-  payload: AssignCardPayload
+  payload: AssignCardPayload,
 ): Promise<{ client: unknown; card: unknown }> {
-  return request<{ client: unknown; card: unknown }>('/admin/cards/assign', {
-    method: 'POST',
+  return request<{ client: unknown; card: unknown }>("/admin/cards/assign", {
+    method: "POST",
     body: JSON.stringify(payload),
   });
 }
@@ -225,9 +228,9 @@ export interface UnassignedCard {
 }
 
 export async function getUnassignedCards(
-  enterpriseId?: string
+  enterpriseId?: string,
 ): Promise<UnassignedCard[]> {
-  const query = enterpriseId ? `?enterpriseId=${enterpriseId}` : '';
+  const query = enterpriseId ? `?enterpriseId=${enterpriseId}` : "";
   return request<UnassignedCard[]>(`/admin/cards/unassigned${query}`);
 }
 
@@ -237,45 +240,102 @@ export interface CardTypeData {
   description?: string;
   totalCards: number;
   totalScans: number;
-  enterprises: Array<{ id: string; name: string; logo?: string; status: string }>;
+  enterprises: Array<{
+    id: string;
+    name: string;
+    logo?: string;
+    status: string;
+  }>;
 }
 
 export interface CardTypeDetail {
   type: string;
   enterprises: Array<{
-    id: string; name: string; logo?: string; status: string;
-    totalCards: number; activeCards: number; totalScans: number;
+    id: string;
+    name: string;
+    logo?: string;
+    status: string;
+    totalCards: number;
+    activeCards: number;
+    totalScans: number;
   }>;
 }
 
 export async function getCardTypes(): Promise<CardTypeData[]> {
-  return request<CardTypeData[]>('/admin/card-types');
+  return request<CardTypeData[]>("/admin/card-types");
 }
 
 export async function getCardTypeDetail(id: string): Promise<CardTypeDetail> {
   return request<CardTypeDetail>(`/admin/card-types/${id}`);
 }
 
-export async function createCardType(data: { name: string; description?: string }): Promise<CardTypeData> {
-  return request<CardTypeData>('/admin/card-types', { method: 'POST', body: JSON.stringify(data) });
+export async function createCardType(data: {
+  name: string;
+  description?: string;
+}): Promise<CardTypeData> {
+  return request<CardTypeData>("/admin/card-types", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
 }
 
-export async function updateCardType(id: string, data: { name?: string; description?: string }): Promise<CardTypeData> {
-  return request<CardTypeData>(`/admin/card-types/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+export async function updateCardType(
+  id: string,
+  data: { name?: string; description?: string },
+): Promise<CardTypeData> {
+  return request<CardTypeData>(`/admin/card-types/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
 }
 
 export async function deleteCardType(id: string): Promise<void> {
-  return request<void>(`/admin/card-types/${id}`, { method: 'DELETE' });
+  return request<void>(`/admin/card-types/${id}`, { method: "DELETE" });
 }
 
 export interface CardStockData {
-  summary: { total: number; active: number; inactive: number; unassigned: number; sold: number };
-  byEnterprise: Array<{ enterpriseId: string; name: string; logo?: string; total: number; active: number; unassigned: number }>;
+  summary: {
+    total: number;
+    active: number;
+    inactive: number;
+    unassigned: number;
+    sold: number;
+  };
+  byEnterprise: Array<{
+    enterpriseId: string;
+    name: string;
+    logo?: string;
+    total: number;
+    active: number;
+    unassigned: number;
+  }>;
   byType: Array<{ type: string; total: number }>;
 }
 
 export async function getCardStock(): Promise<CardStockData> {
-  return request<CardStockData>('/admin/cards/stock');
+  return request<CardStockData>("/admin/cards/stock");
+}
+
+// ─── Services (Admin) ─────────────────────────────────────────
+
+export interface AdminService {
+  id: string;
+  name: string;
+  description?: string;
+  pointsToAdd: number;
+  scanToken: string;
+  isActive: boolean;
+  icon?: string;
+  color?: string;
+  enterpriseId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function getEnterpriseServices(
+  enterpriseId: string,
+): Promise<AdminService[]> {
+  return request<AdminService[]>(`/admin/enterprises/${enterpriseId}/services`);
 }
 
 // ─── Subscriptions ────────────────────────────────────────────

@@ -498,16 +498,50 @@ exports.createEnterprise = async (req, res) => {
     }, { transaction: t });
 
     let generatedCards = 0;
-    if (cardGeneration?.enabled && cardGeneration?.type) {
-      const { type, subtype, scanBaseUrl, quantity } = cardGeneration;
+    if (cardGeneration?.enabled && cardGeneration?.serviceId) {
+      const { cardTypeId, serviceId, subtype, quantity } = cardGeneration;
       const qty = parseInt(quantity, 10);
+
       if (Number.isInteger(qty) && qty > 0 && qty <= 1000) {
+        // Charger le type de carte
+        const cardTypeRecord = await CardType.findByPk(cardTypeId, { transaction: t });
+        if (!cardTypeRecord) {
+          await t.rollback();
+          return res.status(404).json({ success: false, message: "Type de carte introuvable" });
+        }
+        const type = cardTypeRecord.name;
+
+        // Charger le service pour obtenir le scanToken
+        const { Service } = require("../models");
+        const service = await Service.findOne({
+          where: { id: serviceId, enterpriseId: enterprise.id },
+          transaction: t,
+        });
+
+        if (!service) {
+          await t.rollback();
+          return res.status(404).json({ success: false, message: "Service introuvable" });
+        }
+
+        // Vérifier la variable d'environnement SCAN_BASE_URL
+        const scanBaseUrl = process.env.SCAN_BASE_URL;
+        if (!scanBaseUrl) {
+          await t.rollback();
+          return res.status(500).json({
+            success: false,
+            message: "SCAN_BASE_URL n'est pas configuré dans les variables d'environnement",
+          });
+        }
+
+        // Importer l'utilitaire de génération d'URL
+        const { generateScanUrl, generateCardCode } = require("../utils/urlGenerator");
+
         const enterpriseInitials = getEnterpriseInitials(enterprise.name);
-        const typeInitials = typeMap[type] || "XXX";
+        const typeInitials = getTypeInitials(type);
         let dynamicPrefix = `${enterpriseInitials}-${typeInitials}`;
 
-        if (type === "Restaurant" && subtype) {
-          const subtypeInitials = subtypeMap[subtype] || "XXX";
+        if (subtype) {
+          const subtypeInitials = getTypeInitials(subtype);
           dynamicPrefix += `-${subtypeInitials}`;
         }
 
@@ -520,18 +554,29 @@ exports.createEnterprise = async (req, res) => {
           transaction: t,
         });
 
-        const baseUrl = scanBaseUrl?.endsWith('/') ? scanBaseUrl : `${scanBaseUrl || 'https://mzg.cards/c/'}/`;
         const cards = [];
         for (let i = 0; i < qty; i++) {
-          const code = Math.random().toString(36).substring(2, 10).toUpperCase();
+          const cardCode = generateCardCode();
           const suffix = String(existingCardsCount + i + 1).padStart(4, '0');
+
+          // Générer l'URL de scan dynamique
+          const scanUrl = generateScanUrl({
+            cardType: type,
+            enterpriseName: enterprise.name,
+            subtype: subtype || null,
+            scanToken: service.scanToken,
+            baseUrl: scanBaseUrl,
+          });
+
           cards.push({
             cardNumber: `${dynamicPrefix}-${suffix}`,
-            cardCode: code,
+            cardCode,
             enterpriseId: enterprise.id,
+            cardTypeId,
+            serviceId,
             type,
             subtype: subtype || null,
-            scanUrl: `${baseUrl}${code}`,
+            scanUrl,
             status: "unassigned",
           });
         }
@@ -705,13 +750,12 @@ const subtypeMap = {
  */
 exports.generateCards = async (req, res) => {
   try {
-    // On ne demande plus le "prefix", mais le "scanBaseUrl" et le "subtype"
-    const { enterpriseId, cardTypeId, subtype, scanBaseUrl, quantity } = req.body;
+    const { enterpriseId, cardTypeId, serviceId, subtype, quantity } = req.body;
 
-    if (!enterpriseId || !cardTypeId || !scanBaseUrl || !quantity) {
+    if (!enterpriseId || !cardTypeId || !serviceId || !quantity) {
       return res.status(400).json({
         success: false,
-        message: "enterpriseId, cardTypeId, scanBaseUrl et quantity sont requis",
+        message: "enterpriseId, cardTypeId, serviceId et quantity sont requis",
       });
     }
 
@@ -723,16 +767,39 @@ exports.generateCards = async (req, res) => {
       });
     }
 
+    // Charger l'entreprise
     const enterprise = await Enterprise.findByPk(enterpriseId);
     if (!enterprise) {
       return res.status(404).json({ success: false, message: "Entreprise non trouvée" });
     }
 
+    // Charger le type de carte
     const cardTypeRecord = await CardType.findByPk(cardTypeId);
     if (!cardTypeRecord) {
       return res.status(404).json({ success: false, message: "Type de carte introuvable" });
     }
     const type = cardTypeRecord.name;
+
+    // Charger le service pour obtenir le scanToken
+    const { Service } = require("../models");
+    const service = await Service.findOne({
+      where: { id: serviceId, enterpriseId },
+    });
+    if (!service) {
+      return res.status(404).json({ success: false, message: "Service introuvable" });
+    }
+
+    // Vérifier la variable d'environnement SCAN_BASE_URL
+    const scanBaseUrl = process.env.SCAN_BASE_URL;
+    if (!scanBaseUrl) {
+      return res.status(500).json({
+        success: false,
+        message: "SCAN_BASE_URL n'est pas configuré dans les variables d'environnement",
+      });
+    }
+
+    // Importer l'utilitaire de génération d'URL
+    const { generateScanUrl, generateCardCode } = require("../utils/urlGenerator");
 
     // 1. Construire le préfixe dynamique avec initiales
     const enterpriseInitials = getEnterpriseInitials(enterprise.name);
@@ -745,40 +812,47 @@ exports.generateCards = async (req, res) => {
     }
 
     // 2. Gérer l'auto-incrémentation
-    // On compte combien de cartes existent déjà avec ce préfixe pour ne pas écraser les numéros
     const existingCardsCount = await NFCCard.count({
       where: {
         cardNumber: {
-          [Op.like]: `${dynamicPrefix}-%`
-        }
-      }
+          [Op.like]: `${dynamicPrefix}-%`,
+        },
+      },
     });
 
     // 3. Préparer le tableau de cartes
     const cards = [];
-    // On s'assure que l'URL de base se termine par un "/"
-    const baseUrl = scanBaseUrl.endsWith('/') ? scanBaseUrl : `${scanBaseUrl}/`;
 
     for (let i = 0; i < qty; i++) {
-      const code = Math.random().toString(36).substring(2, 10).toUpperCase();
-      
+      const cardCode = generateCardCode();
+
       // Numéro auto-incrémenté à 4 chiffres (ex: 0001, 0002...)
       const suffix = String(existingCardsCount + i + 1).padStart(4, "0");
-      
+
+      // Générer l'URL de scan dynamique
+      const scanUrl = generateScanUrl({
+        cardType: type,
+        enterpriseName: enterprise.name,
+        subtype: subtype || null,
+        scanToken: service.scanToken,
+        baseUrl: scanBaseUrl,
+      });
+
       cards.push({
         cardNumber: `${dynamicPrefix}-${suffix}`,
-        cardCode: code,
+        cardCode,
         enterpriseId,
         cardTypeId,
+        serviceId,
         type,
         subtype: subtype || null,
-        scanUrl: `${baseUrl}${code}`,
+        scanUrl,
         status: "unassigned",
       });
     }
 
     const created = await NFCCard.bulkCreate(cards, {
-      ignoreDuplicates: true, // Sécurité au cas où le count aurait eu un léger décalage
+      ignoreDuplicates: true,
     });
 
     await Enterprise.increment("cardsCount", {
@@ -789,7 +863,7 @@ exports.generateCards = async (req, res) => {
     res.status(201).json({
       success: true,
       message: `${created.length} carte(s) générée(s) avec succès`,
-      data: { generated: created.length },
+      data: { generated: created.length, scanUrl: cards[0]?.scanUrl },
     });
   } catch (error) {
     console.error("Generate cards error:", error);

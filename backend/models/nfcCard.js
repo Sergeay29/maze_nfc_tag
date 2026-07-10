@@ -31,6 +31,15 @@ const NFCCard = sequelize.define(
         key: "id",
       },
     },
+    serviceId: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      references: {
+        model: "services",
+        key: "id",
+      },
+      comment: "Service associé à cette carte pour le lien de scan",
+    },
     type: {
       type: DataTypes.STRING(100),
       allowNull: false,
@@ -40,18 +49,9 @@ const NFCCard = sequelize.define(
       allowNull: true,
     },
     scanUrl: {
-      // AJOUT DU LIEN DE SCAN
       type: DataTypes.STRING(500),
       allowNull: false,
-      validate: {
-        isValidUrl(value) {
-          try {
-            new URL(value);
-          } catch {
-            throw new Error('L\'URL de scan doit être une URL valide');
-          }
-        },
-      },
+      comment: "URL de scan générée dynamiquement: nomdedomaine.com/typedecarte/entreprise-type/token",
     },
     status: {
       type: DataTypes.ENUM("active", "inactive", "unassigned"),

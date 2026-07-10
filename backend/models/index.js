@@ -72,6 +72,15 @@ NFCCard.belongsTo(Enterprise, {
   foreignKey: "enterpriseId",
 });
 
+// Service -> NFCCard (relation optionnelle pour le lien de scan)
+Service.hasMany(NFCCard, {
+  foreignKey: "serviceId",
+});
+
+NFCCard.belongsTo(Service, {
+  foreignKey: "serviceId",
+});
+
 // Client -> NFCCard (assigned to)
 Client.hasMany(NFCCard, {
   foreignKey: "assignedToClientId",

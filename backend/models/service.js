@@ -1,5 +1,6 @@
 const { DataTypes } = require("sequelize");
 const sequelize = require("../config/database");
+const crypto = require("crypto");
 
 const Service = sequelize.define("Service", {
   id: {
@@ -33,6 +34,12 @@ const Service = sequelize.define("Service", {
     validate: {
       min: 0,
     },
+  },
+  scanToken: {
+    type: DataTypes.STRING(32),
+    allowNull: false,
+    unique: true,
+    defaultValue: () => crypto.randomBytes(16).toString('hex'),
   },
   isActive: {
     type: DataTypes.BOOLEAN,
