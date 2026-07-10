@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { TrendingUp, Filter, RefreshCw } from 'lucide-react';
-import { Badge, Table, SearchInput, Card, StatCard, Select, Avatar } from '../../components';
+import { Badge, Table, SearchInput, Card, StatCard, Select, Avatar, Toast } from '../../components';
 import { getSubscriptions, updateSubscription } from '../../api/adminApi';
 import type { SubscriptionRecord } from '../../api/adminApi';
 
@@ -27,6 +27,7 @@ const SubscriptionsPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; variant: 'success' | 'error' | 'info' } | null>(null);
 
   // Filtres locaux
   const [search, setSearch] = useState('');
@@ -98,8 +99,9 @@ const SubscriptionsPage: React.FC = () => {
       setUpdatingId(subscriptionId);
       await updateSubscription(subscriptionId, { plan: newPlan });
       await fetchSubscriptions();
+      setToast({ message: `Plan changé vers ${newPlan} avec succès !`, variant: 'success' });
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erreur lors de la mise à jour');
+      setToast({ message: err instanceof Error ? err.message : 'Erreur lors de la mise à jour', variant: 'error' });
     } finally {
       setUpdatingId(null);
     }
@@ -107,13 +109,19 @@ const SubscriptionsPage: React.FC = () => {
 
   const handleToggleStatus = async (sub: SubscriptionRecord) => {
     const newStatus = sub.status === 'active' ? 'paused' : 'active';
-    if (!window.confirm(`${newStatus === 'paused' ? 'Pausser' : 'Réactiver'} cet abonnement ?`)) return;
+    if (!window.confirm(`${newStatus === 'paused' ? 'Pauser' : 'Réactiver'} cet abonnement ?`)) return;
     try {
       setUpdatingId(sub.id);
       await updateSubscription(sub.id, { status: newStatus });
       await fetchSubscriptions();
+      setToast({
+        message: newStatus === 'paused'
+          ? 'Abonnement pausé avec succès !'
+          : 'Abonnement réactivé avec succès !',
+        variant: 'success'
+      });
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erreur lors de la mise à jour');
+      setToast({ message: err instanceof Error ? err.message : 'Erreur lors de la mise à jour', variant: 'error' });
     } finally {
       setUpdatingId(null);
     }
@@ -204,6 +212,13 @@ const SubscriptionsPage: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {toast && (
+        <Toast
+          message={toast.message}
+          variant={toast.variant}
+          onClose={() => setToast(null)}
+        />
+      )}
       <div>
         <h1 className="text-2xl font-bold font-poppins text-dark">Abonnements</h1>
         <p className="text-slate mt-1">

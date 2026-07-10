@@ -178,12 +178,18 @@ const GenerateCardsPage: React.FC = () => {
                 onChange={handleCardTypeChange} 
                 placeholder="Sélectionner un type" 
               />
-              <Input
-                label="Sous-type (optionnel)"
-                value={cardSubtype}
-                onChange={(e) => setCardSubtype(e.target.value)}
-                placeholder="ex: Luxe, Standard..."
-              />
+              {(selectedCardType?.subtypes || []).length > 0 && (
+                <Select
+                  label="Sous-type (optionnel)"
+                  options={[
+                    { value: '', label: 'Aucun' },
+                    ...(selectedCardType?.subtypes || []).map(subtype => ({ value: subtype, label: subtype }))
+                  ]}
+                  value={cardSubtype}
+                  onChange={setCardSubtype}
+                  placeholder="Sélectionner un sous-type"
+                />
+              )}
             </div>
 
             {enterprise && (
@@ -245,10 +251,13 @@ const GenerateCardsPage: React.FC = () => {
               <p className="text-white/80 text-xs font-medium">{selectedEnterprise?.name ?? 'Entreprise'}</p>
             </div>
             <div className="absolute bottom-6 left-6 right-6">
-              <p className="text-white/60 text-xs mb-1">Carte NFC — {previewTypeText}</p>
+              <p className="text-white/60 text-xs mb-1">
+                Carte NFC — {previewTypeText}
+                {cardSubtype ? ` (${cardSubtype})` : ''}
+              </p>
               {/* Affichage dynamique du numéro généré */}
               <p className="text-white font-mono text-lg tracking-wider">
-                {enterprise && cardTypeId ? `${getMockPrefix()}-0001` : 'entreprise-type-0001'}
+                {enterprise ? `${getMockPrefix()}-0001` : 'entreprise-type-0001'}
               </p>
               <div className="mt-4 flex items-center justify-between">
                 <div className="w-8 h-8 rounded-full bg-white/30" />

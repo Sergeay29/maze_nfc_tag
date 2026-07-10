@@ -6,6 +6,8 @@ export interface Enterprise {
   logo?: string;
   admin: string;
   email: string;
+  adminFirstName: string;
+  adminLastName: string;
   phone?: string;
   location?: string;
   subscription: 'Starter' | 'Pro' | 'Enterprise';
@@ -124,6 +126,8 @@ export const enterprises: Enterprise[] = [
     name: 'Restaurant Le Gourmet',
     logo: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=100&h=100&fit=crop',
     admin: 'Jean Dupont',
+    adminFirstName: 'Jean',
+    adminLastName: 'Dupont',
     email: 'contact@legourmet.com',
     phone: '+33 1 23 45 67 89',
     location: '12 Rue de la Paix, 75001 Paris',
@@ -138,6 +142,8 @@ export const enterprises: Enterprise[] = [
     name: 'Boutique Mode Paris',
     logo: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=100&h=100&fit=crop',
     admin: 'Marie Martin',
+    adminFirstName: 'Marie',
+    adminLastName: 'Martin',
     email: 'contact@modeparis.com',
     phone: '+33 1 98 76 54 32',
     location: '45 Avenue des Champs-Élysées, 75008 Paris',
@@ -152,6 +158,8 @@ export const enterprises: Enterprise[] = [
     name: 'Spa Zen Attitude',
     logo: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=100&h=100&fit=crop',
     admin: 'Sophie Bernard',
+    adminFirstName: 'Sophie',
+    adminLastName: 'Bernard',
     email: 'contact@spa-zen.com',
     phone: '+33 1 12 34 56 78',
     location: '8 Rue des Fleurs, 69002 Lyon',

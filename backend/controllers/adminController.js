@@ -1229,7 +1229,7 @@ exports.getCardTypes = async (req, res) => {
           include: [{ model: NFCCard, where: { cardTypeId: ct.id }, attributes: [] }],
         }),
       ]);
-      return { id: ct.id, type: ct.name, description: ct.description, totalCards, totalScans, enterprises };
+      return { id: ct.id, type: ct.name, description: ct.description, subtypes: ct.subtypes || [], totalCards, totalScans, enterprises };
     }));
     res.json({ success: true, data: result });
   } catch (error) {
@@ -1258,7 +1258,7 @@ exports.getCardTypeDetail = async (req, res) => {
         totalScans: scans,
       };
     }));
-    res.json({ success: true, data: { type: cardType.name, enterprises: enriched } });
+    res.json({ success: true, data: { type: cardType.name, subtypes: cardType.subtypes || [], enterprises: enriched } });
   } catch (error) {
     console.error('getCardTypeDetail error:', error);
     res.status(500).json({ success: false, message: 'Erreur lors de la récupération du détail' });
@@ -1267,12 +1267,16 @@ exports.getCardTypeDetail = async (req, res) => {
 
 exports.createCardType = async (req, res) => {
   try {
-    const { name, description } = req.body;
+    const { name, description, subtypes } = req.body;
     if (!name || !name.trim()) return res.status(400).json({ success: false, message: 'Le nom est requis' });
     const existing = await CardType.findOne({ where: { name: name.trim() } });
     if (existing) return res.status(409).json({ success: false, message: 'Ce type de carte existe déjà' });
-    const cardType = await CardType.create({ name: name.trim(), description: description || null });
-    res.status(201).json({ success: true, data: cardType });
+    const cardType = await CardType.create({ 
+      name: name.trim(), 
+      description: description || null,
+      subtypes: Array.isArray(subtypes) ? subtypes : []
+    });
+    res.status(201).json({ success: true, data: { ...cardType.toJSON(), subtypes: cardType.subtypes || [] } });
   } catch (error) {
     console.error('createCardType error:', error);
     res.status(500).json({ success: false, message: 'Erreur lors de la création du type' });
@@ -1282,15 +1286,19 @@ exports.createCardType = async (req, res) => {
 exports.updateCardType = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description } = req.body;
+    const { name, description, subtypes } = req.body;
     const cardType = await CardType.findByPk(id);
     if (!cardType) return res.status(404).json({ success: false, message: 'Type introuvable' });
     if (name && name.trim() !== cardType.name) {
       const existing = await CardType.findOne({ where: { name: name.trim() } });
       if (existing) return res.status(409).json({ success: false, message: 'Ce nom est déjà utilisé' });
     }
-    await cardType.update({ name: name?.trim() ?? cardType.name, description: description ?? cardType.description });
-    res.json({ success: true, data: cardType });
+    await cardType.update({ 
+      name: name?.trim() ?? cardType.name, 
+      description: description ?? cardType.description,
+      subtypes: Array.isArray(subtypes) ? subtypes : cardType.subtypes
+    });
+    res.json({ success: true, data: { ...cardType.toJSON(), subtypes: cardType.subtypes || [] } });
   } catch (error) {
     console.error('updateCardType error:', error);
     res.status(500).json({ success: false, message: 'Erreur lors de la mise à jour du type' });

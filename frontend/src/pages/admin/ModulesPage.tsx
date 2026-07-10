@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { CreditCard, QrCode, Users, ChevronRight, ArrowLeft, Plus, Edit, Trash2 } from 'lucide-react';
-import { Card, Badge, Avatar, StatCard, Button, Modal, Input, Toast } from '../../components';
+import { CreditCard, QrCode, Users, ChevronRight, ArrowLeft, Plus, Edit, Trash2, X } from 'lucide-react';
+import { Card, Badge, Avatar, Button, Modal, Input, Toast } from '../../components';
 import { getCardTypes, getCardTypeDetail, createCardType, updateCardType, deleteCardType } from '../../api/adminApi';
 import type { CardTypeData, CardTypeDetail } from '../../api/adminApi';
 
@@ -11,7 +11,7 @@ const TYPE_ICONS: Record<string, React.ReactNode> = {
   'Carte de visite': <Users className="w-6 h-6" />,
 };
 
-const EMPTY_FORM = { name: '', description: '' };
+const EMPTY_FORM = { name: '', description: '', subtypes: [] as string[] };
 
 const ModulesPage: React.FC = () => {
   const [types, setTypes] = useState<CardTypeData[]>([]);
@@ -66,7 +66,11 @@ const ModulesPage: React.FC = () => {
   const openEdit = (e: React.MouseEvent, t: CardTypeData) => {
     e.stopPropagation();
     setEditing(t);
-    setForm({ name: t.type, description: t.description ?? '' });
+    setForm({ 
+      name: t.type, 
+      description: t.description ?? '', 
+      subtypes: [...(t.subtypes || [])] 
+    });
     setSaveError(null);
     setModalOpen(true);
   };
@@ -92,17 +96,45 @@ const ModulesPage: React.FC = () => {
     }
   };
 
+  const addSubtype = () => {
+    setForm(prev => ({ ...prev, subtypes: [...prev.subtypes, ''] }));
+  };
+
+  const removeSubtype = (index: number) => {
+    setForm(prev => ({ 
+      ...prev, 
+      subtypes: prev.subtypes.filter((_, i) => i !== index) 
+    }));
+  };
+
+  const updateSubtype = (index: number, value: string) => {
+    setForm(prev => ({ 
+      ...prev, 
+      subtypes: prev.subtypes.map((subtype, i) => i === index ? value : subtype) 
+    }));
+  };
+
   const handleSubmit = async (ev: React.FormEvent) => {
     ev.preventDefault();
     if (!form.name.trim()) { setSaveError('Le nom est requis'); return; }
+    // Filter out empty subtypes
+    const filteredSubtypes = form.subtypes.filter(s => s.trim() !== '');
     try {
       setSaving(true);
       setSaveError(null);
       if (editing) {
-        await updateCardType(editing.id, { name: form.name.trim(), description: form.description || undefined });
+        await updateCardType(editing.id, { 
+          name: form.name.trim(), 
+          description: form.description || undefined,
+          subtypes: filteredSubtypes // On envoie le tableau, même vide !
+        });
         setToast({ message: `Type "${form.name.trim()}" mis à jour avec succès !`, variant: 'success' });
       } else {
-        await createCardType({ name: form.name.trim(), description: form.description || undefined });
+        await createCardType({ 
+          name: form.name.trim(), 
+          description: form.description || undefined,
+          subtypes: filteredSubtypes // On envoie le tableau, même vide !
+        });
         setToast({ message: `Type "${form.name.trim()}" créé avec succès !`, variant: 'success' });
       }
       setModalOpen(false);
@@ -210,6 +242,13 @@ const ModulesPage: React.FC = () => {
                 <div className="flex-1">
                   <h3 className="text-lg font-semibold font-poppins text-dark mb-1">{t.type}</h3>
                   {t.description && <p className="text-xs text-slate mb-1">{t.description}</p>}
+                  {t.subtypes && t.subtypes.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-3">
+                      {t.subtypes.map((subtype, i) => (
+                        <Badge key={i} variant="primary" size="sm">{subtype}</Badge>
+                      ))}
+                    </div>
+                  )}
                   <p className="text-sm text-slate mb-3">{t.enterprises.length} entreprise{t.enterprises.length > 1 ? 's' : ''}</p>
                   <div className="flex items-center justify-between">
                     <div className="flex gap-3 text-xs text-slate">
@@ -244,6 +283,34 @@ const ModulesPage: React.FC = () => {
           {saveError && <div className="p-3 bg-red-50 text-red-700 rounded-xl text-sm">{saveError}</div>}
           <Input label="Nom *" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Ex: Carte Fidélité" required />
           <Input label="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Description optionnelle" />
+          
+          {/* Subtypes section */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-dark">Sous-types</label>
+              <Button type="button" variant="ghost" size="sm" onClick={addSubtype} icon={<Plus className="w-4 h-4" />}>
+                Ajouter
+              </Button>
+            </div>
+            {form.subtypes.map((subtype, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <Input
+                  placeholder="Ex: Standard, Premium"
+                  value={subtype}
+                  onChange={(e) => updateSubtype(index, e.target.value)}
+                  className="flex-1"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeSubtype(index)}
+                  className="p-2 rounded-xl hover:bg-red-50 text-red-500 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+
           <div className="flex gap-3 pt-2">
             <Button type="button" variant="secondary" fullWidth onClick={() => setModalOpen(false)} disabled={saving}>Annuler</Button>
             <Button type="submit" fullWidth disabled={saving}>{saving ? 'Sauvegarde...' : editing ? 'Mettre à jour' : 'Créer'}</Button>

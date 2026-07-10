@@ -6,25 +6,22 @@ import {
   Phone,
   MapPin,
   Calendar,
-  Gift,
-  Bell,
-  ConciergeBell,
-  Star,
   PowerOff,
   Power,
   CreditCard,
   Users,
-  QrCode,
-  TrendingUp,
+  QrCode,  
   Pencil,
   Trash2,
 } from 'lucide-react';
-import { Card, Badge, Tabs, StatCard, Avatar, Modal, Input, Select, Button, LogoUpload, PhoneInput } from '../../components';
+import { Card, Badge, Tabs, StatCard, Avatar, Modal, Input, Select, Button, LogoUpload, PhoneInput, Toast } from '../../components';
 import { getEnterpriseDetail, updateEnterprise, deleteEnterprise } from '../../api/adminApi';
 import { isValidPhoneNumber } from 'react-phone-number-input';
 import type { Enterprise } from '../../data/mockData';
 
 interface EnterpriseDetailData extends Enterprise {
+  adminFirstName: string;
+  adminLastName: string;
   totalClients: number;
   totalScans: number;
   activeCards: number;
@@ -87,6 +84,9 @@ const EnterpriseDetailPage: React.FC = () => {
   // Delete
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  // Toast
+  const [toast, setToast] = useState<{ message: string; variant: 'success' | 'error' | 'info' } | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -168,8 +168,10 @@ const EnterpriseDetailPage: React.FC = () => {
       const updated = await getEnterpriseDetail(id);
       setEnterprise(updated as EnterpriseDetailData);
       setShowEditModal(false);
+      setToast({ message: `Entreprise "${editForm.name}" mise à jour avec succès !`, variant: 'success' });
     } catch (err) {
       setEditError(err instanceof Error ? err.message : 'Erreur lors de la sauvegarde');
+      setToast({ message: err instanceof Error ? err.message : 'Erreur lors de la sauvegarde', variant: 'error' });
     } finally {
       setSaving(false);
     }
@@ -183,7 +185,7 @@ const EnterpriseDetailPage: React.FC = () => {
       await deleteEnterprise(id);
       navigate('/admin/enterprises', { replace: true });
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erreur lors de la suppression');
+      setToast({ message: err instanceof Error ? err.message : 'Erreur lors de la suppression', variant: 'error' });
       setDeleting(false);
       setShowDeleteModal(false);
     }
@@ -203,8 +205,14 @@ const EnterpriseDetailPage: React.FC = () => {
       setStatusUpdating(true);
       await updateEnterprise(id, { status: newStatus });
       setEnterprise((prev) => prev ? { ...prev, status: newStatus } : prev);
+      setToast({
+        message: newStatus === 'suspended'
+          ? `Entreprise "${enterprise.name}" suspendue avec succès !`
+          : `Entreprise "${enterprise.name}" réactivée avec succès !`,
+        variant: 'success'
+      });
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erreur lors de la mise à jour');
+      setToast({ message: err instanceof Error ? err.message : 'Erreur lors de la mise à jour', variant: 'error' });
     } finally {
       setStatusUpdating(false);
     }
@@ -216,12 +224,12 @@ const EnterpriseDetailPage: React.FC = () => {
     { id: 'scans', label: 'Scans' },
   ]; // ✅ Suppression de l'onglet "Vue d'ensemble"
 
-  const moduleIcons: Record<string, React.ReactNode> = {
-    Fidélité: <Gift className="w-5 h-5" />,
-    Conciergerie: <ConciergeBell className="w-5 h-5" />,
-    Notifications: <Bell className="w-5 h-5" />,
-    Récompenses: <Star className="w-5 h-5" />,
-  };
+  // const moduleIcons: Record<string, React.ReactNode> = {
+  //   Fidélité: <Gift className="w-5 h-5" />,
+  //   Conciergerie: <ConciergeBell className="w-5 h-5" />,
+  //   Notifications: <Bell className="w-5 h-5" />,
+  //   Récompenses: <Star className="w-5 h-5" />,
+  // };
 
   if (loading) {
     return (
@@ -257,6 +265,13 @@ const EnterpriseDetailPage: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {toast && (
+        <Toast
+          message={toast.message}
+          variant={toast.variant}
+          onClose={() => setToast(null)}
+        />
+      )}
       {/* Header navigation */}
       <div className="flex items-center justify-between">
         <button

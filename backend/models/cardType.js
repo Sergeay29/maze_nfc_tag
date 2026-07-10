@@ -16,6 +16,11 @@ const CardType = sequelize.define('CardType', {
     type: DataTypes.STRING(255),
     allowNull: true,
   },
+  subtypes: {
+    type: DataTypes.JSON,
+    allowNull: true,
+    defaultValue: [],
+  },
 }, {
   tableName: 'card_types',
   timestamps: true,

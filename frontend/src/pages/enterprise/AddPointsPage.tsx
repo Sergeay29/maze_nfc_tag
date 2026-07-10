@@ -6,7 +6,7 @@ import {
   CreditCard, MapPin, Building, Briefcase, FileText, Check, X, MoreHorizontal, 
   Bell, Bookmark, Tag, DollarSign, Euro, Activity, TrendingUp, TrendingDown, Trophy 
 } from 'lucide-react';
-import { Button, Input, Select, Card } from '../../components';
+import { Button, Input, Select, Card, Toast } from '../../components';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getClientDetail, getServices, adjustPoints } from '../../api/enterpriseApi';
 import type { ClientData, ServiceData } from '../../api/enterpriseApi';
@@ -63,6 +63,7 @@ const AddPointsPage: React.FC = () => {
   const [services, setServices] = useState<ServiceData[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [toast, setToast] = useState<{ message: string; variant: 'success' | 'error' | 'info' } | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -120,10 +121,11 @@ const AddPointsPage: React.FC = () => {
         reason: finalReason,
       });
       
-      navigate(-1);
+      setToast({ message: `${pointsToAdd > 0 ? '+' : ''}${pointsToAdd} points ajoutés avec succès !`, variant: 'success' });
+      setTimeout(() => navigate(-1), 1500);
     } catch (error) {
       console.error('Erreur lors de l\'ajout des points:', error);
-      alert('Erreur lors de l\'ajout des points');
+      setToast({ message: 'Erreur lors de l\'ajout des points', variant: 'error' });
     } finally {
       setSubmitting(false);
     }
@@ -163,6 +165,13 @@ const AddPointsPage: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {toast && (
+        <Toast
+          message={toast.message}
+          variant={toast.variant}
+          onClose={() => setToast(null)}
+        />
+      )}
       <div className="flex items-center gap-4">
         <button
           onClick={() => navigate(-1)}

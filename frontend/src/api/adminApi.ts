@@ -238,6 +238,7 @@ export interface CardTypeData {
   id: string;
   type: string;
   description?: string;
+  subtypes: string[];
   totalCards: number;
   totalScans: number;
   enterprises: Array<{
@@ -250,6 +251,7 @@ export interface CardTypeData {
 
 export interface CardTypeDetail {
   type: string;
+  subtypes: string[];
   enterprises: Array<{
     id: string;
     name: string;
@@ -262,16 +264,19 @@ export interface CardTypeDetail {
 }
 
 export async function getCardTypes(): Promise<CardTypeData[]> {
-  return request<CardTypeData[]>("/admin/card-types");
+  const result = await request<CardTypeData[]>("/admin/card-types");
+  return result.map(type => ({ ...type, subtypes: type.subtypes || [] }));
 }
 
 export async function getCardTypeDetail(id: string): Promise<CardTypeDetail> {
-  return request<CardTypeDetail>(`/admin/card-types/${id}`);
+  const result = await request<CardTypeDetail>(`/admin/card-types/${id}`);
+  return { ...result, subtypes: result.subtypes || [] };
 }
 
 export async function createCardType(data: {
   name: string;
   description?: string;
+  subtypes?: string[];
 }): Promise<CardTypeData> {
   return request<CardTypeData>("/admin/card-types", {
     method: "POST",
@@ -281,7 +286,7 @@ export async function createCardType(data: {
 
 export async function updateCardType(
   id: string,
-  data: { name?: string; description?: string },
+  data: { name?: string; description?: string; subtypes?: string[] },
 ): Promise<CardTypeData> {
   return request<CardTypeData>(`/admin/card-types/${id}`, {
     method: "PUT",
