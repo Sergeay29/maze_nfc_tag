@@ -64,7 +64,7 @@ const EnterpriseSettingsPage: React.FC = () => {
   };
 
   const tabs = [
-    { id: 'info', label: 'Informations' },
+    // { id: 'info', label: 'Informations' },
     { id: 'modules', label: 'Modules' },
     { id: 'subscription', label: 'Abonnement' },
     { id: 'notifications', label: 'Notifications' },
