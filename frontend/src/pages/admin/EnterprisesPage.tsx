@@ -176,10 +176,8 @@ const EnterprisesPage: React.FC = () => {
         setFormError('Veuillez choisir un sous-type pour les cartes Restaurant.');
         return;
       }
-      if (!cardOptions.scanBaseUrl.trim()) {
-        setFormError('Veuillez renseigner l’URL de base du scan.');
-        return;
-      }
+      // Ne pas bloquer la création si l'URL de base du scan n'est pas fournie côté frontend.
+      // Le backend acceptera une scanBaseUrl fournie ou utilisera la variable d'environnement si disponible.
       const qty = Number(cardOptions.quantity);
       if (!Number.isInteger(qty) || qty < 1 || qty > 1000) {
         setFormError('La quantité doit être comprise entre 1 et 1000.');

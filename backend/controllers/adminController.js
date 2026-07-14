@@ -519,42 +519,29 @@ exports.createEnterprise = async (req, res) => {
     }, { transaction: t });
 
     let generatedCards = 0;
-    let defaultService = null;
 
-    // 5. Si génération de cartes activée, créer automatiquement un service par défaut
-    if (cardGeneration?.enabled && cardGeneration?.cardTypeId) {
-      const { cardTypeId, subtype, quantity, serviceName, servicePoints } = cardGeneration;
+    // 5. Si génération de cartes activée, créer automatiquement des cartes (sans créer de service par défaut)
+    if (cardGeneration?.enabled && (cardGeneration?.cardTypeId || cardGeneration?.type)) {
+      const { cardTypeId, type: cardTypeName, subtype, quantity, serviceName, servicePoints, scanBaseUrl: providedScanBaseUrl } = cardGeneration;
       const qty = parseInt(quantity, 10);
 
       if (Number.isInteger(qty) && qty > 0 && qty <= 1000) {
-        // Charger le type de carte
-        const cardTypeRecord = await CardType.findByPk(cardTypeId, { transaction: t });
+        // Charger le type de carte par id ou par nom
+        let cardTypeRecord = null;
+        if (cardTypeId) {
+          cardTypeRecord = await CardType.findByPk(cardTypeId, { transaction: t });
+        } else if (cardTypeName) {
+          cardTypeRecord = await CardType.findOne({ where: { name: cardTypeName }, transaction: t });
+        }
+
         if (!cardTypeRecord) {
           await t.rollback();
           return res.status(404).json({ success: false, message: "Type de carte introuvable" });
         }
         const type = cardTypeRecord.name;
 
-        // Vérifier la variable d'environnement SCAN_BASE_URL
-        const scanBaseUrl = process.env.SCAN_BASE_URL;
-        if (!scanBaseUrl) {
-          await t.rollback();
-          return res.status(500).json({
-            success: false,
-            message: "SCAN_BASE_URL n'est pas configuré dans les variables d'environnement",
-          });
-        }
-
-        // Créer automatiquement un service par défaut pour cette entreprise
-        const { Service } = require("../models");
-        defaultService = await Service.create({
-          name: serviceName || "Service par défaut",
-          description: "Service créé automatiquement lors de la génération de cartes",
-          pointsToAdd: servicePoints || 10,
-          isActive: true,
-          enterpriseId: enterprise.id,
-          // scanToken sera généré automatiquement par le modèle
-        }, { transaction: t });
+        // Déterminer l'URL de base du scan: priorité au scanBaseUrl fourni par le frontend
+        const scanBaseUrl = (providedScanBaseUrl && String(providedScanBaseUrl).trim()) || process.env.SCAN_BASE_URL;
 
         // Importer l'utilitaire de génération d'URL
         const { generateScanUrl, generateCardCode } = require("../utils/urlGenerator");
@@ -582,21 +569,15 @@ exports.createEnterprise = async (req, res) => {
           const cardCode = generateCardCode();
           const suffix = String(existingCardsCount + i + 1).padStart(4, '0');
 
-          // Générer l'URL de scan dynamique
-          const scanUrl = generateScanUrl({
-            cardType: type,
-            enterpriseName: enterprise.name,
-            subtype: subtype || null,
-            scanToken: defaultService.scanToken,
-            baseUrl: scanBaseUrl,
-          });
+          // Ne pas générer de scanUrl ni de service puisqu'on ne crée pas de service automatique
+          const scanUrl = null;
 
           cards.push({
             cardNumber: `${dynamicPrefix}-${suffix}`,
             cardCode,
             enterpriseId: enterprise.id,
-            cardTypeId,
-            serviceId: defaultService.id,
+            cardTypeId: cardTypeRecord.id,
+            serviceId: null,
             type,
             subtype: subtype || null,
             scanUrl,
@@ -621,16 +602,6 @@ exports.createEnterprise = async (req, res) => {
       generatedPassword: plainPassword,
       generatedCards
     };
-
-    // Ajouter les infos du service si créé
-    if (defaultService) {
-      responseData.defaultService = {
-        id: defaultService.id,
-        name: defaultService.name,
-        scanToken: defaultService.scanToken,
-        pointsToAdd: defaultService.pointsToAdd,
-      };
-    }
 
     res.status(201).json({
       success: true,

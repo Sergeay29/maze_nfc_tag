@@ -50,7 +50,7 @@ const NFCCard = sequelize.define(
     },
     scanUrl: {
       type: DataTypes.STRING(500),
-      allowNull: false,
+      allowNull: true,
       comment: "URL de scan générée dynamiquement: nomdedomaine.com/typedecarte/entreprise-type/token",
     },
     status: {
