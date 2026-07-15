@@ -797,10 +797,10 @@ exports.generateCards = async (req, res) => {
   try {
     const { enterpriseId, cardTypeId, serviceId, subtype, quantity } = req.body;
 
-    if (!enterpriseId || !cardTypeId || !serviceId || !quantity) {
+    if (!enterpriseId || !cardTypeId || !quantity) {
       return res.status(400).json({
         success: false,
-        message: "enterpriseId, cardTypeId, serviceId et quantity sont requis",
+        message: "enterpriseId, cardTypeId et quantity sont requis",
       });
     }
 
@@ -825,18 +825,20 @@ exports.generateCards = async (req, res) => {
     }
     const type = cardTypeRecord.name;
 
-    // Charger le service pour obtenir le scanToken
-    const { Service } = require("../models");
-    const service = await Service.findOne({
-      where: { id: serviceId, enterpriseId },
-    });
-    if (!service) {
-      return res.status(404).json({ success: false, message: "Service introuvable" });
+    let service = null;
+    if (serviceId) {
+      const { Service } = require("../models");
+      service = await Service.findOne({
+        where: { id: serviceId, enterpriseId },
+      });
+
+      if (!service) {
+        return res.status(404).json({ success: false, message: "Service introuvable" });
+      }
     }
 
-    // Vérifier la variable d'environnement SCAN_BASE_URL
     const scanBaseUrl = process.env.SCAN_BASE_URL;
-    if (!scanBaseUrl) {
+    if (service && !scanBaseUrl) {
       return res.status(500).json({
         success: false,
         message: "SCAN_BASE_URL n'est pas configuré dans les variables d'environnement",
@@ -874,21 +876,22 @@ exports.generateCards = async (req, res) => {
       // Numéro auto-incrémenté à 4 chiffres (ex: 0001, 0002...)
       const suffix = String(existingCardsCount + i + 1).padStart(4, "0");
 
-      // Générer l'URL de scan dynamique
-      const scanUrl = generateScanUrl({
-        cardType: type,
-        enterpriseName: enterprise.name,
-        subtype: subtype || null,
-        scanToken: service.scanToken,
-        baseUrl: scanBaseUrl,
-      });
+      const scanUrl = service
+        ? generateScanUrl({
+            cardType: type,
+            enterpriseName: enterprise.name,
+            subtype: subtype || null,
+            scanToken: service.scanToken,
+            baseUrl: scanBaseUrl,
+          })
+        : null;
 
       cards.push({
         cardNumber: `${dynamicPrefix}-${suffix}`,
         cardCode,
         enterpriseId,
         cardTypeId,
-        serviceId,
+        serviceId: service ? service.id : null,
         type,
         subtype: subtype || null,
         scanUrl,

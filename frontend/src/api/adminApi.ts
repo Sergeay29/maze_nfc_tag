@@ -185,7 +185,7 @@ export interface GenerateCardsPayload {
   enterpriseId: string;
   cardTypeId: string;
   subtype?: string;
-  serviceId: string; // ✅ Changé de scanBaseUrl à serviceId
+  serviceId?: string;
   quantity: number;
 }
 

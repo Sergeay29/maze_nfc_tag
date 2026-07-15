@@ -100,8 +100,8 @@ const GenerateCardsPage: React.FC = () => {
     setError(null);
     setSuccess(null);
 
-    if (!enterprise || !cardTypeId || !serviceId) {
-      setError("Veuillez remplir tous les champs obligatoires.");
+    if (!enterprise || !cardTypeId) {
+      setError("Veuillez sélectionner une entreprise et un type de carte.");
       return;
     }
 
@@ -117,7 +117,7 @@ const GenerateCardsPage: React.FC = () => {
         enterpriseId: enterprise,
         cardTypeId,
         subtype: cardSubtype || undefined,
-        serviceId,
+        serviceId: serviceId || undefined,
         quantity: qty,
       });
       setSuccess(result);
@@ -193,20 +193,19 @@ const GenerateCardsPage: React.FC = () => {
             </div>
 
             {enterprise && (
-              <Select
-                label="Service *"
-                options={servicesLoading ? [{ value: '', label: 'Chargement...' }] : serviceOptions}
-                value={serviceId}
-                onChange={setServiceId}
-                placeholder={services.length === 0 ? "Aucun service disponible" : "Sélectionner un service"}
-                disabled={servicesLoading || services.length === 0}
-              />
-            )}
-            
-            {enterprise && services.length === 0 && !servicesLoading && (
-              <p className="text-xs text-orange-600 -mt-2">
-                ⚠️ Cette entreprise n'a pas encore de service. Veuillez créer un service d'abord.
-              </p>
+              <div className="space-y-2">
+                <Select
+                  label="Service (optionnel)"
+                  options={servicesLoading ? [{ value: '', label: 'Chargement...' }] : [{ value: '', label: 'Aucun service' }, ...serviceOptions]}
+                  value={serviceId}
+                  onChange={setServiceId}
+                  placeholder="Sélectionner un service"
+                  disabled={servicesLoading}
+                />
+                <p className="text-xs text-slate-600">
+                  Laissez vide pour générer des cartes sans service ni lien de scan associé.
+                </p>
+              </div>
             )}
 
             {selectedService && (
@@ -233,7 +232,7 @@ const GenerateCardsPage: React.FC = () => {
               type="submit" 
               fullWidth 
               icon={<Sparkles className="w-5 h-5" />} 
-              disabled={loading || !enterprise || !cardTypeId || !serviceId || services.length === 0}
+              disabled={loading || !enterprise || !cardTypeId}
             >
               {loading ? 'Génération...' : 'Générer les cartes'}
             </Button>
