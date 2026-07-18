@@ -7,6 +7,7 @@ const authRoute = require("./routes/authRoute");
 const adminRoute = require("./routes/adminRoute");
 const uploadRoute = require("./routes/uploadRoute");
 const enterpriseRoute = require("./routes/enterpriseRoute");
+const scanRoute = require("./routes/scanRoute");
 const path = require("path");
 
 const app = express();
@@ -62,6 +63,7 @@ app.use("/api/auth", authRoute);
 app.use("/api/admin", adminRoute);
 app.use("/api/enterprise", enterpriseRoute);
 app.use("/api/upload", uploadRoute);
+app.use("/api/scan", scanRoute);
 
 // ─── Gestion globale des erreurs (ne pas exposer les détails sensibles) ──────────
 app.use((err, _req, res, _next) => {

@@ -15,7 +15,7 @@ const PhoneInput: React.FC<PhoneInputProps> = ({
   value,
   onChange,
   label,
-  defaultCountry = 'FR',
+  defaultCountry = 'BJ',
   error,
 }) => {
   const isInvalid = value.length > 4 && !isValidPhoneNumber(value);

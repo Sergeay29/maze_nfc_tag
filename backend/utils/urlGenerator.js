@@ -20,7 +20,33 @@ const slugify = (str) => {
 };
 
 /**
- * Générer une URL de scan pour une carte NFC
+ * Générer une URL de scan pour une carte NFC (format simplifié)
+ * Format: {baseUrl}/{entreprise-slug}/{type-slug}/{scanToken}
+ * @param {Object} params - Paramètres pour générer l'URL
+ * @param {string} params.enterpriseName - Nom de l'entreprise
+ * @param {string} params.cardType - Type de carte (ex: "Restaurant", "Salon")
+ * @param {string} params.scanToken - Token unique de la carte
+ * @param {string} params.baseUrl - URL de base (depuis process.env.SCAN_BASE_URL)
+ * @returns {string} - URL de scan complète
+ */
+const generateCardScanUrl = ({ enterpriseName, cardType, scanToken, baseUrl }) => {
+  if (!enterpriseName || !cardType || !scanToken || !baseUrl) {
+    throw new Error("enterpriseName, cardType, scanToken et baseUrl sont requis");
+  }
+
+  // Nettoyer l'URL de base (retirer le / final s'il existe)
+  const cleanBaseUrl = baseUrl.replace(/\/$/, "");
+
+  // Créer les slugs
+  const enterpriseSlug = slugify(enterpriseName);
+  const typeSlug = slugify(cardType);
+
+  // Construire l'URL: {baseUrl}/{entreprise}/{type}/{token}
+  return `${cleanBaseUrl}/${enterpriseSlug}/${typeSlug}/${scanToken}`;
+};
+
+/**
+ * Générer une URL de scan pour une carte NFC (format legacy avec service)
  * @param {Object} params - Paramètres pour générer l'URL
  * @param {string} params.cardType - Type de carte (ex: "Restaurant", "Salon")
  * @param {string} params.enterpriseName - Nom de l'entreprise
@@ -34,7 +60,7 @@ const generateScanUrl = ({ cardType, enterpriseName, subtype, scanToken, baseUrl
     throw new Error("cardType, enterpriseName, scanToken et baseUrl sont requis pour générer l'URL de scan");
   }
 
-  // Nettoyer l'URL de base
+  // Nettoyer l'URL de base (retirer le / final s'il existe)
   const cleanBaseUrl = baseUrl.replace(/\/$/, "");
 
   // Créer le slug du type de carte
@@ -50,6 +76,14 @@ const generateScanUrl = ({ cardType, enterpriseName, subtype, scanToken, baseUrl
 
   // Construire l'URL finale
   return `${cleanBaseUrl}/${typeSlug}/${enterpriseTypeSlug}/${scanToken}`;
+};
+
+/**
+ * Générer un token unique pour une carte NFC (scan)
+ * @returns {string} - Token hexadécimal de 32 caractères
+ */
+const generateCardScanToken = () => {
+  return crypto.randomBytes(16).toString("hex");
 };
 
 /**
@@ -71,6 +105,8 @@ const generateCardCode = () => {
 module.exports = {
   slugify,
   generateScanUrl,
+  generateCardScanUrl,
+  generateCardScanToken,
   generateServiceToken,
   generateCardCode,
 };

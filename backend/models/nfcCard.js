@@ -18,6 +18,11 @@ const NFCCard = sequelize.define(
       allowNull: false,
       comment: "Unique short code for URL (e.g., ABC123)",
     },
+    scanToken: {
+      type: DataTypes.STRING(32),
+      allowNull: true,
+      comment: "Token unique pour l'URL de scan (généré automatiquement)",
+    },
     cardTypeId: {
       type: DataTypes.UUID,
       allowNull: true,
@@ -38,7 +43,7 @@ const NFCCard = sequelize.define(
         model: "services",
         key: "id",
       },
-      comment: "Service associé à cette carte pour le lien de scan",
+      comment: "Service associé à cette carte (optionnel, NULL = service choisi lors du scan)",
     },
     type: {
       type: DataTypes.STRING(100),
@@ -51,7 +56,7 @@ const NFCCard = sequelize.define(
     scanUrl: {
       type: DataTypes.STRING(500),
       allowNull: true,
-      comment: "URL de scan générée dynamiquement: nomdedomaine.com/typedecarte/entreprise-type/token",
+      comment: "URL de scan générée dynamiquement: {baseUrl}/{entreprise}/{type}/{scanToken}",
     },
     status: {
       type: DataTypes.ENUM("active", "inactive", "unassigned"),
@@ -80,6 +85,7 @@ const NFCCard = sequelize.define(
     indexes: [
       { unique: true, fields: ["cardNumber"] },
       { unique: true, fields: ["cardCode"] },
+      { unique: true, fields: ["scanToken"] },
     ],
   }
 );

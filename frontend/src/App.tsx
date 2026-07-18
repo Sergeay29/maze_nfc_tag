@@ -33,6 +33,7 @@ import {
   EnterpriseProfilePage,
   ServicesPage,
 } from './pages';
+import ScanLandingPage from './pages/ScanLandingPage';
 
 const App: React.FC = () => {
   return (
@@ -41,6 +42,10 @@ const App: React.FC = () => {
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+
+        {/* Routes publiques de scan NFC */}
+        {/* Format: /entreprise/type/token */}
+        <Route path="/:enterpriseSlug/:cardType/:token" element={<ScanLandingPage />} />
 
         {/* Admin Routes */}
         <Route element={<ProtectedRoute allowedRoles={['SUPER_ADMIN']} />}>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Filter, CreditCard } from 'lucide-react';
+import { Plus, Filter, CreditCard, Copy } from 'lucide-react';
 import { Button, Badge, Table, SearchInput, Card } from '../../components';
 import { useNavigate } from 'react-router-dom';
 import { getCards } from '../../api/adminApi';
@@ -123,6 +123,34 @@ const NFCCardsPage: React.FC = () => {
       header: 'Scans',
       render: (card: NFCCard) => (
         <span className="text-dark font-medium">{card.scanCount ?? 0}</span>
+      ),
+      className: 'hidden xl:table-cell',
+    },
+    {
+      key: 'scanUrl',
+      header: 'Lien',
+      render: (card: NFCCard) => (
+        card.scanUrl ? (
+          <div className="flex items-center gap-2 max-w-[420px]">
+            <span
+              className="flex-1 truncate rounded-lg bg-slate-50 px-3 py-2 text-sm font-mono text-slate-700 border"
+              title={card.scanUrl}
+            >
+              {card.scanUrl}
+            </span>
+
+            <button
+              type="button"
+              onClick={() => navigator.clipboard.writeText(card.scanUrl!)}
+              title="Copier le lien"
+              className="p-2 rounded-lg border hover:bg-slate-100 transition-colors"
+            >
+              <Copy className="w-4 h-4" />
+            </button>
+          </div>
+        ) : (
+          <span className="text-slate">Aucun lien</span>
+        )
       ),
       className: 'hidden xl:table-cell',
     },

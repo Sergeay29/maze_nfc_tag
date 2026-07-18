@@ -99,23 +99,49 @@ node scripts/runMigration.js add-service-token-and-card-service
 
 Les URLs de scan des cartes NFC sont générées automatiquement selon le format :
 ```
-{SCAN_BASE_URL}/{type-carte}/{entreprise-type}/{token}
+{SCAN_BASE_URL}/{type-carte}/{entreprise-type-subtype}/{token}
+```
+
+### Configuration
+Dans `.env` :
+```env
+# Développement
+SCAN_BASE_URL=http://localhost:5173
+
+# Production  
+SCAN_BASE_URL=https://votre-domaine.com
 ```
 
 ### Exemple
 Pour une carte de type "Restaurant", entreprise "Chez Marcel", sous-type "Luxe" :
+
+**Développement :**
 ```
-https://mzg.cards/restaurant/chez-marcel-restaurant-luxe/a7f3e9d2c1b4a8f6
+http://localhost:5173/restaurant/chez-marcel-restaurant-luxe/a7f3e9d2c1b4a8f6
+```
+
+**Production :**
+```
+https://votre-domaine.com/restaurant/chez-marcel-restaurant-luxe/a7f3e9d2c1b4a8f6
 ```
 
 ### Fonctionnement
 1. Lors de la création d'un **Service**, un `scanToken` unique est généré automatiquement
 2. Lors de la génération de **cartes NFC**, le service doit être spécifié
 3. L'URL est construite dynamiquement avec :
+   - L'URL du frontend (configurée dans `SCAN_BASE_URL`)
    - Le type de carte (slugifié)
-   - Le nom de l'entreprise + type (slugifié)
-   - Le sous-type si présent (slugifié)
-   - Le token du service
+   - Le nom de l'entreprise + type + subtype (slugifié)
+   - Le token unique du service
+
+### Avantages
+- ✅ URLs configurables via variable d'environnement
+- ✅ Format SEO-friendly (lisible et descriptif)
+- ✅ Changement de domaine facile (modifier juste `SCAN_BASE_URL`)
+- ✅ Même code en développement et production
+- ✅ Compatible QR Codes, cartes NFC, liens partagés
+
+📖 **Documentation détaillée** : voir `URL_DYNAMIQUES_GUIDE.md` et `EXEMPLE_RAPIDE_URL.md`
 
 ## 🏗️ Structure du projet
 
@@ -205,7 +231,7 @@ node scripts/runMigration.js <nom-migration>
 
 | Variable | Description | Exemple |
 |----------|-------------|---------|
-| `SCAN_BASE_URL` | URL de base pour les scans NFC | `https://mzg.cards` |
+| `SCAN_BASE_URL` | URL de base pour les scans NFC (URL du frontend) | `http://localhost:5173` (dev) ou `https://votre-domaine.com` (prod) |
 | `JWT_SECRET` | Clé secrète JWT (min 32 caractères en prod) | `votre_cle_super_longue_et_securisee` |
 | `DB_*` | Configuration PostgreSQL | Voir `.env.example` |
 | `CLOUDINARY_*` | Configuration Cloudinary | Voir `.env.example` |

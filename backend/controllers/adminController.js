@@ -544,7 +544,7 @@ exports.createEnterprise = async (req, res) => {
         const scanBaseUrl = (providedScanBaseUrl && String(providedScanBaseUrl).trim()) || process.env.SCAN_BASE_URL;
 
         // Importer l'utilitaire de génération d'URL
-        const { generateScanUrl, generateCardCode } = require("../utils/urlGenerator");
+        const { generateCardScanUrl, generateCardCode, generateCardScanToken } = require("../utils/urlGenerator");
 
         const enterpriseInitials = getEnterpriseInitials(enterprise.name);
         const typeInitials = getTypeInitials(type);
@@ -567,14 +567,21 @@ exports.createEnterprise = async (req, res) => {
         const cards = [];
         for (let i = 0; i < qty; i++) {
           const cardCode = generateCardCode();
+          const scanToken = generateCardScanToken();
           const suffix = String(existingCardsCount + i + 1).padStart(4, '0');
 
-          // Ne pas générer de scanUrl ni de service puisqu'on ne crée pas de service automatique
-          const scanUrl = null;
+          // Générer l'URL de scan basée sur la carte (pas de service requis)
+          const scanUrl = generateCardScanUrl({
+            enterpriseName: enterprise.name,
+            cardType: type,
+            scanToken: scanToken,
+            baseUrl: providedScanBaseUrl || process.env.SCAN_BASE_URL,
+          });
 
           cards.push({
             cardNumber: `${dynamicPrefix}-${suffix}`,
             cardCode,
+            scanToken,
             enterpriseId: enterprise.id,
             cardTypeId: cardTypeRecord.id,
             serviceId: null,
@@ -846,7 +853,7 @@ exports.generateCards = async (req, res) => {
     }
 
     // Importer l'utilitaire de génération d'URL
-    const { generateScanUrl, generateCardCode } = require("../utils/urlGenerator");
+    const { generateCardScanUrl, generateCardCode, generateCardScanToken } = require("../utils/urlGenerator");
 
     // 1. Construire le préfixe dynamique avec initiales
     const enterpriseInitials = getEnterpriseInitials(enterprise.name);
@@ -869,26 +876,25 @@ exports.generateCards = async (req, res) => {
 
     // 3. Préparer le tableau de cartes
     const cards = [];
-
     for (let i = 0; i < qty; i++) {
       const cardCode = generateCardCode();
+      const scanToken = generateCardScanToken();
 
       // Numéro auto-incrémenté à 4 chiffres (ex: 0001, 0002...)
       const suffix = String(existingCardsCount + i + 1).padStart(4, "0");
 
-      const scanUrl = service
-        ? generateScanUrl({
-            cardType: type,
-            enterpriseName: enterprise.name,
-            subtype: subtype || null,
-            scanToken: service.scanToken,
-            baseUrl: scanBaseUrl,
-          })
-        : null;
+      // Générer l'URL de scan basée sur la carte (pas le service)
+      const scanUrl = generateCardScanUrl({
+        enterpriseName: enterprise.name,
+        cardType: type,
+        scanToken: scanToken,
+        baseUrl: scanBaseUrl,
+      });
 
       cards.push({
         cardNumber: `${dynamicPrefix}-${suffix}`,
         cardCode,
+        scanToken,
         enterpriseId,
         cardTypeId,
         serviceId: service ? service.id : null,

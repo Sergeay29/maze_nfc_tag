@@ -47,7 +47,7 @@ const EMPTY_CARD_OPTIONS: CreateCardsOptions = {
   enabled: false,
   type: 'Fidélité Entreprise',
   subtype: '',
-  scanBaseUrl: 'https://mzg.cards/c/',
+  scanBaseUrl: '', // Vide par défaut, utilisera SCAN_BASE_URL du backend
   quantity: '100',
 };
 
@@ -176,8 +176,6 @@ const EnterprisesPage: React.FC = () => {
         setFormError('Veuillez choisir un sous-type pour les cartes Restaurant.');
         return;
       }
-      // Ne pas bloquer la création si l'URL de base du scan n'est pas fournie côté frontend.
-      // Le backend acceptera une scanBaseUrl fournie ou utilisera la variable d'environnement si disponible.
       const qty = Number(cardOptions.quantity);
       if (!Number.isInteger(qty) || qty < 1 || qty > 1000) {
         setFormError('La quantité doit être comprise entre 1 et 1000.');
@@ -201,7 +199,7 @@ const EnterprisesPage: React.FC = () => {
           enabled: true,
           type: cardOptions.type,
           subtype: cardOptions.type === 'Restaurant' ? cardOptions.subtype : undefined,
-          scanBaseUrl: cardOptions.scanBaseUrl.trim().replace(/\/?$/, '/'),
+          scanBaseUrl: cardOptions.scanBaseUrl.trim() || undefined, // Utilisera SCAN_BASE_URL du backend si vide
           quantity: Number(cardOptions.quantity),
         } : undefined,
       });
@@ -476,12 +474,15 @@ const EnterprisesPage: React.FC = () => {
                 </div>
 
                 <Input
-                  label="URL de base du scan"
+                  label="URL de base du scan (optionnel)"
                   icon={<Link className="w-4 h-4 text-slate" />}
                   value={cardOptions.scanBaseUrl}
                   onChange={(e) => setCardOptions((prev) => ({ ...prev, scanBaseUrl: e.target.value }))}
-                  placeholder="https://mzg.cards/c/"
+                  placeholder="Laissez vide pour utiliser la config du serveur"
                 />
+                <p className="text-xs text-slate -mt-2">
+                  Si vide, l'URL configurée dans le backend sera utilisée (SCAN_BASE_URL)
+                </p>
                 <Input
                   label="Quantité"
                   type="number"
