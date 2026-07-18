@@ -1,0 +1,30 @@
+import {
+  ShoppingBag,
+  Gift,
+  Star,
+  Coffee,
+  Heart,
+  Pizza,
+  Car,
+  Home,
+  User,
+  Phone,
+  Mail,
+  CheckCircle2,
+  type LucideIcon,
+} from "lucide-react";
+
+export const icons: Record<string, LucideIcon> = {
+  "shopping-bag": ShoppingBag,
+  gift: Gift,
+  star: Star,
+  coffee: Coffee,
+  heart: Heart,
+  pizza: Pizza,
+  car: Car,
+  home: Home,
+  user: User,
+  phone: Phone,
+  mail: Mail,
+  "check-circle": CheckCircle2,
+};

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { Gift, Star, CheckCircle2, Loader2, Phone, Mail, User, X } from 'lucide-react';
+import { Star, CheckCircle2, Loader2, Phone, Mail, User, X } from 'lucide-react';
+import { icons } from "../utils/iconMapper";
 
 interface Service {
   id: string;
@@ -48,7 +49,7 @@ interface ScanResult {
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 const ScanLandingPage: React.FC = () => {
-  const { token, enterpriseSlug, cardType } = useParams<{ 
+  const { token, enterpriseSlug, cardType } = useParams<{
     token: string;
     enterpriseSlug?: string;
     cardType?: string;
@@ -59,6 +60,7 @@ const ScanLandingPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [cardInfo, setCardInfo] = useState<CardInfo | null>(null);
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
+
 
   // Formulaire client
   const [phone, setPhone] = useState('');
@@ -97,6 +99,7 @@ const ScanLandingPage: React.FC = () => {
       });
   }, [token]);
 
+
   // Identifier le client
   const handleIdentifyClient = (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,6 +120,8 @@ const ScanLandingPage: React.FC = () => {
     setCardCodeInput('');
     setError(null);
   };
+
+
 
   // Valider le scan avec cardCode
   const handleValidateScan = async (e: React.FormEvent) => {
@@ -196,19 +201,24 @@ const ScanLandingPage: React.FC = () => {
 
   // Résultat du scan (succès)
   if (scanResult) {
+    const ScanIcon = scanResult.service.icon
+      ? icons[scanResult.service.icon]
+      : null;
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
           <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
             <CheckCircle2 className="w-12 h-12 text-green-600" />
           </div>
-          
+
           <h2 className="text-3xl font-bold text-gray-800 mb-2">Bravo !</h2>
-          
+
           <div className="my-6">
             <div className="inline-block bg-gradient-to-r from-purple-500 to-pink-500 text-white px-8 py-4 rounded-2xl shadow-lg">
               <div className="flex items-center gap-2 mb-1">
-                {scanResult.service.icon && <span className="text-2xl">{scanResult.service.icon}</span>}
+                {ScanIcon && (
+                  <ScanIcon className="w-8 h-8 text-white" />
+                )}
                 <p className="text-lg font-medium">{scanResult.service.name}</p>
               </div>
               <p className="text-5xl font-bold">+{scanResult.pointsAdded}</p>
@@ -239,19 +249,23 @@ const ScanLandingPage: React.FC = () => {
   }
 
   // Page principale de scan
+  const SelectedIcon = selectedService?.icon
+    ? icons[selectedService.icon]
+    : null;
   return (
+
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl overflow-hidden max-w-md w-full">
         {/* Header avec logo entreprise */}
-        <div 
+        <div
           className="relative h-48 flex flex-col items-center justify-center text-white p-6"
-          style={{ 
+          style={{
             backgroundColor: '#6A35FF',
             background: 'linear-gradient(135deg, #6A35FF 0%, #6A35FFdd 100%)'
           }}
         >
           {cardInfo?.enterprise.logo ? (
-            <img 
+            <img
               src={cardInfo.enterprise.logo}
               alt={cardInfo.enterprise.name}
               className="w-24 h-24 rounded-full bg-white p-2 mb-4 shadow-lg object-contain"
@@ -348,7 +362,7 @@ const ScanLandingPage: React.FC = () => {
 
               {cardInfo?.services && cardInfo.services.length > 0 ? (
                 <div className="space-y-3">
-                  {cardInfo.services.map((service) => (
+                    {/* {cardInfo.services.map((service) => (
                     <button
                       key={service.id}
                       onClick={() => handleSelectService(service)}
@@ -356,7 +370,9 @@ const ScanLandingPage: React.FC = () => {
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          {service.icon && <span className="text-3xl">{service.icon}</span>}
+                          {ServiceIcon && (
+                            <ServiceIcon className="w-8 h-8 text-purple-600" />
+                          )}
                           <div>
                             <h3 className="font-bold text-gray-800">{service.name}</h3>
                             {service.description && (
@@ -370,7 +386,38 @@ const ScanLandingPage: React.FC = () => {
                         </div>
                       </div>
                     </button>
-                  ))}
+                  ))} */}
+
+                    {cardInfo?.services.map((service) => {
+                      const ServiceIcon = service.icon ? icons[service.icon] : null;
+
+                      return (
+                        <button
+                          key={service.id}
+                          onClick={() => handleSelectService(service)}
+                          className="w-full bg-gradient-to-r from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 rounded-xl p-4 transition-all border-2 border-transparent hover:border-purple-300 text-left"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+
+                            {ServiceIcon && (
+                              <ServiceIcon className="w-8 h-8 text-purple-600" />
+                            )}
+                            <div>
+                              <h3 className="font-bold text-gray-800">{service.name}</h3>
+                              {service.description && (
+                                <p className="text-sm text-gray-600">{service.description}</p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-2xl font-bold text-purple-600">+{service.pointsToAdd}</div>
+                            <div className="text-xs text-gray-500">points</div>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="text-center py-8 text-gray-500">
@@ -384,6 +431,7 @@ const ScanLandingPage: React.FC = () => {
 
       {/* Modal de confirmation avec cardCode */}
       {showModal && selectedService && (
+
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
             <div className="flex items-center justify-between mb-4">
@@ -398,7 +446,9 @@ const ScanLandingPage: React.FC = () => {
 
             <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-4 mb-4">
               <div className="flex items-center gap-3 mb-2">
-                {selectedService.icon && <span className="text-3xl">{selectedService.icon}</span>}
+                {SelectedIcon && (
+                  <SelectedIcon className="w-8 h-8 text-purple-600" />
+                )}
                 <div>
                   <h4 className="font-bold text-gray-800">{selectedService.name}</h4>
                   <p className="text-sm text-gray-600">+{selectedService.pointsToAdd} points</p>
