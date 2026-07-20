@@ -358,7 +358,7 @@ const ScanLandingPage: React.FC = () => {
             </div>
 
             {/* Badge points gagnés */}
-            <div className="flex justify-center">
+            {/* <div className="flex justify-center">
               <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-8 py-4 rounded-2xl shadow-lg text-center">
                 <div className="flex items-center justify-center gap-2 mb-1">
                   {ScanIcon && <ScanIcon className="w-5 h-5" />}
@@ -367,7 +367,7 @@ const ScanLandingPage: React.FC = () => {
                 <p className="text-5xl font-black">+{scanResult.pointsAdded}</p>
                 <p className="text-xs opacity-80 mt-0.5">points</p>
               </div>
-            </div>
+            </div> */}
 
             {/* Nouveau solde */}
             <BalanceHeader client={{
