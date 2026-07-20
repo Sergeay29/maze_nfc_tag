@@ -433,6 +433,18 @@ exports.redeemRewardScan = async (req, res) => {
       notes: `Échange via scan carte ${card.cardCode}`,
     });
 
+    // ── 7. Créer un Scan (historique — points négatifs) ───────────────────────
+    await Scan.create({
+      cardId: card.id,
+      clientId: client.id,
+      enterpriseId,
+      serviceId: null,
+      pointsAdded: -reward.pointsRequired,
+      notes: `Utilisation récompense : ${reward.title} (via carte ${card.cardCode})`,
+      userAgent: req.get("user-agent") || null,
+      ipAddress: req.ip || null,
+    });
+
     // ── 7. Déduire les points ─────────────────────────────────────────────────
     const newPoints = client.points - reward.pointsRequired;
     await client.update({ points: newPoints, lastActivity: new Date() });
