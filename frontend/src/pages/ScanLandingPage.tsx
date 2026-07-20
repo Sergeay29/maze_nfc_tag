@@ -735,10 +735,10 @@ const ScanLandingPage: React.FC = () => {
                     {/* Icône */}
                     <div
                       className="w-12 h-12 rounded-xl flex items-center justify-center shadow-sm"
-                      style={{ backgroundColor: service.color || '#6A35FF' }}
+                      style={{ backgroundColor: service.color + '20' }}
                     >
                       {ServiceIcon
-                        ? <ServiceIcon className="w-6 h-6 text-white" />
+                        ? <ServiceIcon className="w-6 h-6 text-white " style={{ color: service.color }} />
                         : <span className="text-white text-lg font-bold">{service.name.charAt(0)}</span>
                       }
                     </div>
