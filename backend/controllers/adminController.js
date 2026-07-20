@@ -929,6 +929,319 @@ exports.generateCards = async (req, res) => {
 };
 
 /**
+ * POST /api/admin/cards/generate-stock
+ * Générer des cartes NFC dans le stock global Maze (sans entreprise, sans type).
+ * Le type et sous-type sont attribués lors de l'assignation à une entreprise.
+ * Le lot reçoit un stockBatchId unique pour traçabilité.
+ */
+exports.generateStockCards = async (req, res) => {
+  try {
+    const { quantity } = req.body;
+
+    if (!quantity) {
+      return res.status(400).json({
+        success: false,
+        message: "quantity est requis",
+      });
+    }
+
+    const qty = parseInt(quantity);
+    if (isNaN(qty) || qty < 1 || qty > 5000) {
+      return res.status(400).json({
+        success: false,
+        message: "La quantité doit être entre 1 et 5000",
+      });
+    }
+
+    const { generateCardCode, generateCardScanToken } = require("../utils/urlGenerator");
+
+    // Générer un identifiant de lot unique
+    const now = new Date();
+    const batchId = `BATCH-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
+
+    // Préfixe neutre pour le stock : STK + auto-incrément global
+    const existingCount = await NFCCard.count({
+      where: { cardNumber: { [Op.like]: `STK-%` } },
+    });
+
+    const cards = [];
+    for (let i = 0; i < qty; i++) {
+      const cardCode = generateCardCode();
+      const scanToken = generateCardScanToken();
+      const suffix = String(existingCount + i + 1).padStart(6, "0");
+
+      cards.push({
+        cardNumber: `STK-${suffix}`,
+        cardCode,
+        scanToken,
+        enterpriseId: null,  // Pas d'entreprise : stock global
+        cardTypeId: null,    // Pas de type encore : attribué à l'assignation
+        serviceId: null,
+        type: null,          // Attribué lors de l'assignation
+        subtype: null,
+        scanUrl: null,
+        status: "unassigned",
+        stockBatchId: batchId,
+      });
+    }
+
+    const created = await NFCCard.bulkCreate(cards, { ignoreDuplicates: true });
+
+    res.status(201).json({
+      success: true,
+      message: `${created.length} carte(s) ajoutée(s) au stock global`,
+      data: {
+        generated: created.length,
+        batchId,
+      },
+    });
+  } catch (error) {
+    console.error("Generate stock cards error:", error);
+    res.status(500).json({ success: false, message: "Erreur lors de la génération du stock" });
+  }
+};
+
+/**
+/**
+ * POST /api/admin/cards/assign-to-enterprise
+ * Assigner des cartes du stock global à une entreprise.
+ * C'est ICI qu'on attribue le type et sous-type aux cartes vierges.
+ * Body: { enterpriseId, cardTypeId, subtype?, quantity?, batchId?, cardIds? }
+ */
+exports.assignStockToEnterprise = async (req, res) => {
+  const t = await sequelize.transaction();
+  try {
+    const { enterpriseId, cardTypeId, subtype, quantity, batchId, cardIds } = req.body;
+
+    if (!enterpriseId) {
+      await t.rollback();
+      return res.status(400).json({ success: false, message: "enterpriseId est requis" });
+    }
+
+    if (!cardTypeId) {
+      await t.rollback();
+      return res.status(400).json({ success: false, message: "cardTypeId est requis — le type est attribué lors de l'assignation" });
+    }
+
+    const enterprise = await Enterprise.findByPk(enterpriseId, { transaction: t });
+    if (!enterprise) {
+      await t.rollback();
+      return res.status(404).json({ success: false, message: "Entreprise non trouvée" });
+    }
+
+    const cardTypeRecord = await CardType.findByPk(cardTypeId, { transaction: t });
+    if (!cardTypeRecord) {
+      await t.rollback();
+      return res.status(404).json({ success: false, message: "Type de carte introuvable" });
+    }
+    const type = cardTypeRecord.name;
+
+    const scanBaseUrl = process.env.SCAN_BASE_URL;
+
+    // Trouver les cartes vierges à assigner (sans entreprise, sans type)
+    let cardsToAssign;
+
+    if (cardIds && Array.isArray(cardIds) && cardIds.length > 0) {
+      cardsToAssign = await NFCCard.findAll({
+        where: { id: { [Op.in]: cardIds }, enterpriseId: null, status: "unassigned" },
+        transaction: t,
+      });
+    } else if (batchId) {
+      cardsToAssign = await NFCCard.findAll({
+        where: { stockBatchId: batchId, enterpriseId: null, status: "unassigned" },
+        transaction: t,
+      });
+    } else if (quantity) {
+      const qty = parseInt(quantity);
+      if (isNaN(qty) || qty < 1) {
+        await t.rollback();
+        return res.status(400).json({ success: false, message: "Quantité invalide" });
+      }
+      cardsToAssign = await NFCCard.findAll({
+        where: { enterpriseId: null, status: "unassigned" },
+        limit: qty,
+        order: [["createdAt", "ASC"]], // FIFO
+        transaction: t,
+      });
+    } else {
+      await t.rollback();
+      return res.status(400).json({
+        success: false,
+        message: "Fournir cardIds, batchId ou quantity",
+      });
+    }
+
+    if (cardsToAssign.length === 0) {
+      await t.rollback();
+      return res.status(404).json({ success: false, message: "Aucune carte disponible dans le stock" });
+    }
+
+    const { generateCardScanUrl } = require("../utils/urlGenerator");
+
+    // Construire le préfixe de numérotation : initiales entreprise + type [+ sous-type]
+    const enterpriseInitials = getEnterpriseInitials(enterprise.name);
+    const typeInitials = getTypeInitials(type);
+    let dynamicPrefix = `${enterpriseInitials}-${typeInitials}`;
+    if (subtype) {
+      dynamicPrefix += `-${getTypeInitials(subtype)}`;
+    }
+
+    // Auto-incrément basé sur les cartes existantes du même préfixe
+    const existingCount = await NFCCard.count({
+      where: { cardNumber: { [Op.like]: `${dynamicPrefix}-%` } },
+      transaction: t,
+    });
+
+    // Assigner chaque carte : type, sous-type, nouveau numéro, scanUrl
+    for (let i = 0; i < cardsToAssign.length; i++) {
+      const card = cardsToAssign[i];
+      const suffix = String(existingCount + i + 1).padStart(4, "0");
+      const newCardNumber = `${dynamicPrefix}-${suffix}`;
+
+      const scanUrl = scanBaseUrl
+        ? generateCardScanUrl({
+          enterpriseName: enterprise.name,
+          cardType: type,
+          scanToken: card.scanToken,
+          baseUrl: scanBaseUrl,
+        })
+        : null;
+
+      await card.update(
+        {
+          enterpriseId,
+          cardTypeId,
+          type,
+          subtype: subtype || null,
+          cardNumber: newCardNumber,
+          scanUrl,
+          status: "unassigned",
+        },
+        { transaction: t }
+      );
+    }
+
+    // Mettre à jour le compteur de cartes de l'entreprise
+    await Enterprise.increment("cardsCount", {
+      by: cardsToAssign.length,
+      where: { id: enterpriseId },
+      transaction: t,
+    });
+
+    await t.commit();
+
+    res.status(200).json({
+      success: true,
+      message: `${cardsToAssign.length} carte(s) assignée(s) à ${enterprise.name} avec le type "${type}"`,
+      data: {
+        assigned: cardsToAssign.length,
+        enterpriseId,
+        enterpriseName: enterprise.name,
+        type,
+        subtype: subtype || null,
+        cardIds: cardsToAssign.map((c) => c.id),
+      },
+    });
+  } catch (error) {
+    await t.rollback();
+    console.error("Assign stock to enterprise error:", error);
+    res.status(500).json({ success: false, message: "Erreur lors de l'assignation du stock" });
+  }
+};
+
+/**
+ * PATCH /api/admin/cards/:id/status
+ * Activer ou désactiver manuellement une carte NFC
+ * Body: { status: "active" | "inactive" }
+ */
+exports.updateCardStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!["active", "inactive"].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Le statut doit être 'active' ou 'inactive'",
+      });
+    }
+
+    const card = await NFCCard.findByPk(id, {
+      include: [{ model: Enterprise, attributes: ["id", "name"] }],
+    });
+
+    if (!card) {
+      return res.status(404).json({ success: false, message: "Carte introuvable" });
+    }
+
+    if (!card.enterpriseId) {
+      return res.status(400).json({
+        success: false,
+        message: "Impossible d'activer une carte non assignée à une entreprise",
+      });
+    }
+
+    await card.update({ status });
+
+    res.json({
+      success: true,
+      message: `Carte ${status === "active" ? "activée" : "désactivée"} avec succès`,
+      data: {
+        id: card.id,
+        cardNumber: card.cardNumber,
+        status: card.status,
+        enterpriseName: card.Enterprise?.name,
+      },
+    });
+  } catch (error) {
+    console.error("Update card status error:", error);
+    res.status(500).json({ success: false, message: "Erreur lors de la mise à jour du statut" });
+  }
+};
+
+/**
+ * GET /api/admin/cards/stock-global
+ * Stock global Maze : cartes vierges sans entreprise ni type
+ */
+exports.getGlobalStock = async (req, res) => {
+  try {
+    const where = { enterpriseId: null, status: "unassigned" };
+
+    const [total, byBatch] = await Promise.all([
+      NFCCard.count({ where }),
+
+      // Répartition par lot
+      NFCCard.findAll({
+        attributes: [
+          "stockBatchId",
+          [sequelize.fn("COUNT", sequelize.col("id")), "count"],
+          [sequelize.fn("MIN", sequelize.col("createdAt")), "createdAt"],
+        ],
+        where: { enterpriseId: null, status: "unassigned", stockBatchId: { [Op.ne]: null } },
+        group: ["stockBatchId"],
+        order: [[sequelize.fn("MIN", sequelize.col("createdAt")), "DESC"]],
+        raw: true,
+      }),
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        total,
+        byBatch: byBatch.map((r) => ({
+          batchId: r.stockBatchId,
+          count: parseInt(r.count),
+          createdAt: r.createdAt,
+        })),
+      },
+    });
+  } catch (error) {
+    console.error("Get global stock error:", error);
+    res.status(500).json({ success: false, message: "Erreur lors de la récupération du stock global" });
+  }
+};
+
+/**
  * POST /api/admin/cards/assign
  * Attribuer une carte NFC à un client
  */
@@ -1313,14 +1626,24 @@ exports.getCardStock = async (req, res) => {
       NFCCard.count({ where: { status: 'unassigned' } }),
     ]);
 
+    // Cartes dans le stock global Maze (pas encore assignées à une entreprise)
+    const globalStock = await NFCCard.count({ where: { enterpriseId: null } });
+
+    // Stock dispo par entreprise (cartes assignées à une entreprise mais pas encore à un client)
+    const availableForEnterprise = await NFCCard.count({
+      where: { status: 'unassigned', enterpriseId: { [Op.ne]: null } },
+    });
+
     const byEnterprise = await NFCCard.findAll({
       attributes: [
         'enterpriseId',
         [require('sequelize').fn('COUNT', require('sequelize').col('NFCCard.id')), 'total'],
         [require('sequelize').fn('SUM', require('sequelize').literal("CASE WHEN \"NFCCard\".status = 'active' THEN 1 ELSE 0 END")), 'active'],
         [require('sequelize').fn('SUM', require('sequelize').literal("CASE WHEN \"NFCCard\".status = 'unassigned' THEN 1 ELSE 0 END")), 'unassigned'],
+        [require('sequelize').fn('SUM', require('sequelize').literal("CASE WHEN \"NFCCard\".status = 'inactive' THEN 1 ELSE 0 END")), 'inactive'],
       ],
       include: [{ model: Enterprise, attributes: ['name', 'logo'] }],
+      where: { enterpriseId: { [Op.ne]: null } }, // Exclure le stock global
       group: ['enterpriseId', 'Enterprise.id'],
       raw: true,
       nest: true,
@@ -1330,6 +1653,7 @@ exports.getCardStock = async (req, res) => {
       attributes: [
         'type',
         [require('sequelize').fn('COUNT', require('sequelize').col('id')), 'total'],
+        [require('sequelize').fn('SUM', require('sequelize').literal("CASE WHEN \"enterpriseId\" IS NULL THEN 1 ELSE 0 END")), 'inStock'],
       ],
       group: ['type'],
       raw: true,
@@ -1338,7 +1662,15 @@ exports.getCardStock = async (req, res) => {
     res.json({
       success: true,
       data: {
-        summary: { total, active, inactive, unassigned, sold: active },
+        summary: {
+          total,
+          active,
+          inactive,
+          unassigned,
+          sold: active,
+          globalStock,          // Cartes Maze sans entreprise
+          availableForEnterprise, // Cartes assignées à une entreprise mais pas à un client
+        },
         byEnterprise: byEnterprise.map(r => ({
           enterpriseId: r.enterpriseId,
           name: r.Enterprise?.name,
@@ -1346,8 +1678,13 @@ exports.getCardStock = async (req, res) => {
           total: parseInt(r.total),
           active: parseInt(r.active) || 0,
           unassigned: parseInt(r.unassigned) || 0,
+          inactive: parseInt(r.inactive) || 0,
         })),
-        byType: byType.map(r => ({ type: r.type, total: parseInt(r.total) })),
+        byType: byType.map(r => ({
+          type: r.type,
+          total: parseInt(r.total),
+          inStock: parseInt(r.inStock) || 0,
+        })),
       },
     });
   } catch (error) {

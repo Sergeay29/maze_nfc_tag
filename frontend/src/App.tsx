@@ -34,6 +34,8 @@ import {
   ServicesPage,
 } from './pages';
 import ScanLandingPage from './pages/ScanLandingPage';
+import GenerateStockPage from './pages/admin/GenerateStockPage';
+import AssignStockPage from './pages/admin/AssignStockPage';
 
 const App: React.FC = () => {
   return (
@@ -60,6 +62,8 @@ const App: React.FC = () => {
             <Route path="/admin/subscriptions" element={<SubscriptionsPage />} />
             <Route path="/admin/modules" element={<ModulesPage />} />
             <Route path="/admin/stock" element={<StockPage />} />
+            <Route path="/admin/stock/generate" element={<GenerateStockPage />} />
+            <Route path="/admin/stock/assign" element={<AssignStockPage />} />
             <Route path="/admin/users" element={<UsersPage />} />
             <Route path="/admin/settings" element={<SettingsPage />} />
           </Route>

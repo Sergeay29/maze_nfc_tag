@@ -693,6 +693,49 @@ exports.assignCard = async (req, res) => {
   }
 };
 
+/**
+ * PATCH /api/enterprise/cards/:id/status
+ * L'entreprise active ou désactive une de ses cartes
+ */
+exports.updateCardStatus = async (req, res) => {
+  try {
+    const enterpriseId = req.user.enterpriseId;
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!["active", "inactive"].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Le statut doit être 'active' ou 'inactive'",
+      });
+    }
+
+    const card = await NFCCard.findOne({ where: { id, enterpriseId } });
+    if (!card) {
+      return res.status(404).json({ success: false, message: "Carte non trouvée" });
+    }
+
+    // Une carte sans client ne peut pas être mise à "active" manuellement
+    if (status === "active" && !card.assignedToClientId) {
+      return res.status(400).json({
+        success: false,
+        message: "Impossible d'activer une carte non attribuée à un client",
+      });
+    }
+
+    await card.update({ status });
+
+    res.json({
+      success: true,
+      message: `Carte ${status === "active" ? "activée" : "désactivée"}`,
+      data: { id: card.id, cardNumber: card.cardNumber, status },
+    });
+  } catch (error) {
+    console.error("updateCardStatus enterprise error:", error);
+    res.status(500).json({ success: false, message: "Erreur lors de la mise à jour du statut" });
+  }
+};
+
 // ─────────────────────────────────────────────────────────────
 // SCANS & POINTS
 // ─────────────────────────────────────────────────────────────

@@ -454,6 +454,7 @@ router.delete("/rewards/:id", enterpriseController.deleteReward);
  */
 router.get("/cards", enterpriseController.getCards);
 router.put("/cards/:id/assign", enterpriseController.assignCard);
+router.patch("/cards/:id/status", enterpriseController.updateCardStatus);
 
 // ─────────────────────────────────────────────────────────────
 // SCANS & POINTS

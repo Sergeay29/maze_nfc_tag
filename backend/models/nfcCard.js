@@ -25,16 +25,21 @@ const NFCCard = sequelize.define(
     },
     cardTypeId: {
       type: DataTypes.UUID,
-      allowNull: true,
+      allowNull: true, // NULL tant que la carte est en stock global (pas encore assignée à une entreprise)
       references: { model: 'card_types', key: 'id' },
     },
     enterpriseId: {
       type: DataTypes.UUID,
-      allowNull: false,
+      allowNull: true, // NULL = carte en stock global Maze (non encore assignée à une entreprise)
       references: {
         model: "enterprises",
         key: "id",
       },
+    },
+    stockBatchId: {
+      type: DataTypes.STRING(50),
+      allowNull: true,
+      comment: "Identifiant du lot de génération (ex: BATCH-2026-001)",
     },
     serviceId: {
       type: DataTypes.UUID,
@@ -47,7 +52,7 @@ const NFCCard = sequelize.define(
     },
     type: {
       type: DataTypes.STRING(100),
-      allowNull: false,
+      allowNull: true, // NULL tant que la carte est en stock global (le type est attribué lors de l'assignation à une entreprise)
     },
     subtype: {
       type: DataTypes.STRING(50),

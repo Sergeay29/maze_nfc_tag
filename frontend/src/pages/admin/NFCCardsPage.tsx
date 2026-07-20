@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Filter, CreditCard, Copy } from 'lucide-react';
+import { Plus, Filter, CreditCard, Copy, ToggleLeft, ToggleRight } from 'lucide-react';
 import { Button, Badge, Table, SearchInput, Card } from '../../components';
 import { useNavigate } from 'react-router-dom';
-import { getCards } from '../../api/adminApi';
+import { getCards, updateCardStatus, getCardTypes } from '../../api/adminApi';
 import type { NFCCard } from '../../data/mockData';
+import type { CardTypeData } from '../../api/adminApi';
 
 const PAGE_SIZE = 10;
 
@@ -11,12 +12,15 @@ const NFCCardsPage: React.FC = () => {
   const [allCards, setAllCards] = useState<NFCCard[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive' | 'unassigned'>('all');
   const [enterpriseFilter, setEnterpriseFilter] = useState('all');
-  const [typeFilter, setTypeFilter] = useState<'all' | NFCCard['type']>('all');
+  const [typeFilter, setTypeFilter] = useState('all');
   const [page, setPage] = useState(1);
+
+  const [cardTypes, setCardTypes] = useState<CardTypeData[]>([]);
 
   const navigate = useNavigate();
 
@@ -34,7 +38,25 @@ const NFCCardsPage: React.FC = () => {
       }
     };
     fetchCards();
+    // Charger les types de cartes dynamiquement
+    getCardTypes().then(setCardTypes).catch(console.error);
   }, []);
+
+  const handleToggleStatus = async (card: NFCCard) => {
+    if (!card.enterpriseId) return; // Pas de toggle pour les cartes en stock global
+    const newStatus = card.status === 'active' ? 'inactive' : 'active';
+    // Une carte non attribuée à un client ne peut pas être activée
+    if (newStatus === 'active' && !card.assignedToClientId) return;
+    try {
+      setTogglingId(card.id);
+      await updateCardStatus(card.id, newStatus as 'active' | 'inactive');
+      setAllCards((prev) => prev.map((c) => c.id === card.id ? { ...c, status: newStatus as NFCCard['status'] } : c));
+    } catch (err) {
+      console.error('Toggle status error:', err);
+    } finally {
+      setTogglingId(null);
+    }
+  };
 
   const enterpriseOptions = useMemo(() => {
     const list = Array.from(
@@ -149,7 +171,9 @@ const NFCCardsPage: React.FC = () => {
             </button>
           </div>
         ) : (
-          <span className="text-slate">Aucun lien</span>
+            <span className="text-slate text-xs italic">
+              {(card as NFCCard & { enterpriseId?: string }).enterpriseId ? 'Aucun lien' : 'Stock Maze'}
+            </span>
         )
       ),
       className: 'hidden xl:table-cell',
@@ -161,6 +185,35 @@ const NFCCardsPage: React.FC = () => {
         <span className="text-slate">{card.assignedTo ?? '—'}</span>
       ),
       className: 'hidden sm:table-cell',
+    },
+    {
+      key: 'toggle',
+      header: 'Activer',
+      render: (card: NFCCard) => {
+        const c = card as NFCCard & { enterpriseId?: string; assignedToClientId?: string };
+        if (!c.enterpriseId || !c.assignedToClientId) {
+          return <span className="text-slate/40 text-xs">—</span>;
+        }
+        const isActive = card.status === 'active';
+        const isToggling = togglingId === card.id;
+        return (
+          <button
+            onClick={() => handleToggleStatus(card)}
+            disabled={isToggling}
+            title={isActive ? 'Cliquer pour désactiver' : 'Cliquer pour activer'}
+            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-colors ${isToggling ? 'opacity-50 cursor-wait' :
+              isActive
+                ? 'text-green-700 bg-green-50 hover:bg-red-50 hover:text-red-600'
+                : 'text-red-600 bg-red-50 hover:bg-green-50 hover:text-green-700'
+              }`}
+          >
+            {isActive
+              ? <><ToggleRight className="w-4 h-4" /> ON</>
+              : <><ToggleLeft className="w-4 h-4" /> OFF</>
+            }
+          </button>
+        );
+      },
     },
     {
       key: 'createdAt',
@@ -228,13 +281,13 @@ const NFCCardsPage: React.FC = () => {
                   </select>
                   <select
                     value={typeFilter}
-                    onChange={(e) => { setTypeFilter(e.target.value as typeof typeFilter); setPage(1); }}
+                    onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }}
                     className="px-4 py-3 bg-cloud border border-slate/20 rounded-xl text-dark focus:outline-none focus:border-primary transition-colors duration-200"
                   >
                     <option value="all">Tous les types</option>
-                    <option value="Fidélité Entreprise">Fidélité Entreprise</option>
-                    <option value="Restaurant">Restaurant</option>
-                    <option value="Carte de visite">Carte de visite</option>
+                    {cardTypes.map((ct) => (
+                      <option key={ct.id} value={ct.type}>{ct.type}</option>
+                    ))}
                   </select>
                 </div>
               </div>

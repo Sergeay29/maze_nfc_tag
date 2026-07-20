@@ -230,6 +230,16 @@ export async function assignCard(id: string, clientId: string | null): Promise<N
   });
 }
 
+export async function updateEnterpriseCardStatus(
+  id: string,
+  status: "active" | "inactive",
+): Promise<{ id: string; cardNumber: string; status: string }> {
+  return request(`/enterprise/cards/${id}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
+  });
+}
+
 // ─── UPLOAD ────────────────────────────────────────────────
 
 export async function uploadFile(file: File): Promise<string> {

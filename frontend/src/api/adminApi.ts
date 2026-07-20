@@ -305,6 +305,8 @@ export interface CardStockData {
     inactive: number;
     unassigned: number;
     sold: number;
+    globalStock: number; // Cartes Maze sans entreprise
+    availableForEnterprise: number; // Cartes assignées à une entreprise mais pas à un client
   };
   byEnterprise: Array<{
     enterpriseId: string;
@@ -313,12 +315,84 @@ export interface CardStockData {
     total: number;
     active: number;
     unassigned: number;
+    inactive: number;
   }>;
-  byType: Array<{ type: string; total: number }>;
+  byType: Array<{ type: string; total: number; inStock: number }>;
 }
 
 export async function getCardStock(): Promise<CardStockData> {
   return request<CardStockData>("/admin/cards/stock");
+}
+
+// ─── Global Stock ─────────────────────────────────────────────
+
+export interface GlobalStockData {
+  total: number;
+  byBatch: Array<{
+    batchId: string;
+    count: number;
+    createdAt: string;
+  }>;
+}
+
+export async function getGlobalStock(): Promise<GlobalStockData> {
+  return request<GlobalStockData>(`/admin/cards/stock-global`);
+}
+
+export interface GenerateStockPayload {
+  quantity: number;
+}
+
+export async function generateStockCards(
+  payload: GenerateStockPayload,
+): Promise<{
+  generated: number;
+  batchId: string;
+}> {
+  return request(`/admin/cards/generate-stock`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export interface AssignStockPayload {
+  enterpriseId: string;
+  cardTypeId: string;
+  subtype?: string;
+  batchId?: string;
+  cardIds?: string[];
+  quantity?: number;
+}
+
+export async function assignStockToEnterprise(
+  payload: AssignStockPayload,
+): Promise<{
+  assigned: number;
+  enterpriseId: string;
+  enterpriseName: string;
+  type: string;
+  subtype?: string;
+  cardIds: string[];
+}> {
+  return request(`/admin/cards/assign-to-enterprise`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateCardStatus(
+  id: string,
+  status: "active" | "inactive",
+): Promise<{
+  id: string;
+  cardNumber: string;
+  status: string;
+  enterpriseName?: string;
+}> {
+  return request(`/admin/cards/${id}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
+  });
 }
 
 // ─── Services (Admin) ─────────────────────────────────────────

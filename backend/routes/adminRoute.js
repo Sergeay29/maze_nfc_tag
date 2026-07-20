@@ -295,6 +295,70 @@ router.post("/cards/generate", adminController.generateCards);
 
 /**
  * @swagger
+ * /api/admin/cards/generate-stock:
+ *   post:
+ *     tags: [Admin]
+ *     summary: Générer des cartes dans le stock global Maze (sans entreprise)
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [cardTypeId, quantity]
+ *             properties:
+ *               cardTypeId: { type: string, format: uuid }
+ *               subtype: { type: string }
+ *               quantity: { type: integer, minimum: 1, maximum: 5000 }
+ *     responses:
+ *       201:
+ *         description: Cartes ajoutées au stock global avec un batchId
+ */
+router.post("/cards/generate-stock", adminController.generateStockCards);
+
+/**
+ * @swagger
+ * /api/admin/cards/assign-to-enterprise:
+ *   post:
+ *     tags: [Admin]
+ *     summary: Assigner un lot de cartes du stock global à une entreprise
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [enterpriseId]
+ *             properties:
+ *               enterpriseId: { type: string, format: uuid }
+ *               batchId: { type: string, description: "Assigner tout un lot" }
+ *               cardIds: { type: array, items: { type: string, format: uuid }, description: "Liste d'IDs de cartes" }
+ *               cardTypeId: { type: string, format: uuid, description: "Type pour sélection par quantité" }
+ *               quantity: { type: integer, description: "Quantité à prendre du stock (avec cardTypeId)" }
+ *     responses:
+ *       200:
+ *         description: Cartes assignées à l'entreprise
+ */
+router.post("/cards/assign-to-enterprise", adminController.assignStockToEnterprise);
+
+/**
+ * @swagger
+ * /api/admin/cards/stock-global:
+ *   get:
+ *     tags: [Admin]
+ *     summary: Vue du stock global Maze (cartes sans entreprise)
+ *     parameters:
+ *       - in: query
+ *         name: cardTypeId
+ *         schema: { type: string, format: uuid }
+ *     responses:
+ *       200:
+ *         description: Stock global par type et par lot
+ */
+router.get("/cards/stock-global", adminController.getGlobalStock);
+
+/**
+ * @swagger
  * /api/admin/cards/assign:
  *   post:
  *     tags: [Admin]
@@ -313,6 +377,34 @@ router.post("/cards/generate", adminController.generateCards);
  */
 router.post("/cards/assign", adminController.assignCard);
 router.get("/cards/stock", adminController.getCardStock);
+
+/**
+ * @swagger
+ * /api/admin/cards/{id}/status:
+ *   patch:
+ *     tags: [Admin]
+ *     summary: Activer ou désactiver manuellement une carte NFC
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [status]
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [active, inactive]
+ *     responses:
+ *       200:
+ *         description: Statut mis à jour
+ */
+router.patch("/cards/:id/status", adminController.updateCardStatus);
 
 // Types de cartes
 router.get("/card-types", adminController.getCardTypes);

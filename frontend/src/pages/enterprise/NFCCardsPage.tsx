@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { CreditCard, User, UserPlus, X } from 'lucide-react';
+import { CreditCard, User, UserPlus, X, ToggleLeft, ToggleRight } from 'lucide-react';
 import { Card, Badge, Pagination, Button, Input } from '../../components';
-import { getEnterpriseCards, assignCard, getClients } from '../../api/enterpriseApi';
+import { getEnterpriseCards, assignCard, getClients, updateEnterpriseCardStatus } from '../../api/enterpriseApi';
 import type { NFCCardData, ClientData } from '../../api/enterpriseApi';
 
 const CARDS_PER_PAGE = 12;
@@ -18,6 +18,7 @@ const EnterpriseCardsPage: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   // Modal attribution
   const [assignModal, setAssignModal] = useState<NFCCardData | null>(null);
@@ -67,6 +68,22 @@ const EnterpriseCardsPage: React.FC = () => {
     c.name.toLowerCase().includes(clientSearch.toLowerCase()) ||
     (c.email ?? '').toLowerCase().includes(clientSearch.toLowerCase())
   );
+
+  const handleToggleStatus = async (card: NFCCardData) => {
+    if (!card.assignedClient) return; // Pas de toggle sans client
+    const newStatus = card.status === 'active' ? 'inactive' : 'active';
+    try {
+      setTogglingId(card.id);
+      await updateEnterpriseCardStatus(card.id, newStatus as 'active' | 'inactive');
+      setCards((prev) =>
+        prev.map((c) => c.id === card.id ? { ...c, status: newStatus as NFCCardData['status'] } : c)
+      );
+    } catch (err) {
+      console.error('Toggle status error:', err);
+    } finally {
+      setTogglingId(null);
+    }
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -119,13 +136,33 @@ const EnterpriseCardsPage: React.FC = () => {
                     <User className="w-4 h-4 flex-shrink-0" />
                     <span className="truncate">{card.assignedClient ? card.assignedClient.name : 'Non attribuée'}</span>
                   </div>
-                  <button
-                    onClick={() => openAssignModal(card)}
-                    className="p-1.5 rounded-lg hover:bg-cloud transition-colors text-slate hover:text-primary"
-                    title="Attribuer / modifier"
-                  >
-                    <UserPlus className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    {/* Toggle activation uniquement si attribuée à un client */}
+                    {card.assignedClient && (
+                      <button
+                        onClick={() => handleToggleStatus(card)}
+                        disabled={togglingId === card.id}
+                        title={card.status === 'active' ? 'Désactiver la carte' : 'Activer la carte'}
+                        className={`p-1.5 rounded-lg transition-colors ${togglingId === card.id ? 'opacity-50 cursor-wait' :
+                            card.status === 'active'
+                              ? 'text-green-600 hover:bg-red-50 hover:text-red-600'
+                              : 'text-red-500 hover:bg-green-50 hover:text-green-600'
+                          }`}
+                      >
+                        {card.status === 'active'
+                          ? <ToggleRight className="w-4 h-4" />
+                          : <ToggleLeft className="w-4 h-4" />
+                        }
+                      </button>
+                    )}
+                    <button
+                      onClick={() => openAssignModal(card)}
+                      className="p-1.5 rounded-lg hover:bg-cloud transition-colors text-slate hover:text-primary"
+                      title="Attribuer / modifier"
+                    >
+                      <UserPlus className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </Card>
             ))}
