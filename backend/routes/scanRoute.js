@@ -37,6 +37,36 @@ router.get("/card/:token", scanController.getCardInfo);
 
 /**
  * @swagger
+ * /api/scan/identify-client:
+ *   post:
+ *     tags: [Scan]
+ *     summary: Identifier un client via téléphone ou email
+ *     description: Route publique — fallback quand la carte n'est pas assignée à un client
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [scanToken]
+ *             properties:
+ *               scanToken:
+ *                 type: string
+ *               phone:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Client trouvé ou non (found: boolean)
+ *       400:
+ *         description: Données manquantes
+ */
+router.post("/identify-client", scanController.identifyClient);
+
+/**
+ * @swagger
  * /api/scan/validate-service:
  *   post:
  *     tags: [Scan]
@@ -53,23 +83,17 @@ router.get("/card/:token", scanController.getCardInfo);
  *             properties:
  *               scanToken:
  *                 type: string
- *                 description: Token de la carte
  *               cardCode:
  *                 type: string
- *                 description: Code physique de la carte (ex ABC123)
  *               serviceId:
  *                 type: string
  *                 format: uuid
- *                 description: ID du service sélectionné
  *               phone:
  *                 type: string
- *                 description: Numéro de téléphone du client
  *               email:
  *                 type: string
- *                 description: Email du client
  *               name:
  *                 type: string
- *                 description: Nom du client (pour nouveau client)
  *     responses:
  *       201:
  *         description: Scan validé avec succès
@@ -79,5 +103,41 @@ router.get("/card/:token", scanController.getCardInfo);
  *         description: Carte ou service introuvable
  */
 router.post("/validate-service", scanController.validateServiceScan);
+
+/**
+ * @swagger
+ * /api/scan/redeem-reward:
+ *   post:
+ *     tags: [Scan]
+ *     summary: Utiliser une récompense depuis la page scan
+ *     description: Route publique — vérifie le cardCode, déduit les points et crée un Redemption
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [scanToken, cardCode, rewardId, clientId]
+ *             properties:
+ *               scanToken:
+ *                 type: string
+ *               cardCode:
+ *                 type: string
+ *               rewardId:
+ *                 type: string
+ *                 format: uuid
+ *               clientId:
+ *                 type: string
+ *                 format: uuid
+ *     responses:
+ *       201:
+ *         description: Récompense utilisée, points déduits
+ *       400:
+ *         description: Points insuffisants ou stock épuisé
+ *       404:
+ *         description: Carte, client ou récompense introuvable
+ */
+router.post("/redeem-reward", scanController.redeemRewardScan);
 
 module.exports = router;
