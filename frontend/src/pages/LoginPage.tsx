@@ -82,7 +82,7 @@ const LoginPage: React.FC = () => {
           <div className="text-center mb-8">
             <div className="inline-flex items-center gap-3 mb-2">
               <img
-                src="/images/icons/icons.png"
+                src={`${import.meta.env.BASE_URL}images/icons/icons.png`}
                 alt="Maze NFC"
                 className="w-[100px] max-w-full drop-shadow-2xl animate-float rounded-3xl"
               />

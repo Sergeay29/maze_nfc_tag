@@ -10,19 +10,19 @@ async function seedSettings() {
     },
     {
       key: "support_email",
-      value: "support@mazenfc.com",
+      value: process.env.SUPPORT_EMAIL || null,
       label: "Email de support",
       group: "general",
     },
     {
       key: "api_url",
-      value: "https://api.mazenfc.com",
+      value: process.env.API_PUBLIC_URL || null,
       label: "URL de l'API",
       group: "general",
     },
     {
       key: "nfc_base_url",
-      value: "https://mzg.cards/c/",
+      value: process.env.SCAN_BASE_URL || null,
       label: "URL de base des cartes NFC",
       group: "general",
     },
@@ -48,12 +48,14 @@ async function seedSettings() {
 
   for (const setting of defaults) {
     await Setting.findOrCreate({
-      where: { key: setting.key },
+      where: {
+        key: setting.key,
+      },
       defaults: setting,
     });
   }
 
-  console.log("Paramètres initialisés");
+  console.log("✅ Paramètres initiaux créés");
 }
 
 module.exports = seedSettings;

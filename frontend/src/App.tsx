@@ -39,7 +39,7 @@ import AssignStockPage from './pages/admin/AssignStockPage';
 
 const App: React.FC = () => {
   return (
-    <Router>
+    <Router basename="/cards">
       <Routes>
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<LoginPage />} />

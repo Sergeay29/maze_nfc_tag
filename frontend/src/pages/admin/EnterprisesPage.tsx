@@ -2,10 +2,13 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Plus, Filter, Copy, Check, Sparkles, Link } from 'lucide-react';
 import { Button, Badge, Table, SearchInput, Card, Modal, Input, Select, PhoneInput, Avatar, LogoUpload } from '../../components';
 import { useNavigate } from 'react-router-dom';
-import { getEnterprises, createEnterprise, uploadLogo } from '../../api/adminApi';
+import { getEnterprises, createEnterprise, uploadLogo, CreateEnterprisePayload } from '../../api/adminApi';
 import { isValidPhoneNumber } from 'react-phone-number-input';
 import type { Enterprise } from '../../data/mockData';
 import type { CardType } from '../../@types/types';
+// import type {
+//   CreateEnterprisePayload,
+// } from '../../api/adminApi';
 
 const SUBSCRIPTION_OPTIONS = [
   { value: 'Starter', label: 'Starter — 29€/mois' },
@@ -167,6 +170,15 @@ const EnterprisesPage: React.FC = () => {
     setTouched({ name: true, email: true, phone: true });
     if (!isFormValid) return;
 
+    const selectedCardType = cardOptions.type;
+
+    if (cardOptions.enabled && !selectedCardType) {
+      setFormError(
+        'Veuillez choisir un type de carte si vous souhaitez en générer.'
+      );
+      return;
+    }
+
     if (cardOptions.enabled) {
       if (!cardOptions.type) {
         setFormError('Veuillez choisir un type de carte si vous souhaitez en générer.');
@@ -192,17 +204,27 @@ const EnterprisesPage: React.FC = () => {
         logoUrl = await uploadLogo(logoFile);
       }
 
-      const result = await createEnterprise({
+      const payload: CreateEnterprisePayload = {
         ...form,
         logo: logoUrl,
-        cardGeneration: cardOptions.enabled ? {
-          enabled: true,
-          type: cardOptions.type,
-          subtype: cardOptions.type === 'Restaurant' ? cardOptions.subtype : undefined,
-          scanBaseUrl: cardOptions.scanBaseUrl.trim() || undefined, // Utilisera SCAN_BASE_URL du backend si vide
-          quantity: Number(cardOptions.quantity),
-        } : undefined,
-      });
+
+        cardGeneration:
+          cardOptions.enabled && selectedCardType
+            ? {
+              enabled: true,
+              type: selectedCardType,
+              subtype:
+                selectedCardType === 'Restaurant'
+                  ? cardOptions.subtype
+                  : undefined,
+              scanBaseUrl:
+                cardOptions.scanBaseUrl.trim() || undefined,
+              quantity: Number(cardOptions.quantity),
+            }
+            : undefined,
+      };
+
+      const result = await createEnterprise(payload);
 
       setShowCreateModal(false);
       setGeneratedPassword(result.generatedPassword ?? null);

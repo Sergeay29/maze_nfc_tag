@@ -46,7 +46,7 @@ const StockPage: React.FC = () => {
         </div>
         <div className="flex gap-3">
           <Button
-            variant="outline"
+            variant="secondary"
             icon={<ChevronRight className="w-4 h-4" />}
             onClick={() => navigate('/admin/stock/assign')}
           >

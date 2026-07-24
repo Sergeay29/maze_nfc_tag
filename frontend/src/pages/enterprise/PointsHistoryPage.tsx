@@ -5,6 +5,16 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { getClientDetail, getEnterpriseScans } from '../../api/enterpriseApi';
 import type { ClientData, ScanData } from '../../api/enterpriseApi';
 
+interface PointHistoryEntry {
+  id: string;
+  date: string;
+  action: string;
+  points: number;
+  balance: number;
+  reason: string;
+}
+
+
 const PointsHistoryPage: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -32,28 +42,34 @@ const PointsHistoryPage: React.FC = () => {
     fetchData();
   }, [id]);
 
-  const transformScansToHistory = (scanList: Scan[]): any[] => {
-    let balance = 0;
-    // Commencer avec le solde initial du client
-    if (client) {
-      balance = client.points;
-    }
-    
-    // Calculer le solde progressivement
-    return scanList.map((scan, index) => {
-      const points = scan.pointsAdded;
-      const entry = {
+  const transformScansToHistory = (
+    scanList: ScanData[]
+  ): PointHistoryEntry[] => {
+    let balance = client?.points ?? 0;
+
+    return scanList.map((scan) => {
+      const points = scan.pointsAdded ?? 0;
+
+      const entry: PointHistoryEntry = {
         id: scan.id,
         date: scan.scannedAt,
-        action: points > 0 ? 'Points ajoutés' : 'Points retirés',
-        points: points,
-        balance: balance,
-        reason: scan.notes || (scan.Service?.name || scan.service?.name || 'Scan')
+        action:
+          points > 0
+            ? 'Points ajoutés'
+            : points < 0
+              ? 'Points retirés'
+              : 'Consultation',
+        points,
+        balance,
+        reason:
+          scan.notes ||
+          scan.Service?.name ||
+          scan.service?.name ||
+          'Scan',
       };
-      
-      // Mettre à jour le solde pour l'entrée suivante
+
       balance -= points;
-      
+
       return entry;
     });
   };
@@ -111,7 +127,7 @@ const PointsHistoryPage: React.FC = () => {
             {history.length === 0 ? (
               <tr>
                 <td colSpan={5} className="table-cell px-6 py-12 text-center text-slate">
-                Aucun historique de points
+                  Aucun historique de points
                 </td>
               </tr>
             ) : (

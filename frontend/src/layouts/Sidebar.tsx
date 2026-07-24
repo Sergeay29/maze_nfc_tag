@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -62,13 +62,12 @@ const Sidebar: React.FC<SidebarProps> = ({ type, collapsed, setCollapsed }) => {
   const { user } = useAuth();
   const isEnterprise = type === 'enterprise';
   const displayName = isEnterprise && user?.enterprise?.name ? user.enterprise.name : 'Maze NFC';
-  const displayLogo = isEnterprise && user?.enterprise?.logo ? user.enterprise.logo : '/images/icons/icons.png';
+  const displayLogo = isEnterprise && user?.enterprise?.logo ? user.enterprise.logo : `${import.meta.env.BASE_URL}images/icons/icons.png`;
 
   return (
     <aside
-      className={`fixed left-0 top-0 h-screen bg-white border-r border-slate/10 transition-all duration-300 z-40 ${
-        collapsed ? 'w-20' : 'w-64'
-      }`}
+      className={`fixed left-0 top-0 h-screen bg-white border-r border-slate/10 transition-all duration-300 z-40 ${collapsed ? 'w-20' : 'w-64'
+        }`}
     >
       <div className="flex flex-col h-full">
         <div className="flex items-center justify-between p-6 border-b border-slate/10">
@@ -102,35 +101,33 @@ const Sidebar: React.FC<SidebarProps> = ({ type, collapsed, setCollapsed }) => {
             {items.map((item) => (
               <li key={item.path}>
                 {collapsed ? (
-                <Tooltip content={item.label} position="right">
+                  <Tooltip content={item.label} position="right">
+                    <NavLink
+                      to={item.path}
+                      className={({ isActive }) =>
+                        `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${isActive
+                          ? 'bg-gradient text-white shadow-soft'
+                          : 'text-slate hover:bg-primary/10 hover:text-primary'
+                        } justify-center px-0`
+                      }
+                    >
+                      <span className="w-5 h-5 flex-shrink-0">{item.icon}</span>
+                    </NavLink>
+                  </Tooltip>
+                ) : (
                   <NavLink
                     to={item.path}
                     className={({ isActive }) =>
-                      `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
-                        isActive
-                          ? 'bg-gradient text-white shadow-soft'
-                          : 'text-slate hover:bg-primary/10 hover:text-primary'
-                      } justify-center px-0`
+                      `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${isActive
+                        ? 'bg-gradient text-white shadow-soft'
+                        : 'text-slate hover:bg-primary/10 hover:text-primary'
+                      }`
                     }
                   >
                     <span className="w-5 h-5 flex-shrink-0">{item.icon}</span>
+                    <span>{item.label}</span>
                   </NavLink>
-                </Tooltip>
-              ) : (
-                <NavLink
-                  to={item.path}
-                  className={({ isActive }) =>
-                    `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
-                      isActive
-                        ? 'bg-gradient text-white shadow-soft'
-                        : 'text-slate hover:bg-primary/10 hover:text-primary'
-                    }`
-                  }
-                >
-                  <span className="w-5 h-5 flex-shrink-0">{item.icon}</span>
-                  <span>{item.label}</span>
-                </NavLink>
-              )}
+                )}
               </li>
             ))}
           </ul>

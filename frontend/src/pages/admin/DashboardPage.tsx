@@ -3,13 +3,11 @@ import {
   Building2,
   CreditCard,
   QrCode,
-  TrendingUp,
-  ArrowUpRight,
-  ArrowDownRight,
+  TrendingUp
 } from 'lucide-react';
 import { StatCard, ChartCard, Card, Avatar, Badge } from '../../components';
 import { getDashboard, getEnterprises } from '../../api/adminApi';
-import type { Scan } from '../../data/mockData';
+import type { AdminScanData } from '../../api/adminApi';
 import type { Enterprise } from '../../data/mockData';
 import { useNavigate } from 'react-router-dom';
 
@@ -23,9 +21,30 @@ interface DashboardStats {
 interface DashboardState {
   stats: DashboardStats;
   scanTrends: Array<{ day: string; scans: number }>;
-  cardStatusBreakdown: Array<{ name: string; value: number; color: string }>;
-  recentScans: Scan[];
+  cardStatusBreakdown: Array<{
+    name: string;
+    value: number;
+    color: string;
+  }>;
+  recentScans: AdminScanData[];
 }
+
+const formatScanTime = (timestamp?: string): string => {
+  if (!timestamp) {
+    return '—';
+  }
+
+  const date = new Date(timestamp);
+
+  if (Number.isNaN(date.getTime())) {
+    return '—';
+  }
+
+  return date.toLocaleTimeString('fr-FR', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
 
 const AdminDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -157,12 +176,9 @@ const AdminDashboard: React.FC = () => {
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="font-medium text-dark">{scan.action}</p>
+                    <p className="font-medium text-dark">{scan.action ?? 'Scan'}</p>
                     <p className="text-sm text-slate">
-                      {new Date(scan.timestamp).toLocaleTimeString('fr-FR', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
+                      {formatScanTime(scan.scannedAt)}
                     </p>
                   </div>
                 </div>

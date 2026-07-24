@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CreditCard, User, UserPlus, X, ToggleLeft, ToggleRight } from 'lucide-react';
-import { Card, Badge, Pagination, Button, Input } from '../../components';
+import { Card, Badge, Pagination, Input } from '../../components';
 import { getEnterpriseCards, assignCard, getClients, updateEnterpriseCardStatus } from '../../api/enterpriseApi';
 import type { NFCCardData, ClientData } from '../../api/enterpriseApi';
 
@@ -144,9 +144,9 @@ const EnterpriseCardsPage: React.FC = () => {
                         disabled={togglingId === card.id}
                         title={card.status === 'active' ? 'Désactiver la carte' : 'Activer la carte'}
                         className={`p-1.5 rounded-lg transition-colors ${togglingId === card.id ? 'opacity-50 cursor-wait' :
-                            card.status === 'active'
-                              ? 'text-green-600 hover:bg-red-50 hover:text-red-600'
-                              : 'text-red-500 hover:bg-green-50 hover:text-green-600'
+                          card.status === 'active'
+                            ? 'text-green-600 hover:bg-red-50 hover:text-red-600'
+                            : 'text-red-500 hover:bg-green-50 hover:text-green-600'
                           }`}
                       >
                         {card.status === 'active'
@@ -201,11 +201,10 @@ const EnterpriseCardsPage: React.FC = () => {
                     key={client.id}
                     onClick={() => handleAssign(client.id)}
                     disabled={assigning}
-                    className={`w-full text-left px-4 py-3 rounded-xl border transition-colors text-sm ${
-                      assignModal.assignedClient?.id === client.id
-                        ? 'border-primary bg-primary/5 text-primary'
-                        : 'border-cloud hover:border-primary hover:bg-primary/5'
-                    }`}
+                    className={`w-full text-left px-4 py-3 rounded-xl border transition-colors text-sm ${assignModal.assignedClient?.id === client.id
+                      ? 'border-primary bg-primary/5 text-primary'
+                      : 'border-cloud hover:border-primary hover:bg-primary/5'
+                      }`}
                   >
                     <p className="font-medium text-dark">{client.name}</p>
                     {client.email && <p className="text-xs text-slate">{client.email}</p>}

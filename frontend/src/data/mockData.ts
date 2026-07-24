@@ -47,6 +47,7 @@ export interface Client {
   enterpriseId: string;
   lastActivity?: string;
   createdAt: string;
+  card?: ClientCard | null;
 }
 
 export interface Service {
@@ -77,6 +78,7 @@ export interface Reward {
 export interface Scan {
   id: string;
   cardId: string;
+  cardNumber?: string;
   clientId: string;
   enterpriseId: string;
   serviceId?: string;
@@ -86,9 +88,13 @@ export interface Scan {
   pointsAdded: number;
   notes?: string;
   client?: Client;
+  clientName?: string;
+  enterpriseName?: string;
   service?: Service;
   card?: NFCCard;
   createdAt: string;
+  timestamp?: string;
+  action?: string;
 }
 
 export interface PointsHistory {
@@ -212,6 +218,14 @@ export const nfcCards: NFCCard[] = [
     createdAt: '2024-05-03T09:45:00Z',
   },
 ];
+
+interface ClientCard {
+  id: string;
+  cardNumber: string;
+  cardCode?: string;
+  status?: 'active' | 'inactive' | 'unassigned';
+}
+
 
 export const clients: Client[] = [
   {

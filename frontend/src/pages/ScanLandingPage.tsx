@@ -342,7 +342,6 @@ const ScanLandingPage: React.FC = () => {
   // ── Résultat scan service ─────────────────────────────────────────────────
 
   if (scanResult) {
-    const ScanIcon = scanResult.service.icon ? icons[scanResult.service.icon] : null;
     const available = scanResult.rewards.filter((r) => scanResult.availableRewards.includes(r.id));
     const locked = scanResult.rewards.filter((r) => !scanResult.availableRewards.includes(r.id));
     return (

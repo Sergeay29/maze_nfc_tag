@@ -2,12 +2,32 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Clock } from 'lucide-react';
 import { Badge, Table, SearchInput, Card, Avatar } from '../../components';
 import { getScans } from '../../api/adminApi';
-import type { Scan } from '../../data/mockData';
-
+import type { AdminScanData } from '../../api/adminApi';
 const PAGE_SIZE = 15;
 
+const formatScanDate = (value?: string): string => {
+  if (!value) {
+    return '—';
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return '—';
+  }
+
+  return date.toLocaleString('fr-FR', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
+
 const ScansPage: React.FC = () => {
-  const [allScans, setAllScans] = useState<Scan[]>([]);
+  const [allScans, setAllScans] =
+    useState<AdminScanData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,7 +70,7 @@ const ScansPage: React.FC = () => {
     {
       key: 'clientName',
       header: 'Client',
-      render: (scan: Scan) => (
+      render: (scan: AdminScanData) => (
         <div className="flex items-center gap-3">
           <Avatar
             name={scan.clientName ?? '?'}
@@ -64,7 +84,7 @@ const ScansPage: React.FC = () => {
     {
       key: 'cardNumber',
       header: 'Carte',
-      render: (scan: Scan) => (
+      render: (scan: AdminScanData) => (
         <span className="font-mono text-primary text-sm">{scan.cardNumber ?? '—'}</span>
       ),
       className: 'hidden md:table-cell',
@@ -72,7 +92,7 @@ const ScansPage: React.FC = () => {
     {
       key: 'enterpriseName',
       header: 'Entreprise',
-      render: (scan: Scan) => (
+      render: (scan: AdminScanData) => (
         <span className="text-dark">{scan.enterpriseName ?? '—'}</span>
       ),
       className: 'hidden sm:table-cell',
@@ -80,24 +100,26 @@ const ScansPage: React.FC = () => {
     {
       key: 'action',
       header: 'Action',
-      render: (scan: Scan) => {
-        const variant = scan.points > 0 ? 'active' : scan.points < 0 ? 'inactive' : 'primary';
+      render: (scan: AdminScanData) => {
+        const points = scan.pointsAdded ?? 0;
+
+        const variant =
+          points > 0
+            ? 'active'
+            : points < 0
+              ? 'inactive'
+              : 'primary';
         return <Badge variant={variant as 'active' | 'inactive' | 'primary'}>{scan.action}</Badge>;
       },
     },
     {
       key: 'timestamp',
       header: 'Heure',
-      render: (scan: Scan) => (
+      render: (scan: AdminScanData) => (
         <div className="flex items-center gap-2 text-slate">
           <Clock className="w-4 h-4" />
           <span className="text-sm">
-            {new Date(scan.timestamp).toLocaleString('fr-FR', {
-              day: '2-digit',
-              month: '2-digit',
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
+            {formatScanDate(scan.scannedAt)}
           </span>
         </div>
       ),

@@ -1,4 +1,6 @@
-import type { Enterprise, NFCCard, Scan } from '../data/mockData';
+import type { Enterprise, NFCCard  } from '../data/mockData';
+import type { CardType } from '../@types/types';
+
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 const TOKEN_STORAGE_KEY = 'maze_nfc_auth_token';
@@ -26,9 +28,39 @@ interface DashboardData {
   };
   scanTrends: Array<{ day: string; scans: number }>;
   cardStatusBreakdown: Array<{ name: string; value: number; color: string }>;
-  recentScans: Scan[];
+  recentScans: AdminScanData[];
 }
 
+export interface AdminScanData {
+  id: string;
+  clientName?: string;
+  enterpriseName?: string;
+  cardNumber?: string;
+  action?: string;
+  pointsAdded?: number;
+  scannedAt?: string;
+}
+
+export interface CardGenerationPayload {
+  enabled: boolean;
+  type: CardType;
+  subtype?: string;
+  scanBaseUrl?: string;
+  quantity: number;
+}
+
+export interface CreateEnterprisePayload
+  extends Omit<Partial<Enterprise>, 'logo'> {
+  name: string;
+  email: string;
+  phone?: string;
+  location?: string;
+  adminFirstName?: string;
+  adminLastName?: string;
+  subscription: 'Starter' | 'Pro' | 'Enterprise';
+  logo?: string;
+  cardGeneration?: CardGenerationPayload;
+}
 async function getAuthToken(): Promise<string> {
   const token = localStorage.getItem(TOKEN_STORAGE_KEY);
   if (!token) {
@@ -164,7 +196,7 @@ export interface GetScansParams {
 
 export async function getScans(
   params: GetScansParams = {}
-): Promise<PaginatedResponse<Scan>> {
+): Promise<PaginatedResponse<AdminScanData>> {
   const query = new URLSearchParams();
   if (params.page) query.append('page', String(params.page));
   if (params.limit) query.append('limit', String(params.limit));
@@ -174,7 +206,7 @@ export async function getScans(
   if (params.endDate) query.append('endDate', params.endDate);
 
   const queryString = query.toString();
-  return request<PaginatedResponse<Scan>>(
+  return request<PaginatedResponse<AdminScanData>>(
     `/admin/scans${queryString ? '?' + queryString : ''}`
   );
 }

@@ -1,20 +1,19 @@
 require("dotenv").config();
 
 const app = require("./app");
+const sequelize = require("./config/database");
 
-const syncDatabase = require("./config/sync");
-const seedRoles = require("./seeds/role.seed");
-const seedAdminUser = require("./seeds/admin.seed");
-const seedDashboardData = require("./seeds/dashboard.seed");
-const seedSettings = require("./seeds/settings.seed");
-const seedEnterpriseUser = require("./seeds/enterprise.seed");
-const seedCardTypes = require("./seeds/cardType.seed");
+const DEFAULT_PORT = 3000;
+const PORT = Number.parseInt(
+  process.env.PORT || DEFAULT_PORT.toString(),
+  10
+);
 
-const PORT = process.env.PORT || 3000;
+let server = null;
+let isShuttingDown = false;
 
-// Validation des variables d'environnement essentielles
 function validateEnv() {
-  const required = [
+  const requiredVariables = [
     "NODE_ENV",
     "JWT_SECRET",
     "DB_HOST",
@@ -24,45 +23,149 @@ function validateEnv() {
     "DB_PASSWORD",
   ];
 
-  // Vérifie Cloudinary seulement si on n'est pas en test (optionnel)
-  if (process.env.NODE_ENV !== "test") {
-    required.push("CLOUDINARY_CLOUD_NAME", "CLOUDINARY_API_KEY", "CLOUDINARY_API_SECRET");
+  const missingVariables = requiredVariables.filter(
+    (variableName) => !process.env[variableName]?.trim()
+  );
+
+  if (missingVariables.length > 0) {
+    throw new Error(
+      `Variables d'environnement manquantes : ${missingVariables.join(", ")}`
+    );
   }
 
-  const missing = required.filter((key) => !process.env[key]);
-
-  if (missing.length > 0) {
-    throw new Error(`Variables d'environnement manquantes : ${missing.join(", ")}`);
+  if (
+    process.env.NODE_ENV === "production" &&
+    process.env.JWT_SECRET.length < 32
+  ) {
+    throw new Error(
+      "JWT_SECRET doit contenir au moins 32 caractères en production"
+    );
   }
 
-  // Vérifie que JWT_SECRET est suffisamment long en production
-  if (process.env.NODE_ENV === "production" && process.env.JWT_SECRET.length < 32) {
-    throw new Error("JWT_SECRET doit contenir au moins 32 caractères en production");
+  if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535) {
+    throw new Error(
+      `PORT invalide : ${process.env.PORT || DEFAULT_PORT}`
+    );
+  }
+
+  const databasePort = Number.parseInt(
+    process.env.DB_PORT,
+    10
+  );
+
+  if (
+    !Number.isInteger(databasePort) ||
+    databasePort < 1 ||
+    databasePort > 65535
+  ) {
+    throw new Error(
+      `DB_PORT invalide : ${process.env.DB_PORT}`
+    );
   }
 }
 
-async function start() {
+async function startServer() {
   try {
     validateEnv();
     console.log("✅ Variables d'environnement validées");
 
-    await syncDatabase();
-    await seedRoles();
-    await seedAdminUser();
-    await seedDashboardData();
-    await seedSettings();
-    await seedEnterpriseUser();
-    await seedCardTypes();
+    /*
+     * Vérification de connexion uniquement.
+     *
+     * Aucune table n'est créée ou modifiée ici.
+     * Les changements de schéma passent exclusivement
+     * par les migrations contrôlées.
+     */
+    await sequelize.authenticate();
+    console.log("✅ Connexion PostgreSQL établie");
 
-    app.listen(PORT, () => {
-      console.log(`🚀 Maze NFC API sur le port ${PORT}`);
-      console.log(`📚 Documentation : http://localhost:${PORT}/api/docs`);
-      console.log(`🌍 Environnement : ${process.env.NODE_ENV}`);
+    server = app.listen(PORT, "0.0.0.0", () => {
+      console.log(
+        `🚀 Maze NFC API démarrée sur le port ${PORT}`
+      );
+
+      console.log(
+        "📚 Documentation disponible sur /api/docs"
+      );
+
+      console.log(
+        `🌍 Environnement : ${process.env.NODE_ENV}`
+      );
     });
   } catch (error) {
-    console.error("❌ Erreur de démarrage :", error.message);
+    console.error(
+      "❌ Échec du démarrage :",
+      error.message
+    );
+
+    process.exitCode = 1;
+  }
+}
+
+async function shutdown(signal) {
+  if (isShuttingDown) {
+    return;
+  }
+
+  isShuttingDown = true;
+
+  console.log(
+    `\n🛑 Signal ${signal} reçu. Arrêt de l'application...`
+  );
+
+  /*
+   * Le délai forcé empêche le conteneur de rester bloqué
+   * indéfiniment pendant son arrêt.
+   */
+  const forceShutdownTimer = setTimeout(() => {
+    console.error(
+      "❌ Arrêt forcé après expiration du délai"
+    );
+
+    process.exit(1);
+  }, 10_000);
+
+  forceShutdownTimer.unref();
+
+  try {
+    if (server) {
+      await new Promise((resolve, reject) => {
+        server.close((error) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+
+          resolve();
+        });
+      });
+
+      console.log("✅ Serveur HTTP arrêté");
+    }
+
+    await sequelize.close();
+    console.log("✅ Connexion PostgreSQL fermée");
+
+    clearTimeout(forceShutdownTimer);
+
+    console.log("✅ Application arrêtée proprement");
+    process.exit(0);
+  } catch (error) {
+    console.error(
+      "❌ Erreur pendant l'arrêt :",
+      error.message
+    );
+
     process.exit(1);
   }
 }
 
-start();
+process.once("SIGTERM", () => {
+  shutdown("SIGTERM");
+});
+
+process.once("SIGINT", () => {
+  shutdown("SIGINT");
+});
+
+startServer();

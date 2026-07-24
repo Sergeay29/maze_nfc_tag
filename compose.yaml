@@ -1,0 +1,168 @@
+name: maze-nfc
+
+services:
+  postgres:
+    image: postgres:17-bookworm
+    container_name: maze-nfc-postgres
+
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
+    volumes:
+      - maze_postgres_data:/var/lib/postgresql/data
+
+    networks:
+      - maze_private
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\"",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+    security_opt:
+      - no-new-privileges:true
+
+  backend:
+    image: maze-nfc-backend:local
+    container_name: maze-nfc-backend
+
+    restart: unless-stopped
+
+    env_file:
+      - .env.production
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    ports:
+      - "127.0.0.1:3001:3000"
+
+    volumes:
+      - maze_uploads:/app/uploads
+
+    networks:
+      - maze_private
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/health').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+    security_opt:
+      - no-new-privileges:true
+
+    init: true
+
+  frontend:
+    image: maze-nfc-frontend:local
+    container_name: maze-nfc-frontend
+
+    restart: unless-stopped
+
+    depends_on:
+      backend:
+        condition: service_healthy
+
+    ports:
+      - "127.0.0.1:8081:80"
+
+    networks:
+      - maze_private
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget --quiet --tries=1 --spider http://127.0.0.1/health || exit 1",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+    security_opt:
+      - no-new-privileges:true
+
+  migrate:
+    image: maze-nfc-backend:local
+    container_name: maze-nfc-migrate
+
+    profiles:
+      - tools
+
+    env_file:
+      - .env.production
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    command:
+      - npm
+      - run
+      - db:migrate
+
+    networks:
+      - maze_private
+
+    security_opt:
+      - no-new-privileges:true
+
+  seed:
+    image: maze-nfc-backend:local
+    container_name: maze-nfc-seed
+
+    profiles:
+      - tools
+
+    env_file:
+      - .env.production
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    command:
+      - npm
+      - run
+      - db:seed:production
+
+    networks:
+      - maze_private
+
+    security_opt:
+      - no-new-privileges:true
+
+   
+    init: true
+
+volumes:
+  maze_postgres_data:
+    name: maze-nfc-postgres-data
+
+  maze_uploads:
+    name: maze-nfc-uploads
+
+networks:
+  maze_private:
+    name: maze-nfc-private
+    driver: bridge

@@ -8,6 +8,7 @@ const ClientProfilePage: React.FC = () => {
   const client = clients[0];
   const totalPoints = pointsHistory.reduce((sum, h) => sum + h.points, 0);
 
+
   return (
     <div className="min-h-screen bg-cloud pb-24">
       <div className="bg-white px-6 py-8 text-center border-b border-slate/10">
@@ -53,7 +54,7 @@ const ClientProfilePage: React.FC = () => {
               </div>
               <div>
                 <p className="text-xs text-slate">Carte NFC</p>
-                <p className="text-sm font-mono font-medium text-primary">{client.cardNumber}</p>
+                <p className="text-sm font-mono font-medium text-primary">{client.card?.cardNumber ?? 'Aucune carte attribuée'}</p>
               </div>
             </div>
           </div>
