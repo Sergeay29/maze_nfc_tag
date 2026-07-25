@@ -15,6 +15,17 @@ const { Op } = require("sequelize");
 const sequelize = require("../config/database");
 const bcrypt = require("bcryptjs");
 
+/**
+ * Générer un mot de passe aléatoire
+ */
+function generateRandomPassword(length = 12) {
+  const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+  let password = "";
+  for (let i = 0; i < length; i++) {
+    password += charset.charAt(Math.floor(Math.random() * charset.length));
+  }
+  return password;
+}
 
 /**
  * 
@@ -1773,6 +1784,463 @@ exports.updateSettings = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Erreur lors de la mise à jour des paramètres",
+    });
+  }
+};
+
+
+// ─────────────────────────────────────────────────────────────
+// GESTION DES UTILISATEURS
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * GET /api/admin/users
+ * Liste tous les utilisateurs avec pagination
+ */
+exports.getUsers = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const offset = (page - 1) * limit;
+    const { search, roleId, isActive, enterpriseId } = req.query;
+
+    const where = {};
+
+    // Filtre par rôle
+    if (roleId) {
+      where.roleId = roleId;
+    }
+
+    // Filtre par statut actif/inactif
+    if (isActive !== undefined && isActive !== '') {
+      where.isActive = isActive === 'true';
+    }
+
+    // Filtre par entreprise
+    if (enterpriseId) {
+      where.enterpriseId = enterpriseId;
+    }
+
+    // Filtre recherche sur nom, prénom ou email
+    if (search && search.trim()) {
+      where[Op.or] = [
+        { firstName: { [Op.iLike]: `%${search.trim()}%` } },
+        { lastName: { [Op.iLike]: `%${search.trim()}%` } },
+        { email: { [Op.iLike]: `%${search.trim()}%` } },
+      ];
+    }
+
+    const { count, rows } = await User.findAndCountAll({
+      where,
+      limit,
+      offset,
+      order: [["createdAt", "DESC"]],
+      include: [
+        {
+          model: Role,
+          attributes: ["id", "name", "description"],
+        },
+        {
+          model: Enterprise,
+          as: "enterprise",
+          attributes: ["id", "name", "logo"],
+        },
+      ],
+    });
+
+    res.json({
+      success: true,
+      data: {
+        data: rows,
+        total: count,
+        page,
+        limit,
+        pages: Math.ceil(count / limit),
+      },
+    });
+  } catch (error) {
+    console.error("Get users error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Erreur lors de la récupération des utilisateurs",
+    });
+  }
+};
+
+/**
+ * GET /api/admin/users/:id
+ * Détails d'un utilisateur
+ */
+exports.getUserDetail = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const user = await User.findByPk(id, {
+      include: [
+        {
+          model: Role,
+          attributes: ["id", "name", "description"],
+        },
+        {
+          model: Enterprise,
+          as: "enterprise",
+          attributes: ["id", "name", "logo", "status", "subscription"],
+        },
+      ],
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "Utilisateur non trouvé",
+      });
+    }
+
+    res.json({
+      success: true,
+      data: user,
+    });
+  } catch (error) {
+    console.error("Get user detail error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Erreur lors de la récupération de l'utilisateur",
+    });
+  }
+};
+
+/**
+ * POST /api/admin/users
+ * Créer un nouvel utilisateur
+ */
+exports.createUser = async (req, res) => {
+  try {
+    const {
+      firstName,
+      lastName,
+      email,
+      password,
+      roleId,
+      enterpriseId,
+      isActive,
+      mustChangePassword,
+    } = req.body;
+
+    // Validation
+    if (!firstName || !lastName || !email || !roleId) {
+      return res.status(400).json({
+        success: false,
+        message: "Prénom, nom, email et rôle sont requis",
+      });
+    }
+
+    // Vérifier unicité email
+    const existingUser = await User.findOne({ where: { email } });
+    if (existingUser) {
+      return res.status(409).json({
+        success: false,
+        message: "Un utilisateur avec cet email existe déjà",
+      });
+    }
+
+    // Vérifier que le rôle existe
+    const role = await Role.findByPk(roleId);
+    if (!role) {
+      return res.status(404).json({
+        success: false,
+        message: "Rôle introuvable",
+      });
+    }
+
+    // Si enterpriseId fourni, vérifier que l'entreprise existe
+    if (enterpriseId) {
+      const enterprise = await Enterprise.findByPk(enterpriseId);
+      if (!enterprise) {
+        return res.status(404).json({
+          success: false,
+          message: "Entreprise introuvable",
+        });
+      }
+    }
+
+    // Générer un mot de passe si non fourni
+    const plainPassword = password || generateRandomPassword(12);
+    const hashedPassword = await bcrypt.hash(plainPassword, 10);
+
+    // Créer l'utilisateur
+    const user = await User.create({
+      firstName,
+      lastName,
+      email,
+      password: hashedPassword,
+      roleId,
+      enterpriseId: enterpriseId || null,
+      isActive: isActive !== undefined ? isActive : true,
+      mustChangePassword: mustChangePassword !== undefined ? mustChangePassword : !password,
+    });
+
+    // Charger l'utilisateur avec ses relations
+    const createdUser = await User.findByPk(user.id, {
+      include: [
+        {
+          model: Role,
+          attributes: ["id", "name", "description"],
+        },
+        {
+          model: Enterprise,
+          as: "enterprise",
+          attributes: ["id", "name", "logo"],
+        },
+      ],
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Utilisateur créé avec succès",
+      data: {
+        user: createdUser,
+        generatedPassword: password ? undefined : plainPassword,
+      },
+    });
+  } catch (error) {
+    console.error("Create user error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Erreur lors de la création de l'utilisateur",
+    });
+  }
+};
+
+/**
+ * PUT /api/admin/users/:id
+ * Mettre à jour un utilisateur
+ */
+exports.updateUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      firstName,
+      lastName,
+      email,
+      roleId,
+      enterpriseId,
+      isActive,
+      mustChangePassword,
+      password,
+    } = req.body;
+
+    const user = await User.findByPk(id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "Utilisateur non trouvé",
+      });
+    }
+
+    // Vérifier unicité email si changé
+    if (email && email !== user.email) {
+      const existingUser = await User.findOne({ where: { email } });
+      if (existingUser) {
+        return res.status(409).json({
+          success: false,
+          message: "Un utilisateur avec cet email existe déjà",
+        });
+      }
+    }
+
+    // Vérifier que le rôle existe si changé
+    if (roleId && roleId !== user.roleId) {
+      const role = await Role.findByPk(roleId);
+      if (!role) {
+        return res.status(404).json({
+          success: false,
+          message: "Rôle introuvable",
+        });
+      }
+    }
+
+    // Vérifier que l'entreprise existe si changée
+    if (enterpriseId && enterpriseId !== user.enterpriseId) {
+      const enterprise = await Enterprise.findByPk(enterpriseId);
+      if (!enterprise) {
+        return res.status(404).json({
+          success: false,
+          message: "Entreprise introuvable",
+        });
+      }
+    }
+
+    // Préparer les données de mise à jour
+    const updateData = {
+      firstName: firstName !== undefined ? firstName : user.firstName,
+      lastName: lastName !== undefined ? lastName : user.lastName,
+      email: email !== undefined ? email : user.email,
+      roleId: roleId !== undefined ? roleId : user.roleId,
+      enterpriseId: enterpriseId !== undefined ? enterpriseId : user.enterpriseId,
+      isActive: isActive !== undefined ? isActive : user.isActive,
+      mustChangePassword: mustChangePassword !== undefined ? mustChangePassword : user.mustChangePassword,
+    };
+
+    // Si un nouveau mot de passe est fourni, le hasher
+    if (password) {
+      updateData.password = await bcrypt.hash(password, 10);
+      updateData.mustChangePassword = true;
+    }
+
+    // Mettre à jour l'utilisateur
+    await user.update(updateData);
+
+    // Charger l'utilisateur avec ses relations
+    const updatedUser = await User.findByPk(id, {
+      include: [
+        {
+          model: Role,
+          attributes: ["id", "name", "description"],
+        },
+        {
+          model: Enterprise,
+          as: "enterprise",
+          attributes: ["id", "name", "logo"],
+        },
+      ],
+    });
+
+    res.json({
+      success: true,
+      message: "Utilisateur mis à jour avec succès",
+      data: updatedUser,
+    });
+  } catch (error) {
+    console.error("Update user error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Erreur lors de la mise à jour de l'utilisateur",
+    });
+  }
+};
+
+/**
+ * DELETE /api/admin/users/:id
+ * Supprimer un utilisateur
+ */
+exports.deleteUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const user = await User.findByPk(id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "Utilisateur non trouvé",
+      });
+    }
+
+    // Empêcher la suppression de son propre compte
+    if (user.id === req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: "Vous ne pouvez pas supprimer votre propre compte",
+      });
+    }
+
+    await user.destroy();
+
+    res.json({
+      success: true,
+      message: "Utilisateur supprimé avec succès",
+    });
+  } catch (error) {
+    console.error("Delete user error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Erreur lors de la suppression de l'utilisateur",
+    });
+  }
+};
+
+/**
+ * PATCH /api/admin/users/:id/toggle-status
+ * Activer/désactiver un utilisateur
+ */
+exports.toggleUserStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const user = await User.findByPk(id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "Utilisateur non trouvé",
+      });
+    }
+
+    // Empêcher la désactivation de son propre compte
+    if (user.id === req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: "Vous ne pouvez pas désactiver votre propre compte",
+      });
+    }
+
+    // Inverser le statut
+    await user.update({ isActive: !user.isActive });
+
+    res.json({
+      success: true,
+      message: `Utilisateur ${user.isActive ? 'activé' : 'désactivé'} avec succès`,
+      data: { isActive: user.isActive },
+    });
+  } catch (error) {
+    console.error("Toggle user status error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Erreur lors du changement de statut",
+    });
+  }
+};
+
+/**
+ * POST /api/admin/users/:id/reset-password
+ * Réinitialiser le mot de passe d'un utilisateur
+ */
+exports.resetUserPassword = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const user = await User.findByPk(id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "Utilisateur non trouvé",
+      });
+    }
+
+    // Générer un nouveau mot de passe
+    const newPassword = generateRandomPassword(12);
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Mettre à jour le mot de passe et forcer le changement
+    await user.update({
+      password: hashedPassword,
+      mustChangePassword: true,
+    });
+
+    res.json({
+      success: true,
+      message: "Mot de passe réinitialisé avec succès",
+      data: {
+        newPassword,
+      },
+    });
+  } catch (error) {
+    console.error("Reset password error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Erreur lors de la réinitialisation du mot de passe",
     });
   }
 };

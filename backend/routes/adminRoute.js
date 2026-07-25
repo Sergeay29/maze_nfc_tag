@@ -517,6 +517,15 @@ router.put("/subscriptions/:id", adminController.updateSubscription);
  *     parameters:
  *       - in: query
  *         name: page
+/**
+ * @swagger
+ * /api/admin/users:
+ *   get:
+ *     tags: [Admin]
+ *     summary: Liste tous les utilisateurs
+ *     parameters:
+ *       - in: query
+ *         name: page
  *         schema: { type: integer, default: 1 }
  *       - in: query
  *         name: limit
@@ -525,11 +534,195 @@ router.put("/subscriptions/:id", adminController.updateSubscription);
  *         name: search
  *         schema: { type: string }
  *         description: Recherche sur prénom, nom ou email
+ *       - in: query
+ *         name: roleId
+ *         schema: { type: string, format: uuid }
+ *         description: Filtrer par rôle
+ *       - in: query
+ *         name: isActive
+ *         schema: { type: boolean }
+ *         description: Filtrer par statut actif/inactif
+ *       - in: query
+ *         name: enterpriseId
+ *         schema: { type: string, format: uuid }
+ *         description: Filtrer par entreprise
  *     responses:
  *       200:
  *         description: Liste paginée des utilisateurs (mot de passe exclu)
  */
 router.get("/users", adminController.getUsers);
+
+/**
+ * @swagger
+ * /api/admin/users/{id}:
+ *   get:
+ *     tags: [Admin]
+ *     summary: Détails d'un utilisateur
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     responses:
+ *       200:
+ *         description: Détails de l'utilisateur
+ *       404:
+ *         description: Utilisateur non trouvé
+ */
+router.get("/users/:id", adminController.getUserDetail);
+
+/**
+ * @swagger
+ * /api/admin/users:
+ *   post:
+ *     tags: [Admin]
+ *     summary: Créer un nouvel utilisateur
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [firstName, lastName, email, roleId]
+ *             properties:
+ *               firstName: { type: string }
+ *               lastName: { type: string }
+ *               email: { type: string, format: email }
+ *               password: { type: string, description: "Si non fourni, un mot de passe sera généré automatiquement" }
+ *               roleId: { type: string, format: uuid }
+ *               enterpriseId: { type: string, format: uuid }
+ *               isActive: { type: boolean, default: true }
+ *               mustChangePassword: { type: boolean, default: true }
+ *     responses:
+ *       201:
+ *         description: Utilisateur créé avec succès
+ *       409:
+ *         description: Email déjà utilisé
+ */
+router.post("/users", adminController.createUser);
+
+/**
+ * @swagger
+ * /api/admin/users/{id}:
+ *   put:
+ *     tags: [Admin]
+ *     summary: Mettre à jour un utilisateur
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               firstName: { type: string }
+ *               lastName: { type: string }
+ *               email: { type: string, format: email }
+ *               password: { type: string }
+ *               roleId: { type: string, format: uuid }
+ *               enterpriseId: { type: string, format: uuid }
+ *               isActive: { type: boolean }
+ *               mustChangePassword: { type: boolean }
+ *     responses:
+ *       200:
+ *         description: Utilisateur mis à jour
+ *       404:
+ *         description: Utilisateur non trouvé
+ *       409:
+ *         description: Email déjà utilisé
+ */
+router.put("/users/:id", adminController.updateUser);
+
+/**
+ * @swagger
+ * /api/admin/users/{id}:
+ *   delete:
+ *     tags: [Admin]
+ *     summary: Supprimer un utilisateur
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     responses:
+ *       200:
+ *         description: Utilisateur supprimé
+ *       403:
+ *         description: Impossible de supprimer son propre compte
+ *       404:
+ *         description: Utilisateur non trouvé
+ */
+router.delete("/users/:id", adminController.deleteUser);
+
+/**
+ * @swagger
+ * /api/admin/users/{id}/toggle-status:
+ *   patch:
+ *     tags: [Admin]
+ *     summary: Activer/désactiver un utilisateur
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     responses:
+ *       200:
+ *         description: Statut de l'utilisateur modifié
+ *       403:
+ *         description: Impossible de désactiver son propre compte
+ *       404:
+ *         description: Utilisateur non trouvé
+ */
+router.patch("/users/:id/toggle-status", adminController.toggleUserStatus);
+
+/**
+ * @swagger
+ * /api/admin/users/{id}/reset-password:
+ *   post:
+ *     tags: [Admin]
+ *     summary: Réinitialiser le mot de passe d'un utilisateur
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     responses:
+ *       200:
+ *         description: Mot de passe réinitialisé avec succès
+ *       404:
+ *         description: Utilisateur non trouvé
+ */
+router.post("/users/:id/reset-password", adminController.resetUserPassword);
+
+// ─────────────────────────────────────────────────────────────
+// ROLES
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * @swagger
+ * /api/admin/roles:
+ *   get:
+ *     tags: [Admin]
+ *     summary: Liste tous les rôles disponibles
+ *     responses:
+ *       200:
+ *         description: Liste des rôles
+ */
+router.get("/roles", async (req, res) => {
+    try {
+        const { Role } = require("../models");
+        const roles = await Role.findAll({
+            order: [["name", "ASC"]],
+        });
+        res.json({ success: true, data: roles });
+    } catch (error) {
+        res.status(500).json({ success: false, message: "Erreur lors de la récupération des rôles" });
+    }
+});
 
 // ─────────────────────────────────────────────────────────────
 // PARAMÈTRES

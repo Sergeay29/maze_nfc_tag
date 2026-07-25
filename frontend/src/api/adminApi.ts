@@ -480,23 +480,118 @@ export interface AdminUser {
   lastName: string;
   email: string;
   isActive: boolean;
+  mustChangePassword?: boolean;
+  roleId: string;
+  enterpriseId?: string | null;
   createdAt: string;
-  Role?: { id: string; name: string };
+  Role?: { id: string; name: string; description?: string };
+  enterprise?: { id: string; name: string; logo?: string } | null;
 }
 
-export async function getUsers(params: {
-  page?: number;
-  limit?: number;
-  search?: string;
-} = {}): Promise<PaginatedResponse<AdminUser>> {
+export interface CreateUserPayload {
+  firstName: string;
+  lastName: string;
+  email: string;
+  password?: string;
+  roleId: string;
+  enterpriseId?: string | null;
+  isActive?: boolean;
+  mustChangePassword?: boolean;
+}
+
+export interface UpdateUserPayload {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  password?: string;
+  roleId?: string;
+  enterpriseId?: string | null;
+  isActive?: boolean;
+  mustChangePassword?: boolean;
+}
+
+export async function getUsers(
+  params: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    roleId?: string;
+    isActive?: boolean;
+    enterpriseId?: string;
+  } = {},
+): Promise<PaginatedResponse<AdminUser>> {
   const query = new URLSearchParams();
-  if (params.page) query.append('page', String(params.page));
-  if (params.limit) query.append('limit', String(params.limit));
-  if (params.search) query.append('search', params.search);
+  if (params.page) query.append("page", String(params.page));
+  if (params.limit) query.append("limit", String(params.limit));
+  if (params.search) query.append("search", params.search);
+  if (params.roleId) query.append("roleId", params.roleId);
+  if (params.isActive !== undefined)
+    query.append("isActive", String(params.isActive));
+  if (params.enterpriseId) query.append("enterpriseId", params.enterpriseId);
   const qs = query.toString();
   return request<PaginatedResponse<AdminUser>>(
-    `/admin/users${qs ? '?' + qs : ''}`
+    `/admin/users${qs ? "?" + qs : ""}`,
   );
+}
+
+export async function getUserDetail(id: string): Promise<AdminUser> {
+  return request<AdminUser>(`/admin/users/${id}`);
+}
+
+export async function createUser(
+  payload: CreateUserPayload,
+): Promise<{ user: AdminUser; generatedPassword?: string }> {
+  return request<{ user: AdminUser; generatedPassword?: string }>(
+    "/admin/users",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+export async function updateUser(
+  id: string,
+  payload: UpdateUserPayload,
+): Promise<AdminUser> {
+  return request<AdminUser>(`/admin/users/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteUser(id: string): Promise<void> {
+  await request<void>(`/admin/users/${id}`, {
+    method: "DELETE",
+  });
+}
+
+export async function toggleUserStatus(
+  id: string,
+): Promise<{ isActive: boolean }> {
+  return request<{ isActive: boolean }>(`/admin/users/${id}/toggle-status`, {
+    method: "PATCH",
+  });
+}
+
+export async function resetUserPassword(
+  id: string,
+): Promise<{ newPassword: string }> {
+  return request<{ newPassword: string }>(`/admin/users/${id}/reset-password`, {
+    method: "POST",
+  });
+}
+
+// ─── Roles ────────────────────────────────────────────────────
+
+export interface Role {
+  id: string;
+  name: string;
+  description?: string;
+}
+
+export async function getRoles(): Promise<Role[]> {
+  return request<Role[]>("/admin/roles");
 }
 
 // ─── Settings ─────────────────────────────────────────────────
