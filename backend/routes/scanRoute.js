@@ -59,7 +59,7 @@ router.get("/card/:token", scanController.getCardInfo);
  *                 type: string
  *     responses:
  *       200:
- *         description: Client trouvé ou non (found: boolean)
+ *         description: "Client trouvé ou non (found: boolean)"
  *       400:
  *         description: Données manquantes
  */

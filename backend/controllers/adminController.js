@@ -970,19 +970,46 @@ exports.generateStockCards = async (req, res) => {
     const now = new Date();
     const batchId = `BATCH-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
 
-    // Préfixe neutre pour le stock : STK + auto-incrément global
-    const existingCount = await NFCCard.count({
-      where: { cardNumber: { [Op.like]: `STK-%` } },
+    // Récupérer tous les cardCodes et scanTokens existants pour éviter les collisions
+    const existingCards = await NFCCard.findAll({
+      attributes: ["cardCode", "scanToken", "cardNumber"],
+      raw: true,
     });
+    const usedCardCodes = new Set(existingCards.map((c) => c.cardCode));
+    const usedScanTokens = new Set(existingCards.map((c) => c.scanToken));
+    const usedCardNumbers = new Set(existingCards.map((c) => c.cardNumber));
+
+    // Compter les cartes STK existantes pour le numérotation séquentielle
+    const existingCount = existingCards.filter((c) => c.cardNumber?.startsWith("STK-")).length;
 
     const cards = [];
+    let suffixCounter = existingCount + 1;
+
     for (let i = 0; i < qty; i++) {
-      const cardCode = generateCardCode();
-      const scanToken = generateCardScanToken();
-      const suffix = String(existingCount + i + 1).padStart(6, "0");
+      // Générer un cardCode unique (avec retry en cas de collision)
+      let cardCode;
+      do {
+        cardCode = generateCardCode();
+      } while (usedCardCodes.has(cardCode));
+      usedCardCodes.add(cardCode);
+
+      // Générer un scanToken unique (avec retry en cas de collision)
+      let scanToken;
+      do {
+        scanToken = generateCardScanToken();
+      } while (usedScanTokens.has(scanToken));
+      usedScanTokens.add(scanToken);
+
+      // Générer un cardNumber unique en incrémentant jusqu'à trouver un libre
+      let cardNumber;
+      do {
+        cardNumber = `STK-${String(suffixCounter).padStart(6, "0")}`;
+        suffixCounter++;
+      } while (usedCardNumbers.has(cardNumber));
+      usedCardNumbers.add(cardNumber);
 
       cards.push({
-        cardNumber: `STK-${suffix}`,
+        cardNumber,
         cardCode,
         scanToken,
         enterpriseId: null,  // Pas d'entreprise : stock global
@@ -996,7 +1023,8 @@ exports.generateStockCards = async (req, res) => {
       });
     }
 
-    const created = await NFCCard.bulkCreate(cards, { ignoreDuplicates: true });
+    // bulkCreate sans ignoreDuplicates : si un doublon passe malgré tout, l'erreur est remontée
+    const created = await NFCCard.bulkCreate(cards);
 
     res.status(201).json({
       success: true,
