@@ -26,10 +26,10 @@ router.use(requireRole("SUPER_ADMIN"));
  *   get:
  *     tags: [Admin]
  *     summary: Statistiques globales du dashboard
- *     description: Retourne les stats clés, les tendances de scans sur 7 jours, la répartition des cartes et les 5 derniers scans.
+ *     description: "Retourne les stats clés, les tendances de scans sur 7 jours, la répartition des cartes et les 5 derniers scans."
  *     responses:
  *       200:
- *         description: Données du dashboard
+ *         description: "Données du dashboard"
  *         content:
  *           application/json:
  *             schema:
@@ -89,13 +89,13 @@ router.get("/dashboard", adminController.getDashboard);
  *       - in: query
  *         name: search
  *         schema: { type: string }
- *         description: Recherche sur nom ou email
+ *         description: "Recherche sur nom ou email"
  *       - in: query
  *         name: status
  *         schema: { type: string, enum: [all, active, suspended] }
  *     responses:
  *       200:
- *         description: Liste paginée des entreprises
+ *         description: "Liste paginée des entreprises"
  *         content:
  *           application/json:
  *             schema:
@@ -127,9 +127,9 @@ router.get("/enterprises", adminController.getEnterprises);
  *         schema: { type: string, format: uuid }
  *     responses:
  *       200:
- *         description: Détail de l'entreprise avec cartes, clients et scans
+ *         description: "Détail de l'entreprise avec cartes, clients et scans"
  *       404:
- *         description: Entreprise non trouvée
+ *         description: "Entreprise non trouvée"
  */
 router.get("/enterprises/:id", adminController.getEnterpriseDetail);
 
@@ -147,9 +147,9 @@ router.get("/enterprises/:id", adminController.getEnterpriseDetail);
  *             $ref: '#/components/schemas/CreateEnterpriseRequest'
  *     responses:
  *       201:
- *         description: Entreprise créée avec son abonnement
+ *         description: "Entreprise créée avec son abonnement"
  *       409:
- *         description: Email déjà utilisé
+ *         description: "Email déjà utilisé"
  */
 router.post("/enterprises", adminController.createEnterprise);
 
@@ -172,9 +172,9 @@ router.post("/enterprises", adminController.createEnterprise);
  *             $ref: '#/components/schemas/UpdateEnterpriseRequest'
  *     responses:
  *       200:
- *         description: Entreprise mise à jour
+ *         description: "Entreprise mise à jour"
  *       404:
- *         description: Entreprise non trouvée
+ *         description: "Entreprise non trouvée"
  */
 router.put("/enterprises/:id", adminController.updateEnterprise);
 
@@ -191,9 +191,9 @@ router.put("/enterprises/:id", adminController.updateEnterprise);
  *         schema: { type: string, format: uuid }
  *     responses:
  *       200:
- *         description: Entreprise supprimée
+ *         description: "Entreprise supprimée"
  *       404:
- *         description: Entreprise non trouvée
+ *         description: "Entreprise non trouvée"
  */
 router.delete("/enterprises/:id", adminController.deleteEnterprise);
 
@@ -210,9 +210,9 @@ router.delete("/enterprises/:id", adminController.deleteEnterprise);
  *         schema: { type: string, format: uuid }
  *     responses:
  *       200:
- *         description: Liste des services de l'entreprise
+ *         description: "Liste des services de l'entreprise"
  *       404:
- *         description: Entreprise non trouvée
+ *         description: "Entreprise non trouvée"
  */
 router.get("/enterprises/:id/services", adminController.getEnterpriseServices);
 
@@ -241,7 +241,7 @@ router.get("/enterprises/:id/services", adminController.getEnterpriseServices);
  *         schema: { type: string, format: uuid }
  *     responses:
  *       200:
- *         description: Liste paginée des cartes
+ *         description: "Liste paginée des cartes"
  */
 router.get("/cards", adminController.getCards);
 
@@ -255,10 +255,10 @@ router.get("/cards", adminController.getCards);
  *       - in: query
  *         name: enterpriseId
  *         schema: { type: string, format: uuid }
- *         description: Filtrer par entreprise
+ *         description: "Filtrer par entreprise"
  *     responses:
  *       200:
- *         description: Liste des cartes non attribuées
+ *         description: "Liste des cartes non attribuées"
  */
 router.get("/cards/unassigned", adminController.getUnassignedCards);
 
@@ -276,7 +276,7 @@ router.get("/cards/unassigned", adminController.getUnassignedCards);
  *             $ref: '#/components/schemas/GenerateCardsRequest'
  *     responses:
  *       201:
- *         description: Cartes générées
+ *         description: "Cartes générées"
  *         content:
  *           application/json:
  *             schema:
@@ -289,7 +289,7 @@ router.get("/cards/unassigned", adminController.getUnassignedCards);
  *                   properties:
  *                     generated: { type: integer, example: 10 }
  *       400:
- *         description: Paramètres invalides
+ *         description: "Paramètres invalides"
  */
 router.post("/cards/generate", adminController.generateCards);
 
@@ -298,7 +298,7 @@ router.post("/cards/generate", adminController.generateCards);
  * /api/admin/cards/generate-stock:
  *   post:
  *     tags: [Admin]
- *     summary: Générer des cartes dans le stock global Maze (sans entreprise)
+ *     summary: "Générer des cartes dans le stock global Maze (sans entreprise)"
  *     requestBody:
  *       required: true
  *       content:
@@ -312,7 +312,7 @@ router.post("/cards/generate", adminController.generateCards);
  *               quantity: { type: integer, minimum: 1, maximum: 5000 }
  *     responses:
  *       201:
- *         description: Cartes ajoutées au stock global avec un batchId
+ *         description: "Cartes ajoutées au stock global avec un batchId"
  */
 router.post("/cards/generate-stock", adminController.generateStockCards);
 
@@ -321,7 +321,7 @@ router.post("/cards/generate-stock", adminController.generateStockCards);
  * /api/admin/cards/assign-to-enterprise:
  *   post:
  *     tags: [Admin]
- *     summary: Assigner un lot de cartes du stock global à une entreprise
+ *     summary: "Assigner un lot de cartes du stock global à une entreprise"
  *     requestBody:
  *       required: true
  *       content:
@@ -337,7 +337,7 @@ router.post("/cards/generate-stock", adminController.generateStockCards);
  *               quantity: { type: integer, description: "Quantité à prendre du stock (avec cardTypeId)" }
  *     responses:
  *       200:
- *         description: Cartes assignées à l'entreprise
+ *         description: "Cartes assignées à l'entreprise"
  */
 router.post("/cards/assign-to-enterprise", adminController.assignStockToEnterprise);
 
@@ -353,7 +353,7 @@ router.post("/cards/assign-to-enterprise", adminController.assignStockToEnterpri
  *         schema: { type: string, format: uuid }
  *     responses:
  *       200:
- *         description: Stock global par type et par lot
+ *         description: "Stock global par type et par lot"
  */
 router.get("/cards/stock-global", adminController.getGlobalStock);
 
@@ -371,9 +371,9 @@ router.get("/cards/stock-global", adminController.getGlobalStock);
  *             $ref: '#/components/schemas/AssignCardRequest'
  *     responses:
  *       201:
- *         description: Carte attribuée, client créé
+ *         description: "Carte attribuée, client créé"
  *       404:
- *         description: Carte introuvable ou déjà attribuée
+ *         description: "Carte introuvable ou déjà attribuée"
  */
 router.post("/cards/assign", adminController.assignCard);
 router.get("/cards/stock", adminController.getCardStock);
@@ -402,7 +402,7 @@ router.get("/cards/stock", adminController.getCardStock);
  *                 enum: [active, inactive]
  *     responses:
  *       200:
- *         description: Statut mis à jour
+ *         description: "Statut mis à jour"
  */
 router.patch("/cards/:id/status", adminController.updateCardStatus);
 
@@ -433,13 +433,13 @@ router.delete("/card-types/:id", adminController.deleteCardType);
  *       - in: query
  *         name: search
  *         schema: { type: string }
- *         description: Recherche par nom de client
+ *         description: "Recherche par nom de client"
  *       - in: query
  *         name: enterpriseId
  *         schema: { type: string, format: uuid }
  *     responses:
  *       200:
- *         description: Liste paginée des scans avec client, carte et entreprise aplatis
+ *         description: "Liste paginée des scans avec client, carte et entreprise aplatis"
  */
 router.get("/scans", adminController.getScans);
 
@@ -468,7 +468,7 @@ router.get("/scans", adminController.getScans);
  *         schema: { type: string, enum: [active, paused, cancelled] }
  *     responses:
  *       200:
- *         description: Liste paginée des abonnements avec stats revenus
+ *         description: "Liste paginée des abonnements avec stats revenus"
  */
 router.get("/subscriptions", adminController.getSubscriptions);
 
@@ -477,7 +477,7 @@ router.get("/subscriptions", adminController.getSubscriptions);
  * /api/admin/subscriptions/{id}:
  *   put:
  *     tags: [Admin]
- *     summary: Mettre à jour un abonnement (plan ou statut)
+ *     summary: "Mettre à jour un abonnement (plan ou statut)"
  *     parameters:
  *       - in: path
  *         name: id
@@ -498,9 +498,9 @@ router.get("/subscriptions", adminController.getSubscriptions);
  *                 enum: [active, paused, cancelled]
  *     responses:
  *       200:
- *         description: Abonnement mis à jour
+ *         description: "Abonnement mis à jour"
  *       404:
- *         description: Abonnement non trouvé
+ *         description: "Abonnement non trouvé"
  */
 router.put("/subscriptions/:id", adminController.updateSubscription);
 
@@ -524,12 +524,189 @@ router.put("/subscriptions/:id", adminController.updateSubscription);
  *       - in: query
  *         name: search
  *         schema: { type: string }
- *         description: Recherche sur prénom, nom ou email
+ *         description: "Recherche sur prénom, nom ou email"
  *     responses:
  *       200:
- *         description: Liste paginée des utilisateurs (mot de passe exclu)
+ *         description: "Liste paginée des utilisateurs (mot de passe exclu)"
  */
 router.get("/users", adminController.getUsers);
+
+// ─────────────────────────────────────────────────────────────
+// PARAMÈTRES
+// ─────────────────────────────────────────────────────────────
+
+
+/**
+ * @swagger
+ * /api/admin/users/{id}:
+ *   get:
+ *     tags: [Admin]
+ *     summary: Détails d'un utilisateur
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     responses:
+ *       200:
+ *         description: "Détails de l'utilisateur"
+ *       404:
+ *         description: "Utilisateur non trouvé"
+ */
+router.get("/users/:id", adminController.getUserDetail);
+
+/**
+ * @swagger
+ * /api/admin/users:
+ *   post:
+ *     tags: [Admin]
+ *     summary: Créer un nouvel utilisateur
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [firstName, lastName, email, roleId]
+ *             properties:
+ *               firstName: { type: string }
+ *               lastName: { type: string }
+ *               email: { type: string, format: email }
+ *               password: { type: string, description: "Si non fourni, un mot de passe sera généré automatiquement" }
+ *               roleId: { type: string, format: uuid }
+ *               enterpriseId: { type: string, format: uuid }
+ *               isActive: { type: boolean, default: true }
+ *               mustChangePassword: { type: boolean, default: true }
+ *     responses:
+ *       201:
+ *         description: "Utilisateur créé avec succès"
+ *       409:
+ *         description: "Email déjà utilisé"
+ */
+router.post("/users", adminController.createUser);
+
+/**
+ * @swagger
+ * /api/admin/users/{id}:
+ *   put:
+ *     tags: [Admin]
+ *     summary: Mettre à jour un utilisateur
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               firstName: { type: string }
+ *               lastName: { type: string }
+ *               email: { type: string, format: email }
+ *               password: { type: string }
+ *               roleId: { type: string, format: uuid }
+ *               enterpriseId: { type: string, format: uuid }
+ *               isActive: { type: boolean }
+ *               mustChangePassword: { type: boolean }
+ *     responses:
+ *       200:
+ *         description: "Utilisateur mis à jour"
+ *       404:
+ *         description: "Utilisateur non trouvé"
+ *       409:
+ *         description: "Email déjà utilisé"
+ */
+router.put("/users/:id", adminController.updateUser);
+
+/**
+ * @swagger
+ * /api/admin/users/{id}:
+ *   delete:
+ *     tags: [Admin]
+ *     summary: Supprimer un utilisateur
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     responses:
+ *       200:
+ *         description: "Utilisateur supprimé"
+ *       403:
+ *         description: "Impossible de supprimer son propre compte"
+ *       404:
+ *         description: "Utilisateur non trouvé"
+ */
+router.delete("/users/:id", adminController.deleteUser);
+
+/**
+ * @swagger
+ * /api/admin/users/{id}/toggle-status:
+ *   patch:
+ *     tags: [Admin]
+ *     summary: Activer/désactiver un utilisateur
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     responses:
+ *       200:
+ *         description: "Statut de l'utilisateur modifié"
+ *       403:
+ *         description: "Impossible de désactiver son propre compte"
+ *       404:
+ *         description: "Utilisateur non trouvé"
+ */
+router.patch("/users/:id/toggle-status", adminController.toggleUserStatus);
+
+/**
+ * @swagger
+ * /api/admin/users/{id}/reset-password:
+ *   post:
+ *     tags: [Admin]
+ *     summary: Réinitialiser le mot de passe d'un utilisateur
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     responses:
+ *       200:
+ *         description: "Mot de passe réinitialisé avec succès"
+ *       404:
+ *         description: "Utilisateur non trouvé"
+ */
+router.post("/users/:id/reset-password", adminController.resetUserPassword);
+
+// ─────────────────────────────────────────────────────────────
+// ROLES
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * @swagger
+ * /api/admin/roles:
+ *   get:
+ *     tags: [Admin]
+ *     summary: Liste tous les rôles disponibles
+ *     responses:
+ *       200:
+ *         description: "Liste des rôles"
+ */
+router.get("/roles", async (req, res) => {
+    try {
+        const { Role } = require("../models");
+        const roles = await Role.findAll({
+            order: [["name", "ASC"]],
+        });
+        res.json({ success: true, data: roles });
+    } catch (error) {
+        res.status(500).json({ success: false, message: "Erreur lors de la récupération des rôles" });
+    }
+});
 
 // ─────────────────────────────────────────────────────────────
 // PARAMÈTRES
@@ -544,7 +721,7 @@ router.get("/users", adminController.getUsers);
  *     description: Retourne les paramètres groupés par catégorie (general, notifications, security).
  *     responses:
  *       200:
- *         description: Paramètres groupés
+ *         description: "Paramètres groupés"
  *         content:
  *           application/json:
  *             schema:
@@ -584,7 +761,7 @@ router.get("/settings", adminController.getSettings);
  *                   notify_email_alerts: "true"
  *     responses:
  *       200:
- *         description: Paramètres mis à jour
+ *         description: "Paramètres mis à jour"
  *         content:
  *           application/json:
  *             schema:
@@ -597,5 +774,8 @@ router.get("/settings", adminController.getSettings);
  *                     updated: { type: integer, example: 3 }
  */
 router.put("/settings", adminController.updateSettings);
+
+module.exports = router;
+
 
 module.exports = router;

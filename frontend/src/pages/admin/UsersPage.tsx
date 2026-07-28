@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { UserPlus } from 'lucide-react';
+import { UserPlus, Edit2, Trash2, Power, Key } from 'lucide-react';
 import { Card, Badge, SearchInput, Table, Avatar } from '../../components';
-import { getUsers } from '../../api/adminApi';
-import type { AdminUser } from '../../api/adminApi';
+import { getUsers, deleteUser, toggleUserStatus, resetUserPassword, type AdminUser } from '../../api/adminApi';
+import CreateUserModal from '../../components/modals/CreateUserModal';
+import EditUserModal from '../../components/modals/EditUserModal';
+
 
 const PAGE_SIZE = 15;
 
@@ -28,21 +30,30 @@ const UsersPage: React.FC = () => {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
 
+
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
+
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+
   useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const result = await getUsers({ page: 1, limit: 500 });
-        setAllUsers(result.data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Erreur de chargement');
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchUsers();
   }, []);
+
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const result = await getUsers({ page: 1, limit: 500 });
+      setAllUsers(result.data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur de chargement');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filtered = useMemo(() => {
     if (!search.trim()) return allUsers;
@@ -58,7 +69,71 @@ const UsersPage: React.FC = () => {
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  const handleSearch = (val: string) => { setSearch(val); setPage(1); };
+  const handleSearch = (val: string) => {
+    setSearch(val);
+    setPage(1);
+  };
+
+  const handleEdit = (user: AdminUser) => {
+    setSelectedUser(user);
+    setShowEditModal(true);
+  };
+
+  const handleDelete = async (user: AdminUser) => {
+    if (!window.confirm(`Êtes-vous sûr de vouloir supprimer ${user.firstName} ${user.lastName} ?`)) {
+      return;
+    }
+
+    try {
+      setActionLoading(user.id);
+      await deleteUser(user.id);
+      await fetchUsers();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erreur lors de la suppression');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleToggleStatus = async (user: AdminUser) => {
+    const action = user.isActive ? 'désactiver' : 'activer';
+    if (!window.confirm(`Êtes-vous sûr de vouloir ${action} ${user.firstName} ${user.lastName} ?`)) {
+      return;
+    }
+
+    try {
+      setActionLoading(user.id);
+      await toggleUserStatus(user.id);
+      await fetchUsers();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erreur lors du changement de statut');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleResetPassword = async (user: AdminUser) => {
+    if (
+      !window.confirm(
+        `Êtes-vous sûr de vouloir réinitialiser le mot de passe de ${user.firstName} ${user.lastName} ?`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setActionLoading(user.id);
+      const result = await resetUserPassword(user.id);
+      alert(
+        `Mot de passe réinitialisé avec succès !\n\nNouveau mot de passe : ${result.newPassword}\n\nVeuillez le copier et le transmettre à l'utilisateur de manière sécurisée.`
+      );
+      await fetchUsers();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erreur lors de la réinitialisation');
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   const columns = [
     {
@@ -66,13 +141,11 @@ const UsersPage: React.FC = () => {
       header: 'Utilisateur',
       render: (user: AdminUser) => (
         <div className="flex items-center gap-3">
-          <Avatar
-            name={`${user.firstName} ${user.lastName}`}
-            size="md"
-            shape="circle"
-          />
+          <Avatar name={`${user.firstName} ${user.lastName}`} size="md" shape="circle" />
           <div>
-            <p className="font-medium text-dark">{user.firstName} {user.lastName}</p>
+            <p className="font-medium text-dark">
+              {user.firstName} {user.lastName}
+            </p>
             <p className="text-xs text-slate hidden md:block">{user.email}</p>
           </div>
         </div>
@@ -97,6 +170,14 @@ const UsersPage: React.FC = () => {
       },
     },
     {
+      key: 'enterprise',
+      header: 'Entreprise',
+      render: (user: AdminUser) => (
+        <span className="text-slate text-sm">{user.enterprise?.name ?? '-'}</span>
+      ),
+      className: 'hidden lg:table-cell',
+    },
+    {
       key: 'status',
       header: 'Statut',
       render: (user: AdminUser) => (
@@ -114,7 +195,50 @@ const UsersPage: React.FC = () => {
           {new Date(user.createdAt).toLocaleDateString('fr-FR')}
         </span>
       ),
-      className: 'hidden lg:table-cell',
+      className: 'hidden xl:table-cell',
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      render: (user: AdminUser) => (
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => handleEdit(user)}
+            disabled={actionLoading === user.id}
+            className="p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors disabled:opacity-50"
+            title="Modifier"
+          >
+            <Edit2 className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => handleToggleStatus(user)}
+            disabled={actionLoading === user.id}
+            className={`p-2 rounded-lg transition-colors disabled:opacity-50 ${user.isActive
+              ? 'text-warning hover:bg-warning/10'
+              : 'text-green-600 hover:bg-green-50'
+              }`}
+            title={user.isActive ? 'Désactiver' : 'Activer'}
+          >
+            <Power className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => handleResetPassword(user)}
+            disabled={actionLoading === user.id}
+            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
+            title="Réinitialiser le mot de passe"
+          >
+            <Key className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => handleDelete(user)}
+            disabled={actionLoading === user.id}
+            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+            title="Supprimer"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
+      ),
     },
   ];
 
@@ -128,12 +252,11 @@ const UsersPage: React.FC = () => {
           </p>
         </div>
         <button
-          disabled
-          className="flex items-center gap-2 px-4 py-3 bg-cloud text-slate rounded-xl cursor-not-allowed text-sm font-medium"
-          title="Bientôt disponible"
+          onClick={() => setShowCreateModal(true)}
+          className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-primary to-secondary text-white rounded-xl hover:shadow-lg hover:shadow-primary/25 transition-all text-sm font-medium"
         >
           <UserPlus className="w-4 h-4" />
-          Inviter un utilisateur
+          Créer un utilisateur
         </button>
       </div>
 
@@ -148,43 +271,62 @@ const UsersPage: React.FC = () => {
           />
         </div>
 
+
         {loading ? (
-          <div className="p-8 text-center text-slate animate-pulse">Chargement...</div>
-        ) : paginated.length === 0 ? (
-          <div className="p-8 text-center text-slate">
-            {search ? 'Aucun résultat' : 'Aucun utilisateur'}
+          <div className="flex items-center justify-center py-12">
+            <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
           </div>
         ) : (
           <>
-            <Table data={paginated} columns={columns} />
-            <div className="p-4 border-t border-slate/10 flex items-center justify-between">
-              <p className="text-sm text-slate">
-                {filtered.length} résultat{filtered.length > 1 ? 's' : ''}
-                {search && ` · ${allUsers.length} au total`}
-              </p>
-              {totalPages > 1 && (
+            <Table
+              columns={columns}
+              data={paginated}
+              emptyMessage="Aucun utilisateur trouvé"
+            />
+            {totalPages > 1 && (
+              <div className="p-4 border-t border-slate/10 flex items-center justify-between">
+                <p className="text-sm text-slate">
+                  Page {page} sur {totalPages} · {filtered.length} résultat{filtered.length > 1 ? 's' : ''}
+                </p>
                 <div className="flex gap-2">
                   <button
                     onClick={() => setPage(Math.max(1, page - 1))}
                     disabled={page === 1}
-                    className="px-3 py-2 bg-cloud text-dark rounded-lg disabled:opacity-50 hover:bg-slate/10 transition-colors"
+                    className="px-4 py-2 bg-cloud text-dark rounded-lg disabled:opacity-50 hover:bg-slate/10 transition-colors text-sm font-medium disabled:cursor-not-allowed"
                   >
                     Précédent
                   </button>
-                  <span className="px-3 py-2 text-sm text-slate">{page} / {totalPages}</span>
                   <button
                     onClick={() => setPage(Math.min(totalPages, page + 1))}
                     disabled={page >= totalPages}
-                    className="px-3 py-2 bg-cloud text-dark rounded-lg disabled:opacity-50 hover:bg-slate/10 transition-colors"
+                    className="px-4 py-2 bg-cloud text-dark rounded-lg disabled:opacity-50 hover:bg-slate/10 transition-colors text-sm font-medium disabled:cursor-not-allowed"
                   >
                     Suivant
                   </button>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </>
         )}
       </Card>
+      {/* Modals */}
+      <CreateUserModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSuccess={fetchUsers}
+      />
+
+      {selectedUser && (
+        <EditUserModal
+          isOpen={showEditModal}
+          onClose={() => {
+            setShowEditModal(false);
+            setSelectedUser(null);
+          }}
+          onSuccess={fetchUsers}
+          user={selectedUser}
+        />
+      )}
     </div>
   );
 };
