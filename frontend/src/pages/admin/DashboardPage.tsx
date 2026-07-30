@@ -7,11 +7,13 @@ import {
   ArrowUpRight,
   ArrowDownRight,
 } from 'lucide-react';
-import { StatCard, ChartCard, Card, Avatar, Badge } from '../../components';
+import { StatCard, ChartCard, Card, Avatar, Badge, ChangePasswordModal, Toast } from '../../components';
 import { getDashboard, getEnterprises } from '../../api/adminApi';
 import type { Scan } from '../../data/mockData';
 import type { Enterprise } from '../../data/mockData';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../auth/useAuth';
+import { changePassword } from '../../api/authApi';
 
 interface DashboardStats {
   activeEnterprises: number;
@@ -28,6 +30,7 @@ interface DashboardState {
 }
 
 const AdminDashboard: React.FC = () => {
+  const { user, token, refreshUser } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<DashboardState>({
@@ -38,6 +41,11 @@ const AdminDashboard: React.FC = () => {
   });
   const [activeEnterprises, setActiveEnterprises] = useState<Enterprise[]>([]);
   const navigate = useNavigate();
+
+  // États pour le changement de mot de passe
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [successToast, setSuccessToast] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -59,6 +67,21 @@ const AdminDashboard: React.FC = () => {
     fetchData();
   }, []);
 
+  const handleChangePassword = async (newPassword: string) => {
+    try {
+      setChangingPassword(true);
+      setPasswordError(null);
+      await changePassword(token!, newPassword);
+      await refreshUser();
+      setSuccessToast(true);
+    } catch (err) {
+      setPasswordError(err instanceof Error ? err.message : 'Erreur lors du changement');
+      throw err;
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
 
   if (error) {
     return (
@@ -71,6 +94,24 @@ const AdminDashboard: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {/* Toast de succès */}
+      {successToast && (
+        <Toast
+          message="Mot de passe mis à jour avec succès !"
+          variant="success"
+          onClose={() => setSuccessToast(false)}
+        />
+      )}
+
+      {/* Modale de changement de mot de passe obligatoire */}
+      {user?.mustChangePassword && (
+        <ChangePasswordModal
+          onSubmit={handleChangePassword}
+          loading={changingPassword}
+          error={passwordError}
+        />
+      )}
+
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold font-poppins text-dark">

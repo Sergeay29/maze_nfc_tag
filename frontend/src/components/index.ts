@@ -17,3 +17,6 @@ export { default as Avatar } from './Avatar';
 export { default as Toast } from './Toast';
 export type { ToastVariant } from './Toast';
 export { default as Tooltip } from './Tooltip';
+
+// Modals
+export { default as ChangePasswordModal } from './modals/ChangePasswordModal';
