@@ -11,8 +11,8 @@ import {
   CreditCard,
   Users,
   QrCode,  
-  Pencil,
-  Trash2,
+  // Pencil,
+  // Trash2,
 } from 'lucide-react';
 import { Card, Badge, Tabs, StatCard, Avatar, Modal, Input, Select, Button, LogoUpload, PhoneInput, Toast } from '../../components';
 import { getEnterpriseDetail, updateEnterprise, deleteEnterprise } from '../../api/adminApi';
@@ -285,7 +285,7 @@ const EnterpriseDetailPage: React.FC = () => {
         </button>
 
         {/* Actions admin */}
-        <div className="flex items-center gap-2">
+        {/* <div className="flex items-center gap-2">
           <Button
             variant="secondary"
             icon={<Pencil className="w-4 h-4" />}
@@ -301,7 +301,7 @@ const EnterpriseDetailPage: React.FC = () => {
           >
             Supprimer
           </Button>
-        </div>
+        </div> */}
       </div>
 
       <div className="flex flex-col lg:flex-row lg:items-start gap-6">
@@ -719,8 +719,8 @@ const EnterpriseDetailPage: React.FC = () => {
               onClick={handleToggleStatusConfirm}
               disabled={statusUpdating}
               className={`flex-1 px-4 py-2.5 rounded-xl font-medium transition-colors text-white disabled:opacity-50 ${enterprise.status === 'active'
-                  ? 'bg-red-600 hover:bg-red-700'
-                  : 'bg-green-600 hover:bg-green-700'
+                ? 'bg-red-600 hover:bg-red-700'
+                : 'bg-green-600 hover:bg-green-700'
                 }`}
             >
               {statusUpdating
