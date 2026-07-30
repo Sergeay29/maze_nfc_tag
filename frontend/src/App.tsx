@@ -19,6 +19,7 @@ import {
   SettingsPage,
   EnterpriseDashboard,
   ClientsPage,
+  ClientDetailPage,
   EnterpriseCardsPage,
   EnterpriseScansPage,
   RewardsPage,
@@ -76,6 +77,7 @@ const App: React.FC = () => {
             <Route path="/enterprise/dashboard" element={<EnterpriseDashboard />} />
             <Route path="/enterprise/profile" element={<EnterpriseProfilePage />} />
             <Route path="/enterprise/clients" element={<ClientsPage />} />
+            <Route path="/enterprise/clients/:id" element={<ClientDetailPage />} />
             <Route path="/enterprise/clients/:id/add-points" element={<AddPointsPage />} />
             <Route path="/enterprise/clients/:id/history" element={<PointsHistoryPage />} />
             <Route path="/enterprise/cards" element={<EnterpriseCardsPage />} />
