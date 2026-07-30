@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import {
   ArrowLeft, Mail, Phone, Star, Clock, TrendingUp, TrendingDown,
-  Loader2, ArrowUpRight, ArrowDownRight, Edit2, Award
+  Loader2, ArrowUpRight, ArrowDownRight, Award,
 } from 'lucide-react';
-import { Button, Badge, Card, Avatar, Modal, Input, PhoneInput } from '../../components';
+import { Button, Badge, Card, Avatar, Toast } from '../../components';
 import { useNavigate, useParams } from 'react-router-dom';
-import { getClientDetail, updateClient, getEnterpriseScans } from '../../api/enterpriseApi';
+import { getClientDetail, getEnterpriseScans } from '../../api/enterpriseApi';
 import type { ClientData, ScanData } from '../../api/enterpriseApi';
 
 const LEVEL_VARIANT: Record<string, 'platinum' | 'gold' | 'silver'> = {
@@ -23,11 +23,8 @@ const ClientDetailPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Modale édition
-  const [showEdit, setShowEdit] = useState(false);
-  const [editForm, setEditForm] = useState({ name: '', email: '', phone: '' });
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; variant: 'success' | 'error' | 'info' } | null>(null);
+
 
   useEffect(() => {
     const fetchData = async () => {
@@ -50,45 +47,6 @@ const ClientDetailPage: React.FC = () => {
     fetchData();
   }, [id]);
 
-  const refetch = async () => {
-    if (!id) return;
-    try {
-      const [clientData, scansData] = await Promise.all([
-        getClientDetail(id),
-        getEnterpriseScans({ clientId: id, limit: 10 }),
-      ]);
-      setClient(clientData);
-      setScans(scansData.data);
-    } catch { /* silently fail */ }
-  };
-
-  const openEdit = () => {
-    if (!client) return;
-    setEditForm({ name: client.name, email: client.email ?? '', phone: client.phone ?? '' });
-    setSaveError(null);
-    setShowEdit(true);
-  };
-
-  const handleEditSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!id || !editForm.name.trim()) { setSaveError('Le nom est obligatoire'); return; }
-    try {
-      setSaving(true);
-      setSaveError(null);
-      const updated = await updateClient(id, {
-        name: editForm.name.trim(),
-        email: editForm.email || undefined,
-        phone: editForm.phone || undefined,
-      });
-      setClient(updated);
-      await refetch();
-      setShowEdit(false);
-    } catch (err) {
-      setSaveError(err instanceof Error ? err.message : 'Erreur lors de la modification');
-    } finally {
-      setSaving(false);
-    }
-  };
 
   // ── Loading ──────────────────────────────────────────────
   if (loading) {
@@ -116,6 +74,7 @@ const ClientDetailPage: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {toast && <Toast message={toast.message} variant={toast.variant} onClose={() => setToast(null)} />}
       {/* En-tête */}
       <div className="flex items-center gap-4">
         <button
@@ -127,14 +86,7 @@ const ClientDetailPage: React.FC = () => {
         <div className="flex-1 min-w-0">
           <h1 className="text-2xl font-bold font-poppins text-dark truncate">{client.name}</h1>
           <p className="text-slate mt-0.5">Fiche client</p>
-        </div>
-        <Button
-          variant="secondary"
-          icon={<Edit2 className="w-4 h-4" />}
-          onClick={openEdit}
-        >
-          Modifier
-        </Button>
+        </div>        
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -309,41 +261,6 @@ const ClientDetailPage: React.FC = () => {
           </Card>
         </div>
       </div>
-
-      {/* Modale édition */}
-      <Modal isOpen={showEdit} onClose={() => setShowEdit(false)} title="Modifier le client">
-        <form onSubmit={handleEditSubmit} className="space-y-4">
-          {saveError && (
-            <div className="p-3 bg-red-50 text-red-700 rounded-xl text-sm">{saveError}</div>
-          )}
-          <Input
-            label="Nom *"
-            value={editForm.name}
-            onChange={(e) => setEditForm((p) => ({ ...p, name: e.target.value }))}
-            placeholder="Nom du client"
-          />
-          <Input
-            label="Email"
-            type="email"
-            value={editForm.email}
-            onChange={(e) => setEditForm((p) => ({ ...p, email: e.target.value }))}
-            placeholder="email@exemple.com"
-          />
-          <PhoneInput
-            label="Téléphone"
-            value={editForm.phone}
-            onChange={(val) => setEditForm((p) => ({ ...p, phone: val }))}
-          />
-          <div className="flex gap-3 pt-2">
-            <Button type="button" variant="secondary" fullWidth onClick={() => setShowEdit(false)}>
-              Annuler
-            </Button>
-            <Button type="submit" fullWidth disabled={saving}>
-              {saving ? 'Enregistrement...' : 'Enregistrer'}
-            </Button>
-          </div>
-        </form>
-      </Modal>
     </div>
   );
 };

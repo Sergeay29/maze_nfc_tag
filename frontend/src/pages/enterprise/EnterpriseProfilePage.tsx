@@ -12,7 +12,7 @@ import {
   Save,
   X,
 } from 'lucide-react';
-import { Card, Badge, StatCard, Avatar, Button, Input, LogoUpload, PhoneInput } from '../../components';
+import { Card, Badge, StatCard, Avatar, Button, Input, LogoUpload, PhoneInput, Toast } from '../../components';
 import { getMyEnterprise, updateMyEnterprise, uploadFile } from '../../api/enterpriseApi';
 import type { MyEnterpriseData } from '../../api/enterpriseApi';
 import { useAuth } from '../../auth/useAuth';
@@ -35,6 +35,7 @@ const EnterpriseProfilePage: React.FC = () => {
   const [editAdminLastName, setEditAdminLastName] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; variant: 'success' | 'error' | 'info' } | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -105,8 +106,10 @@ const EnterpriseProfilePage: React.FC = () => {
       await refreshUser();
       
       setEditing(false);
+      setToast({ message: 'Informations mises à jour avec succès !', variant: 'success' });
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'Erreur lors de la sauvegarde');
+      setToast({ message: err instanceof Error ? err.message : 'Erreur lors de la sauvegarde', variant: 'error' });
     } finally {
       setSaving(false);
     }
@@ -130,6 +133,7 @@ const EnterpriseProfilePage: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {toast && <Toast message={toast.message} variant={toast.variant} onClose={() => setToast(null)} />}
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>

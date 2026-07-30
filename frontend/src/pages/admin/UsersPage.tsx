@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { UserPlus, Edit2, Trash2, Power, Key } from 'lucide-react';
-import { Card, Badge, SearchInput, Table, Avatar } from '../../components';
+import { Card, Badge, SearchInput, Table, Avatar, Modal, Button, Toast } from '../../components';
 import { getUsers, deleteUser, toggleUserStatus, resetUserPassword, type AdminUser } from '../../api/adminApi';
 import CreateUserModal from '../../components/modals/CreateUserModal';
 import EditUserModal from '../../components/modals/EditUserModal';
@@ -34,6 +34,22 @@ const UsersPage: React.FC = () => {
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
 
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  // ── Toast ────────────────────────────────────────────────
+  const [toast, setToast] = useState<{ message: string; variant: 'success' | 'error' | 'info' } | null>(null);
+
+  // ── Confirm modals ───────────────────────────────────────
+  const [confirmModal, setConfirmModal] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    confirmLabel: string;
+    variant: 'danger' | 'warning';
+  } | null>(null);
+
+  // ── Reset password result modal ──────────────────────────
+  const [newPasswordModal, setNewPasswordModal] = useState<{ name: string; password: string } | null>(null);
+  const [passwordCopied, setPasswordCopied] = useState(false);
 
   useEffect(() => {
     fetchUsers();
@@ -76,60 +92,74 @@ const UsersPage: React.FC = () => {
     setShowEditModal(true);
   };
 
-  const handleDelete = async (user: AdminUser) => {
-    if (!window.confirm(`Êtes-vous sûr de vouloir supprimer ${user.firstName} ${user.lastName} ?`)) {
-      return;
-    }
-
-    try {
-      setActionLoading(user.id);
-      await deleteUser(user.id);
-      await fetchUsers();
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erreur lors de la suppression');
-    } finally {
-      setActionLoading(null);
-    }
+  const handleDelete = (user: AdminUser) => {
+    setConfirmModal({
+      title: 'Supprimer l\'utilisateur',
+      message: `Êtes-vous sûr de vouloir supprimer ${user.firstName} ${user.lastName} ? Cette action est irréversible.`,
+      confirmLabel: 'Supprimer',
+      variant: 'danger',
+      onConfirm: async () => {
+        try {
+          setActionLoading(user.id);
+          setConfirmModal(null);
+          await deleteUser(user.id);
+          await fetchUsers();
+          setToast({ message: `${user.firstName} ${user.lastName} supprimé avec succès.`, variant: 'success' });
+        } catch (err) {
+          setToast({ message: err instanceof Error ? err.message : 'Erreur lors de la suppression', variant: 'error' });
+        } finally {
+          setActionLoading(null);
+        }
+      },
+    });
   };
 
-  const handleToggleStatus = async (user: AdminUser) => {
+  const handleToggleStatus = (user: AdminUser) => {
     const action = user.isActive ? 'désactiver' : 'activer';
-    if (!window.confirm(`Êtes-vous sûr de vouloir ${action} ${user.firstName} ${user.lastName} ?`)) {
-      return;
-    }
-
-    try {
-      setActionLoading(user.id);
-      await toggleUserStatus(user.id);
-      await fetchUsers();
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erreur lors du changement de statut');
-    } finally {
-      setActionLoading(null);
-    }
+    setConfirmModal({
+      title: user.isActive ? 'Désactiver l\'utilisateur' : 'Activer l\'utilisateur',
+      message: `Êtes-vous sûr de vouloir ${action} ${user.firstName} ${user.lastName} ?`,
+      confirmLabel: user.isActive ? 'Désactiver' : 'Activer',
+      variant: user.isActive ? 'warning' : 'warning',
+      onConfirm: async () => {
+        try {
+          setActionLoading(user.id);
+          setConfirmModal(null);
+          await toggleUserStatus(user.id);
+          await fetchUsers();
+          setToast({
+            message: `${user.firstName} ${user.lastName} ${user.isActive ? 'désactivé' : 'activé'} avec succès.`,
+            variant: 'success',
+          });
+        } catch (err) {
+          setToast({ message: err instanceof Error ? err.message : 'Erreur lors du changement de statut', variant: 'error' });
+        } finally {
+          setActionLoading(null);
+        }
+      },
+    });
   };
 
-  const handleResetPassword = async (user: AdminUser) => {
-    if (
-      !window.confirm(
-        `Êtes-vous sûr de vouloir réinitialiser le mot de passe de ${user.firstName} ${user.lastName} ?`
-      )
-    ) {
-      return;
-    }
-
-    try {
-      setActionLoading(user.id);
-      const result = await resetUserPassword(user.id);
-      alert(
-        `Mot de passe réinitialisé avec succès !\n\nNouveau mot de passe : ${result.newPassword}\n\nVeuillez le copier et le transmettre à l'utilisateur de manière sécurisée.`
-      );
-      await fetchUsers();
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erreur lors de la réinitialisation');
-    } finally {
-      setActionLoading(null);
-    }
+  const handleResetPassword = (user: AdminUser) => {
+    setConfirmModal({
+      title: 'Réinitialiser le mot de passe',
+      message: `Êtes-vous sûr de vouloir réinitialiser le mot de passe de ${user.firstName} ${user.lastName} ?`,
+      confirmLabel: 'Réinitialiser',
+      variant: 'warning',
+      onConfirm: async () => {
+        try {
+          setActionLoading(user.id);
+          setConfirmModal(null);
+          const result = await resetUserPassword(user.id);
+          setNewPasswordModal({ name: `${user.firstName} ${user.lastName}`, password: result.newPassword });
+          await fetchUsers();
+        } catch (err) {
+          setToast({ message: err instanceof Error ? err.message : 'Erreur lors de la réinitialisation', variant: 'error' });
+        } finally {
+          setActionLoading(null);
+        }
+      },
+    });
   };
 
   const columns = [
@@ -241,6 +271,9 @@ const UsersPage: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {toast && (
+        <Toast message={toast.message} variant={toast.variant} onClose={() => setToast(null)} />
+      )}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold font-poppins text-dark">Utilisateurs</h1>
@@ -320,9 +353,66 @@ const UsersPage: React.FC = () => {
             setShowEditModal(false);
             setSelectedUser(null);
           }}
-          onSuccess={fetchUsers}
+          onSuccess={() => {
+            fetchUsers();
+            setToast({ message: 'Utilisateur mis à jour avec succès.', variant: 'success' });
+          }}
           user={selectedUser}
         />
+      )}
+
+      {/* Modale confirmation générique */}
+      {confirmModal && (
+        <Modal isOpen={!!confirmModal} onClose={() => setConfirmModal(null)} title={confirmModal.title} size="sm">
+          <div className="space-y-4">
+            <p className="text-sm text-slate">{confirmModal.message}</p>
+            <div className="flex gap-3 pt-2">
+              <Button type="button" variant="secondary" fullWidth onClick={() => setConfirmModal(null)}>
+                Annuler
+              </Button>
+              <button
+                type="button"
+                onClick={confirmModal.onConfirm}
+                className={`flex-1 px-4 py-2.5 rounded-xl font-medium transition-colors text-white ${confirmModal.variant === 'danger'
+                    ? 'bg-red-600 hover:bg-red-700'
+                    : 'bg-warning hover:bg-yellow-500'
+                  }`}
+              >
+                {confirmModal.confirmLabel}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Modale affichage nouveau mot de passe */}
+      {newPasswordModal && (
+        <Modal isOpen={!!newPasswordModal} onClose={() => setNewPasswordModal(null)} title="Mot de passe réinitialisé" size="sm">
+          <div className="space-y-4">
+            <p className="text-sm text-slate">
+              Nouveau mot de passe pour <strong className="text-dark">{newPasswordModal.name}</strong>.
+              Copiez-le et transmettez-le de manière sécurisée.
+            </p>
+            <div className="flex items-center gap-2 p-3 bg-cloud rounded-xl border border-slate/20">
+              <code className="flex-1 text-sm font-mono text-dark tracking-widest select-all">
+                {newPasswordModal.password}
+              </code>
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(newPasswordModal.password);
+                  setPasswordCopied(true);
+                  setTimeout(() => setPasswordCopied(false), 2000);
+                }}
+                className="p-2 rounded-lg hover:bg-primary/10 text-slate hover:text-primary transition-colors"
+                title="Copier"
+              >
+                {passwordCopied ? '✓' : '⎘'}
+              </button>
+            </div>
+            <Button fullWidth onClick={() => setNewPasswordModal(null)}>J'ai copié le mot de passe</Button>
+          </div>
+        </Modal>
       )}
     </div>
   );

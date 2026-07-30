@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Plus, Filter, Copy, Check, Sparkles, Link, Trash2, Edit2, Power } from 'lucide-react';
-import { Button, Badge, Table, SearchInput, Card, Modal, Input, Select, PhoneInput, Avatar, LogoUpload } from '../../components';
+import { Button, Badge, Table, SearchInput, Card, Modal, Input, Select, PhoneInput, Avatar, LogoUpload, Toast } from '../../components';
 import { useNavigate } from 'react-router-dom';
 import { getEnterprises, createEnterprise, updateEnterprise, deleteEnterprise, uploadLogo } from '../../api/adminApi';
 import { isValidPhoneNumber } from 'react-phone-number-input';
 import type { Enterprise } from '../../data/mockData';
 import type { CardType } from '../../@types/types';
-import toast from 'react-hot-toast';
 
 const SUBSCRIPTION_OPTIONS = [
   { value: 'Starter', label: 'Starter — 29€/mois' },
@@ -106,6 +105,9 @@ const EnterprisesPage: React.FC = () => {
   const [deletingEnterprise, setDeletingEnterprise] = useState<Enterprise | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // ── Toast ────────────────────────────────────────────────
+  const [toast, setToast] = useState<{ message: string; variant: 'success' | 'error' | 'info' } | null>(null);
 
 
   // ── Validation par champ ──────────────────────────────────
@@ -265,12 +267,10 @@ const EnterprisesPage: React.FC = () => {
       setEditError(null);
       await updateEnterprise(editingEnterprise.id, editForm);
       setShowEditModal(false);
-      toast.success(`${editingEnterprise.name} a été modifié`);
+      setToast({ message: `${editingEnterprise.name} à été modifier avec succès.`, variant: 'success' });
       await fetchEnterprises();
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Erreur lors de la modification';
-      setError(message);
-      toast.error(message);
+      setToast({ message: err instanceof Error ? err.message : 'Erreur lors de la modification', variant: 'error' });
     } finally {
       setEditing(false);
     }
@@ -281,12 +281,10 @@ const EnterprisesPage: React.FC = () => {
       setActionLoading(entreprise.id);
       const newStatus = entreprise.status === 'active' ? 'suspended' : 'active';
       await updateEnterprise(entreprise.id, { status: newStatus });
-      toast.success(newStatus === 'active' ? 'Entreprise activée' : 'Entreprise suspendue');
+      setToast({ message: `${newStatus === 'active' ? 'Entreprise activée' : 'Entreprise suspendue'}`, variant: 'success' });
       await fetchEnterprises();
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Erreur lors du changement de statut';
-      setError(message);
-      toast.error(message);
+      setToast({ message: err instanceof Error ? err.message : 'Erreur lors du changement de status', variant: 'error' });
     } finally {
       setActionLoading(null);
     }
@@ -305,13 +303,11 @@ const EnterprisesPage: React.FC = () => {
       setDeleteError(null);
       await deleteEnterprise(deletingEnterprise.id);
       setShowDeleteModal(false);
-      toast.success(`${deletingEnterprise.name} a été supprimée`);
+      setToast({ message: `${deletingEnterprise.name} à été supprimé avec succès.`, variant: 'success' });
       setDeletingEnterprise(null);
       await fetchEnterprises();
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Erreur lors de la suppression';
-      setDeleteError(message);
-      toast.error(message);
+      setToast({ message: err instanceof Error ? err.message : 'Erreur lors de la suppression', variant: 'error' });
     } finally {
       setDeleting(false);
     }
@@ -402,6 +398,9 @@ const EnterprisesPage: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {toast && (
+        <Toast message={toast.message} variant={toast.variant} onClose={() => setToast(null)} />
+      )}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold font-poppins text-dark">Entreprises</h1>

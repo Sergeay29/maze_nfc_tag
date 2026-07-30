@@ -85,6 +85,9 @@ const EnterpriseDetailPage: React.FC = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  // Toggle status confirm
+  const [showToggleModal, setShowToggleModal] = useState(false);
+
   // Toast
   const [toast, setToast] = useState<{ message: string; variant: 'success' | 'error' | 'info' } | null>(null);
 
@@ -192,24 +195,23 @@ const EnterpriseDetailPage: React.FC = () => {
   };
 
   // ── Toggle status rapide ──────────────────────────────────
-  const handleToggleStatus = async () => {
+  const handleToggleStatus = () => {
+    setShowToggleModal(true);
+  };
+
+  const handleToggleStatusConfirm = async () => {
     if (!enterprise || !id) return;
     const newStatus = enterprise.status === 'active' ? 'suspended' : 'active';
-    const confirmMsg =
-      newStatus === 'suspended'
-        ? `Suspendre l'entreprise "${enterprise.name}" ?`
-        : `Réactiver l'entreprise "${enterprise.name}" ?`;
-    if (!window.confirm(confirmMsg)) return;
-
     try {
       setStatusUpdating(true);
+      setShowToggleModal(false);
       await updateEnterprise(id, { status: newStatus });
       setEnterprise((prev) => prev ? { ...prev, status: newStatus } : prev);
       setToast({
         message: newStatus === 'suspended'
           ? `Entreprise "${enterprise.name}" suspendue avec succès !`
           : `Entreprise "${enterprise.name}" réactivée avec succès !`,
-        variant: 'success'
+        variant: 'success',
       });
     } catch (err) {
       setToast({ message: err instanceof Error ? err.message : 'Erreur lors de la mise à jour', variant: 'error' });
@@ -690,6 +692,42 @@ const EnterpriseDetailPage: React.FC = () => {
             >
               {deleting ? 'Suppression...' : 'Supprimer définitivement'}
             </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── Modale confirmation toggle statut ──────────────── */}
+      <Modal
+        isOpen={showToggleModal}
+        onClose={() => setShowToggleModal(false)}
+        title={enterprise.status === 'active' ? 'Suspendre l\'entreprise' : 'Réactiver l\'entreprise'}
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-slate">
+            {enterprise.status === 'active'
+              ? <>Êtes-vous sûr de vouloir suspendre <strong className="text-dark">{enterprise.name}</strong> ? Les utilisateurs de cette entreprise ne pourront plus se connecter.</>
+              : <>Êtes-vous sûr de vouloir réactiver <strong className="text-dark">{enterprise.name}</strong> ?</>
+            }
+          </p>
+          <div className="flex gap-3">
+            <Button type="button" variant="secondary" fullWidth onClick={() => setShowToggleModal(false)}>
+              Annuler
+            </Button>
+            <button
+              type="button"
+              onClick={handleToggleStatusConfirm}
+              disabled={statusUpdating}
+              className={`flex-1 px-4 py-2.5 rounded-xl font-medium transition-colors text-white disabled:opacity-50 ${enterprise.status === 'active'
+                  ? 'bg-red-600 hover:bg-red-700'
+                  : 'bg-green-600 hover:bg-green-700'
+                }`}
+            >
+              {statusUpdating
+                ? (enterprise.status === 'active' ? 'Suspension...' : 'Activation...')
+                : (enterprise.status === 'active' ? 'Suspendre' : 'Réactiver')
+              }
+            </button>
           </div>
         </div>
       </Modal>

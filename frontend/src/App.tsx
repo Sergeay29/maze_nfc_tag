@@ -98,7 +98,7 @@ const App: React.FC = () => {
         {/* Catch all */}
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
-      <Toaster position='top-right' />
+      <Toaster />
     </Router>
   );
 };

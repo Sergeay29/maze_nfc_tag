@@ -119,6 +119,10 @@ export async function updateClient(id: string, body: Partial<ClientData>): Promi
   return request<ClientData>(`/enterprise/clients/${id}`, { method: 'PUT', body: JSON.stringify(body) });
 }
 
+export async function deleteClient(id: string): Promise<void> {
+  return request<void>(`/enterprise/clients/${id}`, { method: "DELETE" });
+}
+
 export async function adjustPoints(body: { clientId: string; points: number; reason?: string }): Promise<ClientData> {
   return request<ClientData>('/enterprise/points/adjust', { method: 'POST', body: JSON.stringify(body) });
 }

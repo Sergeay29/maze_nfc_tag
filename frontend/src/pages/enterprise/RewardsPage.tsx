@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Gift, Edit, Trash2 } from 'lucide-react';
-import { Card, Button, Badge, Modal, Input, Select } from '../../components';
+import { Card, Button, Badge, Modal, Input, Select, Toast } from '../../components';
 import { getRewards, createReward, updateReward, deleteReward, getServices } from '../../api/enterpriseApi';
 import type { RewardData, ServiceData } from '../../api/enterpriseApi';
 
@@ -15,6 +15,11 @@ const RewardsPage: React.FC = () => {
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  // ── Toast & confirm ──────────────────────────────────────
+  const [toast, setToast] = useState<{ message: string; variant: 'success' | 'error' | 'info' } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<RewardData | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchRewards = async () => {
     try {
@@ -71,30 +76,43 @@ const RewardsPage: React.FC = () => {
       };
       if (editing) {
         await updateReward(editing.id, body);
+        setToast({ message: `Récompense "${form.title}" mise à jour avec succès !`, variant: 'success' });
       } else {
         await createReward(body);
+        setToast({ message: `Récompense "${form.title}" créée avec succès !`, variant: 'success' });
       }
       setModalOpen(false);
       fetchRewards();
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'Erreur lors de la sauvegarde');
+      setToast({ message: err instanceof Error ? err.message : 'Erreur lors de la sauvegarde', variant: 'error' });
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Supprimer cette récompense ?')) return;
+  const handleDelete = (reward: RewardData) => {
+    setDeleteTarget(reward);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
     try {
-      await deleteReward(id);
+      setDeleting(true);
+      await deleteReward(deleteTarget.id);
+      setDeleteTarget(null);
       fetchRewards();
+      setToast({ message: `Récompense "${deleteTarget.title}" supprimée avec succès !`, variant: 'success' });
     } catch (err) {
-      console.error(err);
+      setToast({ message: err instanceof Error ? err.message : 'Erreur lors de la suppression', variant: 'error' });
+    } finally {
+      setDeleting(false);
     }
   };
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {toast && <Toast message={toast.message} variant={toast.variant} onClose={() => setToast(null)} />}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold font-poppins text-dark">Récompenses</h1>
@@ -154,7 +172,7 @@ const RewardsPage: React.FC = () => {
                   </div>
                   <div className="flex gap-1">
                     <Button size="sm" variant="ghost" icon={<Edit className="w-4 h-4" />} onClick={() => openEdit(reward)} />
-                    <Button size="sm" variant="ghost" className="text-red-500 hover:bg-red-50" icon={<Trash2 className="w-4 h-4" />} onClick={() => handleDelete(reward.id)} />
+                    <Button size="sm" variant="ghost" className="text-red-500 hover:bg-red-50" icon={<Trash2 className="w-4 h-4" />} onClick={() => handleDelete(reward)} />
                   </div>
                 </div>
                 {reward.stock != null && (
@@ -194,6 +212,29 @@ const RewardsPage: React.FC = () => {
             <Button type="submit" fullWidth disabled={saving}>{saving ? 'Sauvegarde...' : editing ? 'Mettre à jour' : 'Créer'}</Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Modale confirmation suppression */}
+      <Modal isOpen={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Supprimer la récompense" size="sm">
+        <div className="space-y-4">
+          <p className="text-sm text-slate">
+            Êtes-vous sûr de vouloir supprimer la récompense{' '}
+            <strong className="text-dark">"{deleteTarget?.title}"</strong> ? Cette action est irréversible.
+          </p>
+          <div className="flex gap-3">
+            <Button type="button" variant="secondary" fullWidth onClick={() => setDeleteTarget(null)} disabled={deleting}>
+              Annuler
+            </Button>
+            <button
+              type="button"
+              onClick={handleDeleteConfirm}
+              disabled={deleting}
+              className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium transition-colors disabled:opacity-50"
+            >
+              {deleting ? 'Suppression...' : 'Supprimer'}
+            </button>
+          </div>
+        </div>
       </Modal>
     </div>
   );
