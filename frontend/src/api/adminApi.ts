@@ -101,13 +101,26 @@ export async function getEnterpriseDetail(
   return request(`/admin/enterprises/${id}`);
 }
 
+export interface CreateEnterprisePayload extends Partial<Enterprise> {
+  cardGeneration?: {
+    enabled: boolean;
+    type?: string;
+    subtype?: string;
+    scanBaseUrl?: string;
+    quantity?: number;
+  };
+}
+
 export async function createEnterprise(
-  data: Partial<Enterprise>,
+  data: CreateEnterprisePayload,
 ): Promise<Enterprise & { generatedPassword: string }> {
-  return request<Enterprise & { generatedPassword: string }>("/admin/enterprises", {
-    method: "POST",
-    body: JSON.stringify(data),
-  });
+  return request<Enterprise & { generatedPassword: string }>(
+    "/admin/enterprises",
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+  );
 }
 
 export async function updateEnterprise(

@@ -36,6 +36,7 @@ import {
 import ScanLandingPage from './pages/ScanLandingPage';
 import GenerateStockPage from './pages/admin/GenerateStockPage';
 import AssignStockPage from './pages/admin/AssignStockPage';
+import { Toaster } from 'react-hot-toast';
 
 const App: React.FC = () => {
   return (
@@ -95,6 +96,7 @@ const App: React.FC = () => {
         {/* Catch all */}
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
+      <Toaster position='top-right' />
     </Router>
   );
 };
