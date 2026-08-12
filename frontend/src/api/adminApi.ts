@@ -213,8 +213,13 @@ export async function getScans(
 }
 
 
+export interface ExportScansParams
+  extends Omit<GetScansParams, 'page' | 'limit'> {
+  ids?: string[];
+}
+
 export async function exportScansCsv(
-  params: Omit<GetScansParams, 'page' | 'limit'> = {}
+  params: ExportScansParams = {}
 ): Promise<{ blob: Blob; filename: string }> {
   const token = await getAuthToken();
   const query = new URLSearchParams();
@@ -223,6 +228,7 @@ export async function exportScansCsv(
   if (params.enterpriseId) query.append('enterpriseId', params.enterpriseId);
   if (params.startDate) query.append('startDate', params.startDate);
   if (params.endDate) query.append('endDate', params.endDate);
+  if (params.ids?.length) query.append('ids', params.ids.join(','));
 
   const queryString = query.toString();
   const response = await fetch(

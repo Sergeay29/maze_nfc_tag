@@ -520,14 +520,43 @@ exports.getScans = async (req, res) => {
  */
 exports.exportScansCsv = async (req, res) => {
   try {
-    const { enterpriseId, search, startDate, endDate } = req.query;
+    const { enterpriseId, search, startDate, endDate, ids } = req.query;
 
-    const where = buildAdminScanWhere({
-      enterpriseId,
-      search,
-      startDate,
-      endDate,
-    });
+    const hasSelection = ids !== undefined;
+    const selectedIds = [
+      ...new Set(
+        hasSelection
+          ? String(ids)
+              .split(",")
+              .map((id) => id.trim())
+              .filter(Boolean)
+          : [],
+      ),
+    ];
+
+    if (hasSelection && selectedIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Aucun scan sélectionné pour l'export",
+      });
+    }
+
+    if (selectedIds.length > 500) {
+      return res.status(400).json({
+        success: false,
+        message: "La sélection est limitée à 500 scans par export",
+      });
+    }
+
+    const where =
+      selectedIds.length > 0
+        ? { id: { [Op.in]: selectedIds } }
+        : buildAdminScanWhere({
+            enterpriseId,
+            search,
+            startDate,
+            endDate,
+          });
 
     const rows = await Scan.findAll({
       where,
@@ -571,7 +600,7 @@ exports.exportScansCsv = async (req, res) => {
       ),
     ];
 
-    const filename = `scans-${new Date().toISOString().slice(0, 10)}.csv`;
+    const filename = `${selectedIds.length > 0 ? "scans-selection" : "scans"}-${new Date().toISOString().slice(0, 10)}.csv`;
 
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader(

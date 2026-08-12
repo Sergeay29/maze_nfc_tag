@@ -48,6 +48,10 @@ const ScansPage: React.FC = () => {
   const [pages, setPages] = useState(1);
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [exportingSelection, setExportingSelection] = useState(false);
+  const [selectedScanIds, setSelectedScanIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{
     message: string;
@@ -125,12 +129,28 @@ const ScansPage: React.FC = () => {
     return () => window.clearTimeout(timeout);
   }, [filters, page]);
 
+  useEffect(() => {
+    setSelectedScanIds(new Set());
+  }, [filters, page]);
+
   const resetFilters = () => {
     setSearch('');
     setEnterpriseId('all');
     setStartDate('');
     setEndDate('');
     setPage(1);
+  };
+
+  const downloadCsv = (blob: Blob, filename: string) => {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
   };
 
   const handleExport = async () => {
@@ -144,15 +164,7 @@ const ScansPage: React.FC = () => {
         endDate: filters.endDate,
       });
 
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
+      downloadCsv(blob, filename);
 
       setToast({
         message: 'Export CSV généré avec succès.',
@@ -171,6 +183,69 @@ const ScansPage: React.FC = () => {
     }
   };
 
+  const handleExportSelection = async () => {
+    const ids = Array.from(selectedScanIds);
+
+    if (ids.length === 0) {
+      return;
+    }
+
+    try {
+      setExportingSelection(true);
+
+      const { blob, filename } = await exportScansCsv({ ids });
+
+      downloadCsv(blob, filename);
+
+      setToast({
+        message: `${ids.length} ligne${ids.length > 1 ? 's' : ''} exportée${ids.length > 1 ? 's' : ''} avec succès.`,
+        variant: 'success',
+      });
+    } catch (err) {
+      setToast({
+        message:
+          err instanceof Error
+            ? err.message
+            : "Erreur lors de l'export de la sélection",
+        variant: 'error',
+      });
+    } finally {
+      setExportingSelection(false);
+    }
+  };
+
+  const toggleScanSelection = (scanId: string) => {
+    setSelectedScanIds((current) => {
+      const next = new Set(current);
+
+      if (next.has(scanId)) {
+        next.delete(scanId);
+      } else {
+        next.add(scanId);
+      }
+
+      return next;
+    });
+  };
+
+  const allCurrentPageSelected =
+    scans.length > 0 &&
+    scans.every((scan) => selectedScanIds.has(scan.id));
+
+  const toggleCurrentPageSelection = () => {
+    setSelectedScanIds((current) => {
+      const next = new Set(current);
+
+      if (allCurrentPageSelected) {
+        scans.forEach((scan) => next.delete(scan.id));
+      } else {
+        scans.forEach((scan) => next.add(scan.id));
+      }
+
+      return next;
+    });
+  };
+
   const hasFilters =
     Boolean(search.trim()) ||
     enterpriseId !== 'all' ||
@@ -178,6 +253,20 @@ const ScansPage: React.FC = () => {
     Boolean(endDate);
 
   const columns = [
+    {
+      key: 'selection',
+      header: '',
+      render: (scan: AdminScanData) => (
+        <input
+          type="checkbox"
+          aria-label={`Sélectionner le scan ${scan.id}`}
+          checked={selectedScanIds.has(scan.id)}
+          onChange={() => toggleScanSelection(scan.id)}
+          onClick={(event) => event.stopPropagation()}
+          className="h-4 w-4 rounded border-slate/30 text-primary focus:ring-primary"
+        />
+      ),
+    },
     {
       key: 'clientName',
       header: 'Client',
@@ -275,17 +364,31 @@ const ScansPage: React.FC = () => {
           </p>
         </div>
 
-        <Button
-          icon={<Download className="w-5 h-5" />}
-          onClick={handleExport}
-          disabled={exporting}
-        >
-          {exporting
-            ? 'Export en cours...'
-            : hasFilters
-              ? 'Exporter les résultats'
-              : 'Exporter tous les scans'}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {selectedScanIds.size > 0 && (
+            <Button
+              icon={<Download className="w-5 h-5" />}
+              onClick={handleExportSelection}
+              disabled={exportingSelection}
+            >
+              {exportingSelection
+                ? 'Export en cours...'
+                : `Exporter la sélection (${selectedScanIds.size})`}
+            </Button>
+          )}
+
+          <Button
+            icon={<Download className="w-5 h-5" />}
+            onClick={handleExport}
+            disabled={exporting}
+          >
+            {exporting
+              ? 'Export en cours...'
+              : hasFilters
+                ? 'Exporter les résultats'
+                : 'Exporter tous les scans'}
+          </Button>
+        </div>
       </div>
 
       {error && (
@@ -355,6 +458,26 @@ const ScansPage: React.FC = () => {
             </button>
           )}
         </div>
+
+        {scans.length > 0 && !loading && (
+          <div className="px-4 py-3 border-b border-slate/10 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <label className="inline-flex items-center gap-2 text-sm text-dark cursor-pointer">
+              <input
+                type="checkbox"
+                checked={allCurrentPageSelected}
+                onChange={toggleCurrentPageSelection}
+                className="h-4 w-4 rounded border-slate/30 text-primary focus:ring-primary"
+              />
+              Sélectionner les {scans.length} lignes de cette page
+            </label>
+
+            {selectedScanIds.size > 0 && (
+              <span className="text-sm font-medium text-primary">
+                {selectedScanIds.size} ligne{selectedScanIds.size > 1 ? 's' : ''} sélectionnée{selectedScanIds.size > 1 ? 's' : ''}
+              </span>
+            )}
+          </div>
+        )}
 
         {loading ? (
           <div className="p-8 text-center text-slate animate-pulse">
