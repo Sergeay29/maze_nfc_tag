@@ -1,5 +1,6 @@
 export { default as EnterpriseDashboard } from './DashboardPage';
 export { default as ClientsPage } from './ClientsPage';
+export { default as ClientDetailPage } from "./ClientDetailPage";
 export { default as EnterpriseCardsPage } from './NFCCardsPage';
 export { default as EnterpriseScansPage } from './ScansPage';
 export { default as RewardsPage } from './RewardsPage';

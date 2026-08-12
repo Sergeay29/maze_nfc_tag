@@ -1996,6 +1996,7 @@ exports.createUser = async (req, res) => {
     const hashedPassword = await bcrypt.hash(plainPassword, 10);
 
     // Créer l'utilisateur
+    // Par défaut, mustChangePassword est toujours à true pour forcer le changement à la première connexion
     const user = await User.create({
       firstName,
       lastName,
@@ -2004,7 +2005,7 @@ exports.createUser = async (req, res) => {
       roleId,
       enterpriseId: enterpriseId || null,
       isActive: isActive !== undefined ? isActive : true,
-      mustChangePassword: mustChangePassword !== undefined ? mustChangePassword : !password,
+      mustChangePassword: mustChangePassword !== undefined ? mustChangePassword : true,
     });
 
     // Charger l'utilisateur avec ses relations

@@ -183,6 +183,7 @@ router.post("/clients", enterpriseController.createClient);
  *         description: Client mis à jour
  */
 router.put("/clients/:id", enterpriseController.updateClient);
+router.delete("/clients/:id", enterpriseController.deleteClient);
 
 // ─────────────────────────────────────────────────────────────
 // SERVICES

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CreditCard, User, UserPlus, X, ToggleLeft, ToggleRight } from 'lucide-react';
-import { Card, Badge, Pagination, Input } from '../../components';
+import { Card, Badge, Pagination,  Input, Toast } from '../../components';
 import { getEnterpriseCards, assignCard, getClients, updateEnterpriseCardStatus } from '../../api/enterpriseApi';
 import type { NFCCardData, ClientData } from '../../api/enterpriseApi';
 
@@ -19,6 +19,7 @@ const EnterpriseCardsPage: React.FC = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; variant: 'success' | 'error' | 'info' } | null>(null);
 
   // Modal attribution
   const [assignModal, setAssignModal] = useState<NFCCardData | null>(null);
@@ -57,8 +58,12 @@ const EnterpriseCardsPage: React.FC = () => {
       const updated = await assignCard(assignModal.id, clientId);
       setCards((prev) => prev.map((c) => c.id === updated.id ? updated : c));
       setAssignModal(null);
+      setToast({
+        message: clientId ? 'Carte attribuée avec succès !' : 'Carte désassignée avec succès !',
+        variant: 'success',
+      });
     } catch (err) {
-      console.error(err);
+      setToast({ message: err instanceof Error ? err.message : "Erreur lors de l'attribution", variant: 'error' });
     } finally {
       setAssigning(false);
     }
@@ -70,7 +75,7 @@ const EnterpriseCardsPage: React.FC = () => {
   );
 
   const handleToggleStatus = async (card: NFCCardData) => {
-    if (!card.assignedClient) return; // Pas de toggle sans client
+    if (!card.assignedClient) return;
     const newStatus = card.status === 'active' ? 'inactive' : 'active';
     try {
       setTogglingId(card.id);
@@ -78,8 +83,12 @@ const EnterpriseCardsPage: React.FC = () => {
       setCards((prev) =>
         prev.map((c) => c.id === card.id ? { ...c, status: newStatus as NFCCardData['status'] } : c)
       );
+      setToast({
+        message: newStatus === 'active' ? 'Carte activée avec succès !' : 'Carte désactivée avec succès !',
+        variant: 'success',
+      });
     } catch (err) {
-      console.error('Toggle status error:', err);
+      setToast({ message: err instanceof Error ? err.message : 'Erreur lors du changement de statut', variant: 'error' });
     } finally {
       setTogglingId(null);
     }
@@ -87,6 +96,7 @@ const EnterpriseCardsPage: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {toast && <Toast message={toast.message} variant={toast.variant} onClose={() => setToast(null)} />}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold font-poppins text-dark">Cartes NFC</h1>
@@ -202,8 +212,8 @@ const EnterpriseCardsPage: React.FC = () => {
                     onClick={() => handleAssign(client.id)}
                     disabled={assigning}
                     className={`w-full text-left px-4 py-3 rounded-xl border transition-colors text-sm ${assignModal.assignedClient?.id === client.id
-                      ? 'border-primary bg-primary/5 text-primary'
-                      : 'border-cloud hover:border-primary hover:bg-primary/5'
+                        ? 'border-primary bg-primary/5 text-primary'
+                        : 'border-cloud hover:border-primary hover:bg-primary/5'
                       }`}
                   >
                     <p className="font-medium text-dark">{client.name}</p>

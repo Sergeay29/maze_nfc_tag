@@ -34,7 +34,7 @@ const { authenticate, requireRole } = require("../middlewares/authMiddleware");
  *                 data:
  *                   type: object
  *                   properties:
- *                     url: { type: string, example: "http://localhost:3000/uploads/file-1234567890.jpg" }
+ *                     url: { type: string, example: "http://localhost:3000/cards/uploads/file-1234567890.jpg" }
  *       400:
  *         description: Fichier manquant ou format invalide
  */
@@ -50,10 +50,16 @@ router.post(
       });
     }
 
-    // Construire l'URL complète du fichier
     const protocol = req.protocol;
     const host = req.get("host");
-    const fileUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
+
+    const publicAppUrl = (
+      process.env.PUBLIC_APP_URL ||
+      `${protocol}://${host}`
+    ).replace(/\/+$/, "");
+
+    const fileUrl =
+      `${publicAppUrl}/uploads/${req.file.filename}`;
 
     return res.json({
       success: true,

@@ -1,5 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Filter, CreditCard, Copy, ToggleLeft, ToggleRight } from 'lucide-react';
+import {
+  Plus,
+  Filter,
+  CreditCard,
+  Copy,
+  Check,
+  ToggleLeft,
+  ToggleRight,
+} from 'lucide-react';
+import { copyToClipboard } from '../../utils/clipboard';
 import { Button, Badge, Table, SearchInput, Card } from '../../components';
 import { useNavigate } from 'react-router-dom';
 import { getCards, updateCardStatus, getCardTypes } from '../../api/adminApi';
@@ -13,6 +22,9 @@ const NFCCardsPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+
+  const [copiedCardId, setCopiedCardId] = useState<string | null>(null);
+  const [copyError, setCopyError] = useState<string | null>(null);
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive' | 'unassigned'>('all');
@@ -98,6 +110,37 @@ const NFCCardsPage: React.FC = () => {
     setPage(1);
   };
 
+  const handleCopyScanUrl = async (card: NFCCard) => {
+    if (!card.scanUrl) {
+      return;
+    }
+
+    try {
+      setCopyError(null);
+
+      await copyToClipboard(card.scanUrl);
+
+      const copiedId = card.id;
+
+      setCopiedCardId(copiedId);
+
+      window.setTimeout(() => {
+        setCopiedCardId((currentId) =>
+          currentId === copiedId ? null : currentId
+        );
+      }, 2000);
+    } catch (error) {
+      console.error(
+        'Impossible de copier le lien de la carte :',
+        error
+      );
+
+      setCopyError(
+        'Impossible de copier le lien de la carte.'
+      );
+    }
+  };
+
   const columns = [
     {
       key: 'cardNumber',
@@ -163,11 +206,24 @@ const NFCCardsPage: React.FC = () => {
 
             <button
               type="button"
-              onClick={() => navigator.clipboard.writeText(card.scanUrl!)}
-              title="Copier le lien"
+              onClick={() => void handleCopyScanUrl(card)}
+              title={
+                copiedCardId === card.id
+                  ? 'Lien copié'
+                  : 'Copier le lien'
+              }
+              aria-label={
+                copiedCardId === card.id
+                  ? 'Lien copié'
+                  : 'Copier le lien'
+              }
               className="p-2 rounded-lg border hover:bg-slate-100 transition-colors"
             >
-              <Copy className="w-4 h-4" />
+              {copiedCardId === card.id ? (
+                <Check className="w-4 h-4 text-green-600" />
+              ) : (
+                <Copy className="w-4 h-4" />
+              )}
             </button>
           </div>
         ) : (
@@ -242,6 +298,12 @@ const NFCCardsPage: React.FC = () => {
       </div>
 
       {error && <div className="p-4 bg-red-100 text-red-700 rounded-lg">{error}</div>}
+
+      {copyError && (
+        <div className="p-4 bg-red-100 text-red-700 rounded-lg">
+          {copyError}
+        </div>
+      )}
 
       <Card padding="none">
         <div className="flex min-h-[460px] flex-col">

@@ -49,18 +49,7 @@ export interface CardGenerationPayload {
   quantity: number;
 }
 
-export interface CreateEnterprisePayload
-  extends Omit<Partial<Enterprise>, 'logo'> {
-  name: string;
-  email: string;
-  phone?: string;
-  location?: string;
-  adminFirstName?: string;
-  adminLastName?: string;
-  subscription: 'Starter' | 'Pro' | 'Enterprise';
-  logo?: string;
-  cardGeneration?: CardGenerationPayload;
-}
+
 async function getAuthToken(): Promise<string> {
   const token = localStorage.getItem(TOKEN_STORAGE_KEY);
   if (!token) {
@@ -133,14 +122,28 @@ export async function getEnterpriseDetail(
   return request(`/admin/enterprises/${id}`);
 }
 
-export async function createEnterprise(
-  data: Partial<Enterprise>,
-): Promise<Enterprise & { generatedPassword: string }> {
-  return request<Enterprise & { generatedPassword: string }>("/admin/enterprises", {
-    method: "POST",
-    body: JSON.stringify(data),
-  });
+export interface CreateEnterprisePayload extends Partial<Enterprise> {
+  cardGeneration?: {
+    enabled: boolean;
+    type?: string;
+    subtype?: string;
+    scanBaseUrl?: string;
+    quantity?: number;
+  };
 }
+
+export async function createEnterprise(
+  data: CreateEnterprisePayload,
+): Promise<Enterprise & { generatedPassword: string }> {
+  return request<Enterprise & { generatedPassword: string }>(
+    "/admin/enterprises",
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+  );
+}
+
 
 export async function updateEnterprise(
   id: string,

@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Plus, Edit, Trash2, Zap, Coffee, ShoppingBag, Utensils, Star, Gift, Scissors, Camera, 
-  Music, Heart, Sparkles, Zap as ZapIcon, Home, Phone, Mail, Calendar, Clock, 
-  Settings, User, Users, ShoppingCart, CreditCard, MapPin, Building, 
-  Briefcase, FileText, Check, X, MoreHorizontal, 
-  Bell, Bookmark, Tag, DollarSign, Euro, Activity, 
-  TrendingUp, TrendingDown, Award, Trophy, 
+import {
+  Plus, Edit, Trash2, Zap, Coffee, ShoppingBag, Utensils, Star, Gift, Scissors, Camera,
+  Music, Heart, Sparkles, Zap as ZapIcon, Home, Phone, Mail, Calendar, Clock,
+  Settings, User, Users, ShoppingCart, CreditCard, MapPin, Building,
+  Briefcase, FileText, Check, X, MoreHorizontal,
+  Bell, Bookmark, Tag, DollarSign, Euro, Activity,
+  TrendingUp, TrendingDown, Award, Trophy,
 } from 'lucide-react';
-import { Card, Button, Input, Modal, Badge } from '../../components';
+import { Card, Button, Input, Modal, Badge, Toast } from '../../components';
 import { getServices, createService, updateService, deleteService } from '../../api/enterpriseApi';
 import type { ServiceData } from '../../api/enterpriseApi';
 
@@ -67,6 +67,11 @@ const ServicesPage: React.FC = () => {
     isActive: true,
   });
 
+  // ── Toast & confirm ──────────────────────────────────────
+  const [toast, setToast] = useState<{ message: string; variant: 'success' | 'error' | 'info' } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ServiceData | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
   const fetchServices = async () => {
     try {
       setLoading(true);
@@ -112,29 +117,40 @@ const ServicesPage: React.FC = () => {
     try {
       if (editingService) {
         await updateService(editingService.id, formData);
+        setToast({ message: `Service "${formData.name}" mis à jour avec succès !`, variant: 'success' });
       } else {
         await createService(formData);
+        setToast({ message: `Service "${formData.name}" créé avec succès !`, variant: 'success' });
       }
       setIsModalOpen(false);
       fetchServices();
     } catch (error) {
-      console.error('Erreur lors de la sauvegarde du service:', error);
+      setToast({ message: error instanceof Error ? error.message : 'Erreur lors de la sauvegarde', variant: 'error' });
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (window.confirm('Êtes-vous sûr de vouloir supprimer ce service ?')) {
-      try {
-        await deleteService(id);
-        fetchServices();
-      } catch (error) {
-        console.error('Erreur lors de la suppression du service:', error);
-      }
+  const handleDelete = (service: ServiceData) => {
+    setDeleteTarget(service);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+    try {
+      setDeleting(true);
+      await deleteService(deleteTarget.id);
+      setDeleteTarget(null);
+      fetchServices();
+      setToast({ message: `Service "${deleteTarget.name}" supprimé avec succès !`, variant: 'success' });
+    } catch (error) {
+      setToast({ message: error instanceof Error ? error.message : 'Erreur lors de la suppression', variant: 'error' });
+    } finally {
+      setDeleting(false);
     }
   };
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {toast && <Toast message={toast.message} variant={toast.variant} onClose={() => setToast(null)} />}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold font-poppins text-dark">Services</h1>
@@ -191,7 +207,7 @@ const ServicesPage: React.FC = () => {
                         size="sm"
                         variant="ghost"
                         className="text-red-500 hover:text-red-600 hover:bg-red-50"
-                        onClick={() => handleDelete(service.id)}
+                        onClick={() => handleDelete(service)}
                         icon={<Trash2 className="w-4 h-4" />}
                       />
                     </div>
@@ -267,11 +283,10 @@ const ServicesPage: React.FC = () => {
                       key={option.value}
                       type="button"
                       onClick={() => setFormData({ ...formData, icon: option.value })}
-                      className={`p-3 rounded-xl border-2 transition-all ${
-                        formData.icon === option.value
-                          ? 'border-primary bg-primary/10'
-                          : 'border-slate/20 hover:border-slate/40'
-                      }`}
+                      className={`p-3 rounded-xl border-2 transition-all ${formData.icon === option.value
+                        ? 'border-primary bg-primary/10'
+                        : 'border-slate/20 hover:border-slate/40'
+                        }`}
                     >
                       <Icon className="w-6 h-6 mx-auto text-dark" />
                     </button>
@@ -309,6 +324,29 @@ const ServicesPage: React.FC = () => {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Modale confirmation suppression */}
+      <Modal isOpen={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Supprimer le service" size="sm">
+        <div className="space-y-4">
+          <p className="text-sm text-slate">
+            Êtes-vous sûr de vouloir supprimer le service{' '}
+            <strong className="text-dark">"{deleteTarget?.name}"</strong> ? Cette action est irréversible.
+          </p>
+          <div className="flex gap-3">
+            <Button type="button" variant="secondary" fullWidth onClick={() => setDeleteTarget(null)} disabled={deleting}>
+              Annuler
+            </Button>
+            <button
+              type="button"
+              onClick={handleDeleteConfirm}
+              disabled={deleting}
+              className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium transition-colors disabled:opacity-50"
+            >
+              {deleting ? 'Suppression...' : 'Supprimer'}
+            </button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

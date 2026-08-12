@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, User, Mail, Lock, Building2, Shield, Eye, EyeOff } from 'lucide-react';
 import { createUser, getRoles, getEnterprises, type CreateUserPayload, type Role } from '../../api/adminApi';
 import type { Enterprise } from '../../data/mockData';
+import { copyToClipboard } from '../../utils/clipboard';
 
 interface CreateUserModalProps {
   isOpen: boolean;
@@ -14,6 +15,8 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClose, onSu
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [generatedPassword, setGeneratedPassword] = useState<string | null>(null);
+
+  const [passwordCopied, setPasswordCopied] = useState(false);
 
   const [roles, setRoles] = useState<Role[]>([]);
   const [enterprises, setEnterprises] = useState<Enterprise[]>([]);
@@ -74,6 +77,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClose, onSu
     setError(null);
     setSuccessMessage(null);
     setGeneratedPassword(null);
+    setPasswordCopied(false);
 
     if (!formData.firstName || !formData.lastName || !formData.email || !formData.roleId) {
       setError('Veuillez remplir tous les champs obligatoires');
@@ -123,6 +127,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClose, onSu
     setError(null);
     setSuccessMessage(null);
     setGeneratedPassword(null);
+    setPasswordCopied(false);
     setAutoGeneratePassword(true);
     onClose();
   };
@@ -133,37 +138,24 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClose, onSu
     }
 
     try {
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(generatedPassword);
-      } else {
-        const textarea = document.createElement('textarea');
+      await copyToClipboard(generatedPassword);
 
-        textarea.value = generatedPassword;
-        textarea.style.position = 'fixed';
-        textarea.style.opacity = '0';
-        textarea.style.pointerEvents = 'none';
+      setPasswordCopied(true);
 
-        document.body.appendChild(textarea);
-
-        textarea.focus();
-        textarea.select();
-
-        const copied = document.execCommand('copy');
-
-        document.body.removeChild(textarea);
-
-        if (!copied) {
-          throw new Error('Impossible de copier le mot de passe');
-        }
-      }
-
-      // Si tu as déjà un système de toast :
-      // showToast('Mot de passe copié', 'success');
+      window.setTimeout(() => {
+        setPasswordCopied(false);
+      }, 2000);
     } catch (error) {
-      console.error('Erreur lors de la copie du mot de passe :', error);
+      console.error(
+        'Erreur lors de la copie du mot de passe :',
+        error
+      );
 
-      // Optionnel :
-      // showToast('Impossible de copier le mot de passe', 'error');
+      setError(
+        'Impossible de copier le mot de passe.'
+      );
+
+      setPasswordCopied(false);
     }
   };
 
@@ -206,10 +198,12 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClose, onSu
                 <div className="mt-3 flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={copyPassword}
+                    onClick={() => void copyPassword()}
                     className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium"
                   >
-                    Copier le mot de passe
+                    {passwordCopied
+                      ? 'Mot de passe copié'
+                      : 'Copier le mot de passe'}
                   </button>
                   <button
                     type="button"

@@ -290,6 +290,37 @@ exports.updateClient = async (req, res) => {
   }
 };
 
+
+exports.deleteClient = async (req, res) => {
+  try {
+    const enterpriseId = req.user.enterpriseId;
+    const { id } = req.params;
+
+    // Vérifier que le client appartient bien à cette entreprise
+    const client = await Client.findOne({ where: { id, enterpriseId } });
+    if (!client) {
+      return res.status(404).json({ success: false, message: "Client non trouvé" });
+    }
+
+    // 1. Désassigner les cartes NFC liées à ce client
+    await NFCCard.update(
+      { assignedToClientId: null, assignedAt: null, status: "unassigned" },
+      { where: { assignedToClientId: id } }
+    );
+
+    // 2. Supprimer les scans du client
+    await Scan.destroy({ where: { clientId: id } });
+
+    // 3. Supprimer le client
+    await client.destroy();
+
+    res.json({ success: true, message: "Client supprimé avec succès" });
+  } catch (error) {
+    console.error("deleteClient error:", error);
+    res.status(500).json({ success: false, message: "Erreur lors de la suppression du client" });
+  }
+};
+
 // ─────────────────────────────────────────────────────────────
 // SERVICES
 // ─────────────────────────────────────────────────────────────

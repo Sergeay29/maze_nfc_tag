@@ -19,6 +19,7 @@ import {
   SettingsPage,
   EnterpriseDashboard,
   ClientsPage,
+  ClientDetailPage,
   EnterpriseCardsPage,
   EnterpriseScansPage,
   RewardsPage,
@@ -36,10 +37,11 @@ import {
 import ScanLandingPage from './pages/ScanLandingPage';
 import GenerateStockPage from './pages/admin/GenerateStockPage';
 import AssignStockPage from './pages/admin/AssignStockPage';
+import { Toaster } from 'react-hot-toast';
 
 const App: React.FC = () => {
   return (
-    <Router basename="/cards">
+    <Router>
       <Routes>
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<LoginPage />} />
@@ -75,6 +77,7 @@ const App: React.FC = () => {
             <Route path="/enterprise/dashboard" element={<EnterpriseDashboard />} />
             <Route path="/enterprise/profile" element={<EnterpriseProfilePage />} />
             <Route path="/enterprise/clients" element={<ClientsPage />} />
+            <Route path="/enterprise/clients/:id" element={<ClientDetailPage />} />
             <Route path="/enterprise/clients/:id/add-points" element={<AddPointsPage />} />
             <Route path="/enterprise/clients/:id/history" element={<PointsHistoryPage />} />
             <Route path="/enterprise/cards" element={<EnterpriseCardsPage />} />
@@ -95,6 +98,7 @@ const App: React.FC = () => {
         {/* Catch all */}
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
+      <Toaster />
     </Router>
   );
 };

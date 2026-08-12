@@ -4,11 +4,9 @@ import {
   CreditCard,
   Star,
   TrendingUp,
-  Clock,
-  Eye,
-  EyeOff,
+  Clock
 } from 'lucide-react';
-import { StatCard, ChartCard, Card, Badge, Button, Input, Toast } from '../../components';
+import { StatCard, ChartCard, Card, Badge, ChangePasswordModal, Toast } from '../../components';
 import { useAuth } from '../../auth/useAuth';
 import { changePassword } from '../../api/authApi';
 import { getEnterpriseDashboard, type EnterpriseDashboardData } from '../../api/enterpriseApi';
@@ -19,12 +17,8 @@ const EnterpriseDashboard: React.FC = () => {
   const [data, setData] = useState<EnterpriseDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showNew, setShowNew] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
   const [successToast, setSuccessToast] = useState(false);
 
   useEffect(() => {
@@ -33,26 +27,18 @@ const EnterpriseDashboard: React.FC = () => {
       .finally(() => setLoading(false));
   }, []);
 
-  const handleChangePassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newPassword.length < 8) {
-      setError('Le mot de passe doit contenir au moins 8 caractères');
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setError('Les mots de passe ne correspondent pas');
-      return;
-    }
+  const handleChangePassword = async (newPassword: string) => {
     try {
-      setSaving(true);
-      setError(null);
+      setChangingPassword(true);
+      setPasswordError(null);
       await changePassword(token!, newPassword);
       await refreshUser();
       setSuccessToast(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur lors du changement');
+      setPasswordError(err instanceof Error ? err.message : 'Erreur lors du changement');
+      throw err;
     } finally {
-      setSaving(false);
+      setChangingPassword(false);
     }
   };
 
@@ -67,51 +53,13 @@ const EnterpriseDashboard: React.FC = () => {
         />
       )}
 
-      {/* Modale bloquante changement de mot de passe */}
+      {/* Modale de changement de mot de passe obligatoire */}
       {user?.mustChangePassword && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-dark/60 backdrop-blur-sm" />
-          <div className="relative w-full max-w-md bg-white rounded-2xl shadow-card animate-fade-in">
-            <div className="p-6 border-b border-slate/10">
-              <h2 className="text-xl font-bold font-poppins text-dark">Changement de mot de passe requis</h2>
-              <p className="text-sm text-slate mt-1">Pour des raisons de sécurité, vous devez définir un nouveau mot de passe avant de continuer.</p>
-            </div>
-            <form onSubmit={handleChangePassword} className="p-6 space-y-4">
-              {error && <div className="p-3 bg-red-50 text-red-700 rounded-xl text-sm">{error}</div>}
-              <div className="relative">
-                <Input
-                  label="Nouveau mot de passe"
-                  type={showNew ? 'text' : 'password'}
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Minimum 8 caractères"
-                  rightIcon={
-                    <button type="button" onClick={() => setShowNew(v => !v)} className="text-slate hover:text-dark">
-                      {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  }
-                />
-              </div>
-              <div className="relative">
-                <Input
-                  label="Confirmer le mot de passe"
-                  type={showConfirm ? 'text' : 'password'}
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Répéter le mot de passe"
-                  rightIcon={
-                    <button type="button" onClick={() => setShowConfirm(v => !v)} className="text-slate hover:text-dark">
-                      {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  }
-                />
-              </div>
-              <Button type="submit" fullWidth disabled={saving}>
-                {saving ? 'Enregistrement...' : 'Confirmer le nouveau mot de passe'}
-              </Button>
-            </form>
-          </div>
-        </div>
+        <ChangePasswordModal
+          onSubmit={handleChangePassword}
+          loading={changingPassword}
+          error={passwordError}
+        />
       )}
 
       <div>

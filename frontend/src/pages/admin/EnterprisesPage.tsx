@@ -1,14 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Filter, Copy, Check, Sparkles, Link } from 'lucide-react';
-import { Button, Badge, Table, SearchInput, Card, Modal, Input, Select, PhoneInput, Avatar, LogoUpload } from '../../components';
+import { Plus, Filter, Copy, Check, Sparkles, Link, Trash2, Edit2, Power } from 'lucide-react';
+import { Button, Badge, Table, SearchInput, Card, Modal, Input, Select, PhoneInput, Avatar, LogoUpload, Toast } from '../../components';
 import { useNavigate } from 'react-router-dom';
-import { getEnterprises, createEnterprise, uploadLogo, CreateEnterprisePayload } from '../../api/adminApi';
+import { getEnterprises, createEnterprise, updateEnterprise, deleteEnterprise, uploadLogo } from '../../api/adminApi';
 import { isValidPhoneNumber } from 'react-phone-number-input';
 import type { Enterprise } from '../../data/mockData';
 import type { CardType } from '../../@types/types';
-// import type {
-//   CreateEnterprisePayload,
-// } from '../../api/adminApi';
 
 const SUBSCRIPTION_OPTIONS = [
   { value: 'Starter', label: 'Starter — 29€/mois' },
@@ -94,6 +91,24 @@ const EnterprisesPage: React.FC = () => {
   const [generatedPassword, setGeneratedPassword] = useState<string | null>(null);
   const [passwordCopied, setPasswordCopied] = useState(false);
 
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  // ── États modale édition ──────────────────────────────────
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingEnterprise, setEditingEnterprise] = useState<Enterprise | null>(null);
+  const [editForm, setEditForm] = useState<Partial<CreateEnterpriseForm>>({});
+  const [editError, setEditError] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+
+  // ── États modale confirmation suppression ─────────────────
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletingEnterprise, setDeletingEnterprise] = useState<Enterprise | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // ── Toast ────────────────────────────────────────────────
+  const [toast, setToast] = useState<{ message: string; variant: 'success' | 'error' | 'info' } | null>(null);
+
   // ── Validation par champ ──────────────────────────────────
   const fieldErrors = useMemo(() => {
     const errors: Partial<Record<keyof CreateEnterpriseForm, string>> = {};
@@ -170,15 +185,6 @@ const EnterprisesPage: React.FC = () => {
     setTouched({ name: true, email: true, phone: true });
     if (!isFormValid) return;
 
-    const selectedCardType = cardOptions.type;
-
-    if (cardOptions.enabled && !selectedCardType) {
-      setFormError(
-        'Veuillez choisir un type de carte si vous souhaitez en générer.'
-      );
-      return;
-    }
-
     if (cardOptions.enabled) {
       if (!cardOptions.type) {
         setFormError('Veuillez choisir un type de carte si vous souhaitez en générer.');
@@ -204,27 +210,17 @@ const EnterprisesPage: React.FC = () => {
         logoUrl = await uploadLogo(logoFile);
       }
 
-      const payload: CreateEnterprisePayload = {
+      const result = await createEnterprise({
         ...form,
         logo: logoUrl,
-
-        cardGeneration:
-          cardOptions.enabled && selectedCardType
-            ? {
-              enabled: true,
-              type: selectedCardType,
-              subtype:
-                selectedCardType === 'Restaurant'
-                  ? cardOptions.subtype
-                  : undefined,
-              scanBaseUrl:
-                cardOptions.scanBaseUrl.trim() || undefined,
-              quantity: Number(cardOptions.quantity),
-            }
-            : undefined,
-      };
-
-      const result = await createEnterprise(payload);
+        cardGeneration: cardOptions.enabled ? {
+          enabled: true,
+          type: cardOptions.type,
+          subtype: cardOptions.type === 'Restaurant' ? cardOptions.subtype : undefined,
+          scanBaseUrl: cardOptions.scanBaseUrl.trim() || undefined, // Utilisera SCAN_BASE_URL du backend si vide
+          quantity: Number(cardOptions.quantity),
+        } : undefined,
+      });
 
       setShowCreateModal(false);
       setGeneratedPassword(result.generatedPassword ?? null);
@@ -242,6 +238,79 @@ const EnterprisesPage: React.FC = () => {
     navigator.clipboard.writeText(generatedPassword);
     setPasswordCopied(true);
     setTimeout(() => setPasswordCopied(false), 2000);
+  };
+
+  // ── Handlers actions ──────────────────────────────────────
+
+  const handleEdit = (entreprise: Enterprise) => {
+    setEditingEnterprise(entreprise);
+    setEditForm({
+      name: entreprise.name,
+      email: entreprise.email,
+      phone: entreprise.phone ?? '',
+      location: entreprise.location ?? '',
+      adminFirstName: entreprise.adminFirstName,
+      adminLastName: entreprise.adminLastName,
+      subscription: entreprise.subscription,
+      logo: entreprise.logo ?? '',
+    });
+    setEditError(null);
+    setShowEditModal(true);
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingEnterprise) return;
+    try {
+      setEditing(true);
+      setEditError(null);
+      await updateEnterprise(editingEnterprise.id, editForm);
+      setShowEditModal(false);
+      setToast({ message: `${editingEnterprise.name} à été modifier avec succès.`, variant: 'success' });
+      await fetchEnterprises();
+    } catch (err) {
+      setToast({ message: err instanceof Error ? err.message : 'Erreur lors de la modification', variant: 'error' });
+    } finally {
+      setEditing(false);
+    }
+  };
+
+
+  const handleToggleStatus = async (entreprise: Enterprise) => {
+    try {
+      setActionLoading(entreprise.id);
+      const newStatus = entreprise.status === 'active' ? 'suspended' : 'active';
+      await updateEnterprise(entreprise.id, { status: newStatus });
+      setToast({ message: `${newStatus === 'active' ? 'Entreprise activée' : 'Entreprise suspendue'}`, variant: 'success' });
+      await fetchEnterprises();
+    } catch (err) {
+      setToast({ message: err instanceof Error ? err.message : 'Erreur lors du changement de status', variant: 'error' });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleDelete = (entreprise: Enterprise) => {
+    setDeletingEnterprise(entreprise);
+    setDeleteError(null);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deletingEnterprise) return;
+    try {
+      setDeleting(true);
+      setDeleteError(null);
+      await deleteEnterprise(deletingEnterprise.id);
+      setShowDeleteModal(false);
+      setToast({ message: `${deletingEnterprise.name} à été supprimé avec succès.`, variant: 'success' });
+      setDeletingEnterprise(null);
+      await fetchEnterprises();
+    } catch (err) {
+      setToast({ message: err instanceof Error ? err.message : 'Erreur lors de la suppression', variant: 'error' });
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const columns = [
@@ -289,10 +358,49 @@ const EnterprisesPage: React.FC = () => {
         </Badge>
       ),
     },
+    {
+      key: 'actions',
+      header: 'Actions',
+      render: (entreprise: Enterprise) => (
+        <div className="flex items-center gap-2">
+          <button
+            onClick={(e) => { e.stopPropagation(); handleEdit(entreprise); }}
+            disabled={actionLoading === entreprise.id}
+            className="p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors disabled:opacity-50"
+            title="Modifier"
+          >
+            <Edit2 className="w-4 h-4" />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); handleToggleStatus(entreprise); }}
+            disabled={actionLoading === entreprise.id}
+            className={`p-2 rounded-lg transition-colors disabled:opacity-50 ${entreprise.status
+              ? 'text-warning hover:bg-warning/10'
+              : 'text-green-600 hover:bg-green-50'
+              }`}
+            title={entreprise.status ? 'Désactiver' : 'Activer'}
+          >
+            <Power className="w-4 h-4" />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); handleDelete(entreprise); }}
+            disabled={actionLoading === entreprise.id}
+            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+            title="Supprimer"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+
+        </div>
+      ),
+    },
   ];
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {toast && (
+        <Toast message={toast.message} variant={toast.variant} onClose={() => setToast(null)} />
+      )}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold font-poppins text-dark">Entreprises</h1>
@@ -563,6 +671,130 @@ const EnterprisesPage: React.FC = () => {
           <Button fullWidth onClick={() => setGeneratedPassword(null)}>
             J'ai copié le mot de passe
           </Button>
+        </div>
+      </Modal>
+
+      {/* Modale édition */}
+      <Modal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        title="Modifier l'entreprise"
+        size="lg"
+      >
+        <form onSubmit={handleEditSubmit} className="space-y-4" noValidate>
+          {editError && (
+            <div className="p-3 bg-red-50 text-red-700 rounded-xl text-sm">{editError}</div>
+          )}
+
+          <LogoUpload
+            label="Logo de l'entreprise"
+            value={editForm.logo ?? ''}
+            onChange={(url) => setEditForm((prev) => ({ ...prev, logo: url }))}
+            onFileSelect={async (file) => {
+              if (!file) return;
+              try {
+                const url = await uploadLogo(file);
+                setEditForm((prev) => ({ ...prev, logo: url }));
+              } catch {
+                setEditError("Erreur lors de l'upload du logo");
+              }
+            }}
+            previewName={editForm.name}
+          />
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Input
+              label="Nom de l'entreprise *"
+              value={editForm.name ?? ''}
+              onChange={(e) => setEditForm((prev) => ({ ...prev, name: e.target.value }))}
+              placeholder="Conciergerie Premium"
+            />
+            <Input
+              label="Email *"
+              type="email"
+              value={editForm.email ?? ''}
+              onChange={(e) => setEditForm((prev) => ({ ...prev, email: e.target.value }))}
+              placeholder="contact@entreprise.fr"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <PhoneInput
+              label="Téléphone"
+              value={editForm.phone ?? ''}
+              onChange={(val) => setEditForm((prev) => ({ ...prev, phone: val }))}
+            />
+            <Input
+              label="Localisation"
+              value={editForm.location ?? ''}
+              onChange={(e) => setEditForm((prev) => ({ ...prev, location: e.target.value }))}
+              placeholder="Paris, France"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Input
+              label="Prénom de l'admin"
+              value={editForm.adminFirstName ?? ''}
+              onChange={(e) => setEditForm((prev) => ({ ...prev, adminFirstName: e.target.value }))}
+              placeholder="Jean"
+            />
+            <Input
+              label="Nom de l'admin"
+              value={editForm.adminLastName ?? ''}
+              onChange={(e) => setEditForm((prev) => ({ ...prev, adminLastName: e.target.value }))}
+              placeholder="Dupont"
+            />
+          </div>
+
+          <Select
+            label="Plan d'abonnement"
+            options={SUBSCRIPTION_OPTIONS}
+            value={editForm.subscription ?? 'Starter'}
+            onChange={(val) => setEditForm((prev) => ({ ...prev, subscription: val as CreateEnterpriseForm['subscription'] }))}
+          />
+
+          <div className="flex gap-3 pt-2">
+            <Button type="button" variant="secondary" fullWidth onClick={() => setShowEditModal(false)}>
+              Annuler
+            </Button>
+            <Button type="submit" fullWidth disabled={editing || !editForm.name?.trim() || !editForm.email?.trim()}>
+              {editing ? 'Enregistrement...' : 'Enregistrer'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Modale confirmation suppression */}
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="Supprimer l'entreprise"
+        size="sm"
+      >
+        <div className="space-y-4">
+          {deleteError && (
+            <div className="p-3 bg-red-50 text-red-700 rounded-xl text-sm">{deleteError}</div>
+          )}
+          <p className="text-sm text-slate">
+            Vous êtes sur le point de supprimer{' '}
+            <strong className="text-dark">{deletingEnterprise?.name}</strong>.
+            Cette action supprimera toutes les données liées (cartes, clients, scans) et est{' '}
+            <strong className="text-red-600">irréversible</strong>.
+          </p>
+          <div className="flex gap-3">
+            <Button type="button" variant="secondary" fullWidth onClick={() => setShowDeleteModal(false)}>
+              Annuler
+            </Button>
+            <button
+              type="button"
+              onClick={handleDeleteConfirm}
+              disabled={deleting}
+              className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium transition-colors disabled:opacity-50"
+            >
+              {deleting ? 'Suppression...' : 'Supprimer'}
+            </button>
+          </div>
         </div>
       </Modal>
     </div>
