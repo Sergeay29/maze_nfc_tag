@@ -45,7 +45,6 @@ export interface CardGenerationPayload {
   enabled: boolean;
   type: CardType;
   subtype?: string;
-  scanBaseUrl?: string;
   quantity: number;
 }
 
@@ -127,8 +126,7 @@ export interface CreateEnterprisePayload extends Partial<Enterprise> {
     enabled: boolean;
     type?: string;
     subtype?: string;
-    scanBaseUrl?: string;
-    quantity?: number;
+      quantity?: number;
   };
 }
 
@@ -212,6 +210,42 @@ export async function getScans(
   return request<PaginatedResponse<AdminScanData>>(
     `/admin/scans${queryString ? '?' + queryString : ''}`
   );
+}
+
+
+export async function exportScansCsv(
+  params: Omit<GetScansParams, 'page' | 'limit'> = {}
+): Promise<{ blob: Blob; filename: string }> {
+  const token = await getAuthToken();
+  const query = new URLSearchParams();
+
+  if (params.search) query.append('search', params.search);
+  if (params.enterpriseId) query.append('enterpriseId', params.enterpriseId);
+  if (params.startDate) query.append('startDate', params.startDate);
+  if (params.endDate) query.append('endDate', params.endDate);
+
+  const queryString = query.toString();
+  const response = await fetch(
+    `${API_BASE_URL}/admin/scans/export${queryString ? '?' + queryString : ''}`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => null);
+    throw new Error(errorData?.message || "Erreur lors de l'export CSV");
+  }
+
+  const disposition = response.headers.get('Content-Disposition') || '';
+  const filenameMatch = disposition.match(/filename="?([^";]+)"?/i);
+
+  return {
+    blob: await response.blob(),
+    filename: filenameMatch?.[1] || 'scans.csv',
+  };
 }
 
 // ─── Generate Cards ───────────────────────────────────────────

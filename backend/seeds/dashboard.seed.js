@@ -2,6 +2,7 @@
 
 const bcrypt = require("bcryptjs");
 const { Enterprise, NFCCard, Client, Scan, Subscription, User, Role } = require("../models");
+const { getSubscriptionPlanConfig } = require("../utils/subscriptionPlans");
 
 // Fonction pour générer les initiales du nom d'entreprise
 const getEnterpriseInitials = (name) => {
@@ -105,17 +106,13 @@ async function seedDashboardData() {
     const hashedPassword = await bcrypt.hash("owner123456", 10);
 
     for (const enterprise of enterprises) {
-      const monthlyPrice =
-        enterprise.subscription === "Pro" ? 99
-          : enterprise.subscription === "Enterprise" ? 299 : 29;
+      const planConfig = getSubscriptionPlanConfig(enterprise.subscription);
 
       await Subscription.create({
         enterpriseId: enterprise.id,
         plan: enterprise.subscription,
-        monthlyPrice,
-        cardsLimit:
-          enterprise.subscription === "Pro" ? 10000
-            : enterprise.subscription === "Enterprise" ? 50000 : 1000,
+        monthlyPrice: planConfig.monthlyPrice,
+        cardsLimit: planConfig.cardsLimit,
       });
 
       // Créer le compte OWNER pour cette entreprise (email = email de l'entreprise)

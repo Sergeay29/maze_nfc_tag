@@ -17,6 +17,7 @@ import { getMyEnterprise, updateMyEnterprise, uploadFile } from '../../api/enter
 import type { MyEnterpriseData } from '../../api/enterpriseApi';
 import { useAuth } from '../../auth/useAuth';
 import { isValidPhoneNumber } from 'react-phone-number-input';
+import { formatSubscriptionPrice, getSubscriptionPlanLabel } from '../../config/subscriptions';
 
 const EnterpriseProfilePage: React.FC = () => {
   const { updateUserEnterprise, refreshUser, user, setUser } = useAuth();
@@ -336,7 +337,7 @@ const EnterpriseProfilePage: React.FC = () => {
                   }
                   size="md"
                 >
-                  {enterprise.subscription}
+                  {getSubscriptionPlanLabel(enterprise.subscription)}
                 </Badge>
               </div>
               {enterprise.Subscription && (
@@ -360,7 +361,7 @@ const EnterpriseProfilePage: React.FC = () => {
             </div>
             {enterprise.Subscription?.monthlyPrice && (
               <p className="mt-3 text-sm text-slate text-center">
-                {enterprise.Subscription.monthlyPrice}€ / mois
+                {formatSubscriptionPrice(enterprise.Subscription.monthlyPrice)} / mois
               </p>
             )}
           </Card>

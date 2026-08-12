@@ -18,6 +18,7 @@ import { Card, Badge, Tabs, StatCard, Avatar, Modal, Input, Select, Button, Logo
 import { getEnterpriseDetail, updateEnterprise, deleteEnterprise } from '../../api/adminApi';
 import { isValidPhoneNumber } from 'react-phone-number-input';
 import type { Enterprise } from '../../data/mockData';
+import { SUBSCRIPTION_PLAN_OPTIONS, getSubscriptionPlanLabel } from '../../config/subscriptions';
 
 interface EnterpriseDetailData extends Enterprise {
   adminFirstName: string;
@@ -47,11 +48,6 @@ interface EditForm {
   logo: string;
 }
 
-const SUBSCRIPTION_OPTIONS = [
-  { value: 'Starter', label: 'Starter — 29€/mois' },
-  { value: 'Pro', label: 'Pro — 79€/mois' },
-  { value: 'Enterprise', label: 'Enterprise — 199€/mois' },
-];
 
 const STATUS_OPTIONS = [
   { value: 'active', label: 'Actif' },
@@ -356,7 +352,7 @@ const EnterpriseDetailPage: React.FC = () => {
               }
               size="md"
             >
-              {enterprise.subscription}
+              {getSubscriptionPlanLabel(enterprise.subscription)}
             </Badge>
           </div>
 
@@ -619,7 +615,7 @@ const EnterpriseDetailPage: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Select
               label="Abonnement"
-              options={SUBSCRIPTION_OPTIONS}
+              options={SUBSCRIPTION_PLAN_OPTIONS}
               value={editForm.subscription}
               onChange={(val) => handleEditField('subscription', val)}
             />

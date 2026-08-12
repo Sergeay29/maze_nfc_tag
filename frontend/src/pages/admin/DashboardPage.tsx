@@ -12,6 +12,7 @@ import type { Enterprise } from '../../data/mockData';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/useAuth';
 import { changePassword } from '../../api/authApi';
+import { formatSubscriptionPrice, getSubscriptionPlanLabel } from '../../config/subscriptions';
 
 interface DashboardStats {
   activeEnterprises: number;
@@ -162,7 +163,7 @@ const AdminDashboard: React.FC = () => {
         />
         <StatCard
           title="Revenus mensuels"
-          value={loading ? '...' : `€${data.stats.monthlyRevenue.toLocaleString('fr-FR')}`}
+          value={loading ? '...' : formatSubscriptionPrice(data.stats.monthlyRevenue)}
           icon={<TrendingUp className="w-5 h-5" />}
           trend={{ value: 5, isPositive: false }}
         />
@@ -257,7 +258,7 @@ const AdminDashboard: React.FC = () => {
                   <Badge
                     variant={e.subscription === 'Enterprise' ? 'platinum' : e.subscription === 'Pro' ? 'gold' : 'silver'}
                   >
-                    {e.subscription}
+                    {getSubscriptionPlanLabel(e.subscription)}
                   </Badge>
                 </div>
               ))

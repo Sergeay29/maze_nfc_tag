@@ -62,7 +62,8 @@ const App: React.FC = () => {
             <Route path="/admin/nfc-cards/assign" element={<CardAttributionPage />} />
             <Route path="/admin/scans" element={<ScansPage />} />
             <Route path="/admin/subscriptions" element={<SubscriptionsPage />} />
-            <Route path="/admin/modules" element={<ModulesPage />} />
+            <Route path="/admin/card-types" element={<ModulesPage />} />
+            <Route path="/admin/modules" element={<Navigate to="/admin/card-types" replace />} />
             <Route path="/admin/stock" element={<StockPage />} />
             <Route path="/admin/stock/generate" element={<GenerateStockPage />} />
             <Route path="/admin/stock/assign" element={<AssignStockPage />} />

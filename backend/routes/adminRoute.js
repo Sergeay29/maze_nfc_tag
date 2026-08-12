@@ -441,6 +441,7 @@ router.delete("/card-types/:id", adminController.deleteCardType);
  *       200:
  *         description: "Liste paginée des scans avec client, carte et entreprise aplatis"
  */
+router.get("/scans/export", adminController.exportScansCsv);
 router.get("/scans", adminController.getScans);
 
 // ─────────────────────────────────────────────────────────────

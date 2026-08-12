@@ -14,6 +14,10 @@ const {
 const { Op } = require("sequelize");
 const sequelize = require("../config/database");
 const bcrypt = require("bcryptjs");
+const {
+  getSubscriptionPlanConfig,
+  isValidSubscriptionPlan,
+} = require("../utils/subscriptionPlans");
 
 /**
  * Générer un mot de passe aléatoire
@@ -368,68 +372,133 @@ exports.getCards = async (req, res) => {
 };
 
 /**
+ * Construire les filtres communs utilisés par la liste et l'export des scans.
+ */
+const buildAdminScanWhere = ({ enterpriseId, search, startDate, endDate }) => {
+  const where = {};
+
+  if (enterpriseId) {
+    where.enterpriseId = enterpriseId;
+  }
+
+  const scannedAt = {};
+
+  if (startDate) {
+    const start = new Date(`${startDate}T00:00:00.000Z`);
+    if (!Number.isNaN(start.getTime())) {
+      scannedAt[Op.gte] = start;
+    }
+  }
+
+  if (endDate) {
+    const end = new Date(`${endDate}T23:59:59.999Z`);
+    if (!Number.isNaN(end.getTime())) {
+      scannedAt[Op.lte] = end;
+    }
+  }
+
+  if (Object.keys(scannedAt).length > 0) {
+    where.scannedAt = scannedAt;
+  }
+
+  if (search && search.trim()) {
+    const query = `%${search.trim()}%`;
+    where[Op.or] = [
+      { "$Client.name$": { [Op.iLike]: query } },
+      { "$NFCCard.cardNumber$": { [Op.iLike]: query } },
+      { "$Enterprise.name$": { [Op.iLike]: query } },
+    ];
+  }
+
+  return where;
+};
+
+const getAdminScanInclude = () => [
+  {
+    model: Client,
+    attributes: ["id", "name"],
+    required: false,
+  },
+  {
+    model: Enterprise,
+    attributes: ["id", "name"],
+    required: false,
+  },
+  {
+    model: NFCCard,
+    attributes: ["id", "cardNumber"],
+    required: false,
+  },
+];
+
+const mapAdminScan = (scan) => ({
+  id: scan.id,
+  clientId: scan.clientId,
+  clientName: scan.Client?.name ?? null,
+  cardNumber: scan.NFCCard?.cardNumber ?? null,
+  enterpriseId: scan.enterpriseId,
+  enterpriseName: scan.Enterprise?.name ?? null,
+  pointsAdded: scan.pointsAdded,
+  action:
+    scan.pointsAdded > 0
+      ? `+${scan.pointsAdded} points`
+      : scan.pointsAdded < 0
+        ? `${scan.pointsAdded} points`
+        : "Consultation",
+  points: scan.pointsAdded ?? 0,
+  timestamp: scan.scannedAt ?? scan.createdAt,
+  scannedAt: scan.scannedAt,
+  createdAt: scan.createdAt,
+  ipAddress: scan.ipAddress ?? null,
+  userAgent: scan.userAgent ?? null,
+  notes: scan.notes ?? null,
+});
+
+const escapeCsvValue = (value) => {
+  if (value === null || value === undefined) {
+    return '""';
+  }
+
+  return `"${String(value).replace(/"/g, '""')}"`;
+};
+
+/**
  * GET /api/admin/scans
- * Liste les scans avec pagination
+ * Liste les scans avec pagination et filtres.
  */
 exports.getScans = async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.min(
+      Math.max(parseInt(req.query.limit, 10) || 20, 1),
+      500,
+    );
     const offset = (page - 1) * limit;
-    const { enterpriseId, search } = req.query;
+    const { enterpriseId, search, startDate, endDate } = req.query;
 
-    const where = {};
-    if (enterpriseId) where.enterpriseId = enterpriseId;
-
-    // Filtre recherche par nom de client ou numéro de carte
-    const clientWhere = {};
-    const cardWhere = {};
-    if (search && search.trim()) {
-      clientWhere.name = { [Op.iLike]: `%${search.trim()}%` };
-    }
+    const where = buildAdminScanWhere({
+      enterpriseId,
+      search,
+      startDate,
+      endDate,
+    });
 
     const { count, rows } = await Scan.findAndCountAll({
       where,
       limit,
       offset,
-      order: [["createdAt", "DESC"]],
-      include: [
-        {
-          model: Client,
-          attributes: ["id", "name"],
-          ...(search && search.trim() ? { where: clientWhere, required: true } : {}),
-        },
-        { model: Enterprise, attributes: ["id", "name"] },
-        { model: NFCCard, attributes: ["id", "cardNumber"] },
-      ],
+      order: [["scannedAt", "DESC"], ["createdAt", "DESC"]],
+      include: getAdminScanInclude(),
+      distinct: true,
+      subQuery: false,
       raw: true,
       nest: true,
     });
 
-    // Aplatir les associations pour correspondre au format attendu par le frontend
-    const mapped = rows.map((scan) => ({
-      id: scan.id,
-      clientId: scan.clientId,
-      clientName: scan.Client?.name ?? null,
-      cardNumber: scan.NFCCard?.cardNumber ?? null,
-      enterpriseId: scan.enterpriseId,
-      enterpriseName: scan.Enterprise?.name ?? null,
-      pointsAdded: scan.pointsAdded,
-      action: scan.pointsAdded > 0
-        ? `+${scan.pointsAdded} points`
-        : scan.pointsAdded < 0
-        ? `${scan.pointsAdded} points`
-        : "Consultation",
-      points: scan.pointsAdded ?? 0,
-      timestamp: scan.scannedAt ?? scan.createdAt,
-      scannedAt: scan.scannedAt,
-      createdAt: scan.createdAt,
-    }));
-
     res.json({
       success: true,
       data: {
-        data: mapped,
+        data: rows.map(mapAdminScan),
         total: count,
         page,
         limit,
@@ -441,6 +510,82 @@ exports.getScans = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Erreur lors de la récupération des scans",
+    });
+  }
+};
+
+/**
+ * GET /api/admin/scans/export
+ * Exporter toutes les lignes correspondant aux filtres courants.
+ */
+exports.exportScansCsv = async (req, res) => {
+  try {
+    const { enterpriseId, search, startDate, endDate } = req.query;
+
+    const where = buildAdminScanWhere({
+      enterpriseId,
+      search,
+      startDate,
+      endDate,
+    });
+
+    const rows = await Scan.findAll({
+      where,
+      order: [["scannedAt", "DESC"], ["createdAt", "DESC"]],
+      include: getAdminScanInclude(),
+      subQuery: false,
+      raw: true,
+      nest: true,
+    });
+
+    const scans = rows.map(mapAdminScan);
+
+    const header = [
+      "Date du scan",
+      "Client",
+      "Carte",
+      "Entreprise",
+      "Action",
+      "Points",
+      "Adresse IP",
+      "Notes",
+    ];
+
+    const csvLines = [
+      header.map(escapeCsvValue).join(";"),
+      ...scans.map((scan) =>
+        [
+          scan.scannedAt
+            ? new Date(scan.scannedAt).toISOString()
+            : "",
+          scan.clientName,
+          scan.cardNumber,
+          scan.enterpriseName,
+          scan.action,
+          scan.pointsAdded ?? 0,
+          scan.ipAddress,
+          scan.notes,
+        ]
+          .map(escapeCsvValue)
+          .join(";"),
+      ),
+    ];
+
+    const filename = `scans-${new Date().toISOString().slice(0, 10)}.csv`;
+
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${filename}"`,
+    );
+
+    // BOM UTF-8 pour une ouverture correcte dans Excel.
+    res.status(200).send(`\uFEFF${csvLines.join("\r\n")}`);
+  } catch (error) {
+    console.error("Export scans CSV error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Erreur lors de l'export CSV des scans",
     });
   }
 };
@@ -463,6 +608,16 @@ exports.createEnterprise = async (req, res) => {
       logo,
       cardGeneration,
     } = req.body;
+
+    const selectedPlan = subscription || "Starter";
+    if (!isValidSubscriptionPlan(selectedPlan)) {
+      await t.rollback();
+      return res.status(400).json({
+        success: false,
+        message: "Plan d'abonnement invalide",
+      });
+    }
+    const selectedPlanConfig = getSubscriptionPlanConfig(selectedPlan);
 
     // Validation
     if (!name || !email) {
@@ -499,7 +654,7 @@ exports.createEnterprise = async (req, res) => {
       location,
       adminFirstName,
       adminLastName,
-      subscription: subscription || "Starter",
+      subscription: selectedPlan,
       logo,
       createdBy: req.user?.id,
     }, { transaction: t });
@@ -521,19 +676,19 @@ exports.createEnterprise = async (req, res) => {
       isActive: true,
     }, { transaction: t });
 
-    // 4. Créer l'abonnement
-    const planPrices = { Starter: 29, Pro: 99, Enterprise: 299 };
+    // 4. Créer l'abonnement avec les valeurs cohérentes du plan
     await Subscription.create({
       enterpriseId: enterprise.id,
-      plan: subscription || "Starter",
-      monthlyPrice: planPrices[subscription] ?? 29,
+      plan: selectedPlan,
+      monthlyPrice: selectedPlanConfig.monthlyPrice,
+      cardsLimit: selectedPlanConfig.cardsLimit,
     }, { transaction: t });
 
     let generatedCards = 0;
 
     // 5. Si génération de cartes activée, créer automatiquement des cartes (sans créer de service par défaut)
     if (cardGeneration?.enabled && (cardGeneration?.cardTypeId || cardGeneration?.type)) {
-      const { cardTypeId, type: cardTypeName, subtype, quantity, serviceName, servicePoints, scanBaseUrl: providedScanBaseUrl } = cardGeneration;
+      const { cardTypeId, type: cardTypeName, subtype, quantity } = cardGeneration;
       const qty = parseInt(quantity, 10);
 
       if (Number.isInteger(qty) && qty > 0 && qty <= 1000) {
@@ -551,8 +706,15 @@ exports.createEnterprise = async (req, res) => {
         }
         const type = cardTypeRecord.name;
 
-        // Déterminer l'URL de base du scan: priorité au scanBaseUrl fourni par le frontend
-        const scanBaseUrl = (providedScanBaseUrl && String(providedScanBaseUrl).trim()) || process.env.SCAN_BASE_URL;
+        // L'URL de scan est toujours définie côté serveur.
+        const scanBaseUrl = process.env.SCAN_BASE_URL || process.env.PUBLIC_APP_URL;
+        if (!scanBaseUrl) {
+          await t.rollback();
+          return res.status(500).json({
+            success: false,
+            message: "SCAN_BASE_URL ou PUBLIC_APP_URL doit être configuré côté serveur",
+          });
+        }
 
         // Importer l'utilitaire de génération d'URL
         const { generateCardScanUrl, generateCardCode, generateCardScanToken } = require("../utils/urlGenerator");
@@ -586,7 +748,7 @@ exports.createEnterprise = async (req, res) => {
             enterpriseName: enterprise.name,
             cardType: type,
             scanToken: scanToken,
-            baseUrl: providedScanBaseUrl || process.env.SCAN_BASE_URL,
+            baseUrl: scanBaseUrl,
           });
 
           cards.push({
@@ -730,20 +892,32 @@ exports.updateEnterprise = async (req, res) => {
       logo: logo || enterprise.logo,
     });
 
-    // Mettre à jour subscription si changée
+    // Mettre à jour l'abonnement si le plan change.
     if (subscription && subscription !== enterprise.subscription) {
-      await Subscription.update(
-        {
+      if (!isValidSubscriptionPlan(subscription)) {
+        return res.status(400).json({
+          success: false,
+          message: "Plan d'abonnement invalide",
+        });
+      }
+
+      const planConfig = getSubscriptionPlanConfig(subscription);
+
+      const [subscriptionRecord] = await Subscription.findOrCreate({
+        where: { enterpriseId: id },
+        defaults: {
+          enterpriseId: id,
           plan: subscription,
-          monthlyPrice:
-            subscription === "Pro"
-              ? 99
-              : subscription === "Enterprise"
-              ? 299
-              : 29,
+          monthlyPrice: planConfig.monthlyPrice,
+          cardsLimit: planConfig.cardsLimit,
         },
-        { where: { enterpriseId: id } }
-      );
+      });
+
+      await subscriptionRecord.update({
+        plan: subscription,
+        monthlyPrice: planConfig.monthlyPrice,
+        cardsLimit: planConfig.cardsLimit,
+      });
 
       enterprise.subscription = subscription;
       await enterprise.save();
@@ -855,11 +1029,11 @@ exports.generateCards = async (req, res) => {
       }
     }
 
-    const scanBaseUrl = process.env.SCAN_BASE_URL;
+    const scanBaseUrl = process.env.SCAN_BASE_URL || process.env.PUBLIC_APP_URL;
     if (service && !scanBaseUrl) {
       return res.status(500).json({
         success: false,
-        message: "SCAN_BASE_URL n'est pas configuré dans les variables d'environnement",
+        message: "SCAN_BASE_URL ou PUBLIC_APP_URL n'est pas configuré dans les variables d'environnement",
       });
     }
 
@@ -1075,7 +1249,7 @@ exports.assignStockToEnterprise = async (req, res) => {
     }
     const type = cardTypeRecord.name;
 
-    const scanBaseUrl = process.env.SCAN_BASE_URL;
+    const scanBaseUrl = process.env.SCAN_BASE_URL || process.env.PUBLIC_APP_URL;
 
     // Trouver les cartes vierges à assigner (sans entreprise, sans type)
     let cardsToAssign;
@@ -1456,14 +1630,26 @@ exports.updateSubscription = async (req, res) => {
       });
     }
 
-    const planPrices = { Starter: 29, Pro: 99, Enterprise: 299 };
+    if (plan && !isValidSubscriptionPlan(plan)) {
+      return res.status(400).json({
+        success: false,
+        message: "Plan d'abonnement invalide",
+      });
+    }
+
+    const planConfig = plan ? getSubscriptionPlanConfig(plan) : null;
 
     await subscription.update({
-      ...(plan && { plan, monthlyPrice: planPrices[plan] || subscription.monthlyPrice }),
+      ...(planConfig && {
+        plan,
+        monthlyPrice: planConfig.monthlyPrice,
+        cardsLimit: planConfig.cardsLimit,
+      }),
       ...(status && { status }),
     });
 
-    // Sync plan sur l'entreprise aussi
+    // Synchroniser le plan sur l'entreprise pour conserver la compatibilité
+    // avec les écrans qui lisent encore Enterprise.subscription.
     if (plan) {
       await Enterprise.update(
         { subscription: plan },

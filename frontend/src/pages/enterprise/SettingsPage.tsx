@@ -5,6 +5,7 @@ import { getMyEnterprise, updateMyEnterprise, uploadFile } from '../../api/enter
 import type { MyEnterpriseData } from '../../api/enterpriseApi';
 import { useAuth } from '../../auth/useAuth';
 import { isValidPhoneNumber } from 'react-phone-number-input';
+import { formatSubscriptionPrice, getSubscriptionPlanLabel } from '../../config/subscriptions';
 
 const EnterpriseSettingsPage: React.FC = () => {
   const { updateUserEnterprise, updateUser } = useAuth();
@@ -157,7 +158,7 @@ const EnterpriseSettingsPage: React.FC = () => {
               variant={enterprise?.subscription === 'Enterprise' ? 'platinum' : enterprise?.subscription === 'Pro' ? 'gold' : 'silver'}
               size="md"
             >
-              {enterprise?.subscription ?? '—'}
+              {getSubscriptionPlanLabel(enterprise?.subscription)}
             </Badge>
             {enterprise?.Subscription && (
               <div className="mt-4 space-y-2">
@@ -165,7 +166,7 @@ const EnterpriseSettingsPage: React.FC = () => {
                   {enterprise.Subscription.status === 'active' ? 'Actif' : enterprise.Subscription.status === 'paused' ? 'En pause' : 'Annulé'}
                 </Badge>
                 {enterprise.Subscription.monthlyPrice && (
-                  <p className="text-slate text-sm">{enterprise.Subscription.monthlyPrice}€ / mois</p>
+                  <p className="text-slate text-sm">{formatSubscriptionPrice(enterprise.Subscription.monthlyPrice)} / mois</p>
                 )}
               </div>
             )}

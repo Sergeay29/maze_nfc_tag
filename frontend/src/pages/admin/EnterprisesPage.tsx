@@ -1,17 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Filter, Copy, Check, Sparkles, Link, Trash2, Edit2, Power } from 'lucide-react';
+import { Plus, Filter, Copy, Check, Sparkles, Trash2, Edit2, Power } from 'lucide-react';
 import { Button, Badge, Table, SearchInput, Card, Modal, Input, Select, PhoneInput, Avatar, LogoUpload, Toast } from '../../components';
 import { useNavigate } from 'react-router-dom';
 import { getEnterprises, createEnterprise, updateEnterprise, deleteEnterprise, uploadLogo } from '../../api/adminApi';
 import { isValidPhoneNumber } from 'react-phone-number-input';
 import type { Enterprise } from '../../data/mockData';
 import type { CardType } from '../../@types/types';
+import { SUBSCRIPTION_PLAN_OPTIONS, getSubscriptionPlanLabel } from '../../config/subscriptions';
 
-const SUBSCRIPTION_OPTIONS = [
-  { value: 'Starter', label: 'Starter — 29€/mois' },
-  { value: 'Pro', label: 'Pro — 79€/mois' },
-  { value: 'Enterprise', label: 'Enterprise — 199€/mois' },
-];
 
 interface CreateEnterpriseForm {
   name: string;
@@ -28,7 +24,6 @@ interface CreateCardsOptions {
   enabled: boolean;
   type: CardType | '';
   subtype: string;
-  scanBaseUrl: string;
   quantity: string;
 }
 
@@ -47,7 +42,6 @@ const EMPTY_CARD_OPTIONS: CreateCardsOptions = {
   enabled: false,
   type: 'Fidélité Entreprise',
   subtype: '',
-  scanBaseUrl: '', // Vide par défaut, utilisera SCAN_BASE_URL du backend
   quantity: '100',
 };
 
@@ -217,7 +211,6 @@ const EnterprisesPage: React.FC = () => {
           enabled: true,
           type: cardOptions.type,
           subtype: cardOptions.type === 'Restaurant' ? cardOptions.subtype : undefined,
-          scanBaseUrl: cardOptions.scanBaseUrl.trim() || undefined, // Utilisera SCAN_BASE_URL du backend si vide
           quantity: Number(cardOptions.quantity),
         } : undefined,
       });
@@ -337,7 +330,7 @@ const EnterprisesPage: React.FC = () => {
               : enterprise.subscription === 'Pro' ? 'gold' : 'silver'
           }
         >
-          {enterprise.subscription}
+          {getSubscriptionPlanLabel(enterprise.subscription)}
         </Badge>
       ),
     },
@@ -564,7 +557,7 @@ const EnterprisesPage: React.FC = () => {
 
           <Select
             label="Plan d'abonnement"
-            options={SUBSCRIPTION_OPTIONS}
+            options={SUBSCRIPTION_PLAN_OPTIONS}
             value={form.subscription}
             onChange={(val) => handleFieldChange('subscription', val)}
           />
@@ -602,17 +595,6 @@ const EnterprisesPage: React.FC = () => {
                     <div />
                   )}
                 </div>
-
-                <Input
-                  label="URL de base du scan (optionnel)"
-                  icon={<Link className="w-4 h-4 text-slate" />}
-                  value={cardOptions.scanBaseUrl}
-                  onChange={(e) => setCardOptions((prev) => ({ ...prev, scanBaseUrl: e.target.value }))}
-                  placeholder="Laissez vide pour utiliser la config du serveur"
-                />
-                <p className="text-xs text-slate -mt-2">
-                  Si vide, l'URL configurée dans le backend sera utilisée (SCAN_BASE_URL)
-                </p>
                 <Input
                   label="Quantité"
                   type="number"
@@ -749,7 +731,7 @@ const EnterprisesPage: React.FC = () => {
 
           <Select
             label="Plan d'abonnement"
-            options={SUBSCRIPTION_OPTIONS}
+            options={SUBSCRIPTION_PLAN_OPTIONS}
             value={editForm.subscription ?? 'Starter'}
             onChange={(val) => setEditForm((prev) => ({ ...prev, subscription: val as CreateEnterpriseForm['subscription'] }))}
           />

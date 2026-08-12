@@ -33,7 +33,7 @@ const adminItems: SidebarItem[] = [
   { path: '/admin/stock', icon: <Package className="w-5 h-5" />, label: 'Stock' },
   { path: '/admin/scans', icon: <QrCode className="w-5 h-5" />, label: 'Scans' },
   { path: '/admin/subscriptions', icon: <BarChart3 className="w-5 h-5" />, label: 'Abonnements' },
-  { path: '/admin/modules', icon: <Layers className="w-5 h-5" />, label: 'Types de cartes' },
+  { path: '/admin/card-types', icon: <Layers className="w-5 h-5" />, label: 'Types de cartes' },
   { path: '/admin/users', icon: <Users className="w-5 h-5" />, label: 'Utilisateurs' },
   { path: '/admin/settings', icon: <Settings className="w-5 h-5" />, label: 'Paramètres' },
 ];

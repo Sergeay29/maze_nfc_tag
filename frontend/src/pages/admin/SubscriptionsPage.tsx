@@ -3,12 +3,14 @@ import { TrendingUp, Filter, RefreshCw } from 'lucide-react';
 import { Badge, Table, SearchInput, Card, StatCard, Select, Avatar, Toast } from '../../components';
 import { getSubscriptions, updateSubscription } from '../../api/adminApi';
 import type { SubscriptionRecord } from '../../api/adminApi';
+import { SUBSCRIPTION_PLAN_CONFIG, formatSubscriptionPrice, getSubscriptionPlanLabel } from '../../config/subscriptions';
 
 const PLAN_OPTIONS = [
   { value: 'all', label: 'Tous les plans' },
-  { value: 'Starter', label: 'Starter' },
-  { value: 'Pro', label: 'Pro' },
-  { value: 'Enterprise', label: 'Enterprise' },
+  ...Object.keys(SUBSCRIPTION_PLAN_CONFIG).map((plan) => ({
+    value: plan,
+    label: getSubscriptionPlanLabel(plan),
+  })),
 ];
 
 const STATUS_OPTIONS = [
@@ -18,7 +20,7 @@ const STATUS_OPTIONS = [
   { value: 'cancelled', label: 'Annulé' },
 ];
 
-const PLAN_PRICES: Record<string, number> = { Starter: 29, Pro: 99, Enterprise: 299 };
+
 const PAGE_SIZE = 10;
 
 const SubscriptionsPage: React.FC = () => {
@@ -94,12 +96,12 @@ const SubscriptionsPage: React.FC = () => {
   }));
 
   const handleChangePlan = async (subscriptionId: string, newPlan: string) => {
-    if (!window.confirm(`Changer le plan vers ${newPlan} ?`)) return;
+    if (!window.confirm(`Changer le plan vers ${getSubscriptionPlanLabel(newPlan)} ?`)) return;
     try {
       setUpdatingId(subscriptionId);
       await updateSubscription(subscriptionId, { plan: newPlan });
       await fetchSubscriptions();
-      setToast({ message: `Plan changé vers ${newPlan} avec succès !`, variant: 'success' });
+      setToast({ message: `Plan changé vers ${getSubscriptionPlanLabel(newPlan)} avec succès !`, variant: 'success' });
     } catch (err) {
       setToast({ message: err instanceof Error ? err.message : 'Erreur lors de la mise à jour', variant: 'error' });
     } finally {
@@ -152,7 +154,7 @@ const SubscriptionsPage: React.FC = () => {
       render: (sub: SubscriptionRecord) => (
         <div className="flex items-center gap-2">
           <Badge variant={sub.plan === 'Enterprise' ? 'platinum' : sub.plan === 'Pro' ? 'gold' : 'silver'}>
-            {sub.plan}
+            {getSubscriptionPlanLabel(sub.plan)}
           </Badge>
           <select
             value={sub.plan}
@@ -162,7 +164,7 @@ const SubscriptionsPage: React.FC = () => {
             onClick={(e) => e.stopPropagation()}
           >
             {['Starter', 'Pro', 'Enterprise'].map((p) => (
-              <option key={p} value={p}>{p}</option>
+              <option key={p} value={p}>{getSubscriptionPlanLabel(p)}</option>
             ))}
           </select>
         </div>
@@ -173,7 +175,7 @@ const SubscriptionsPage: React.FC = () => {
       header: 'Prix',
       render: (sub: SubscriptionRecord) => (
         <span className="font-medium text-dark">
-          {Number(sub.monthlyPrice).toLocaleString('fr-FR')}€
+          {formatSubscriptionPrice(sub.monthlyPrice)}
           <span className="text-xs text-slate">/mois</span>
         </span>
       ),
@@ -230,14 +232,14 @@ const SubscriptionsPage: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Revenus mensuels"
-          value={`€${activeRevenue.toLocaleString('fr-FR')}`}
+          value={formatSubscriptionPrice(activeRevenue)}
           icon={<TrendingUp className="w-5 h-5" />}
           gradient
         />
         {countByPlan.map(({ plan, count }) => (
           <StatCard
             key={plan}
-            title={`Plan ${plan}`}
+            title={`Plan ${getSubscriptionPlanLabel(plan)}`}
             value={String(count)}
             icon={<TrendingUp className="w-5 h-5" />}
           />
@@ -250,15 +252,20 @@ const SubscriptionsPage: React.FC = () => {
           <Card key={plan} className={plan === 'Enterprise' ? 'ring-2 ring-primary' : ''}>
             <div className="text-center">
               <Badge variant={plan === 'Enterprise' ? 'platinum' : plan === 'Pro' ? 'gold' : 'silver'} size="md">
-                {plan}
+                {getSubscriptionPlanLabel(plan)}
               </Badge>
               <p className="text-3xl font-bold font-poppins text-primary mt-3 mb-1">
-                {PLAN_PRICES[plan]}€
+                {SUBSCRIPTION_PLAN_CONFIG[plan].monthlyPrice.toLocaleString('fr-FR')} FCFA
                 <span className="text-sm text-slate font-normal">/mois</span>
               </p>
               <p className="text-sm text-slate">
                 {countByPlan.find((c) => c.plan === plan)?.count ?? 0} abonnement(s)
               </p>
+              <div className="mt-4 text-left space-y-1 text-xs text-slate">
+                <p>{SUBSCRIPTION_PLAN_CONFIG[plan].dataAccess}</p>
+                <p>{SUBSCRIPTION_PLAN_CONFIG[plan].physicalCardsPerMonth} carte(s) physique(s) / mois</p>
+                <p>{SUBSCRIPTION_PLAN_CONFIG[plan].walletCardsPerMonth} carte(s) wallet / mois</p>
+              </div>
             </div>
           </Card>
         ))}

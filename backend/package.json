@@ -9,7 +9,8 @@
     "db:migrate": "node scripts/runMigration.js up",
     "db:migrate:status": "node scripts/runMigration.js status",
     "db:migrate:down": "node scripts/runMigration.js down",
-    "db:seed:production": "node scripts/seedProduction.js"
+    "db:seed:production": "node scripts/seedProduction.js",
+    "data:reconcile-production": "node scripts/reconcileProductionData.js"
   },
   "keywords": [],
   "author": "",
