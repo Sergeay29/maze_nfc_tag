@@ -7,7 +7,7 @@ import type { SettingsGrouped } from '../../api/adminApi';
 import { useAuth } from '../../auth/useAuth';
 
 // Clés booléennes affichées comme toggles
-const BOOLEAN_KEYS = ['notify_email_alerts', 'notify_push', 'notify_weekly_report', 'require_2fa_super_admin'];
+const BOOLEAN_KEYS = ['notify_email_alerts', 'notify_push', 'notify_weekly_report', 'require_2fa_super_admin', 'require_2fa_enterprise'];
 
 // Labels de groupes
 const GROUP_LABELS: Record<string, string> = {

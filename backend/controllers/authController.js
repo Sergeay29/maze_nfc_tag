@@ -230,12 +230,13 @@ async function register(req, res) {
 
 async function me(req, res) {
   try {
-    const user = await authService.getProfile(req.user.id);
+    const { user, mustSetup2FA } = await authService.getProfileWithMeta(req.user.id);
 
     return res.json({
       success: true,
       data: {
         user,
+        mustSetup2FA,
       },
     });
   } catch (error) {

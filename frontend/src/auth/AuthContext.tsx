@@ -45,10 +45,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       try {
-        const currentUser = await getCurrentUser(token);
+        const { user: currentUser, mustSetup2FA: setupRequired } = await getCurrentUser(token);
 
         if (!cancelled) {
           setUser(currentUser);
+          setMustSetup2FA(Boolean(setupRequired));
         }
       } catch {
         localStorage.removeItem(TOKEN_STORAGE_KEY);
@@ -126,11 +127,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   async function refreshUser() {
     if (!token) return;
     try {
-      const currentUser = await getCurrentUser(token);
+      const { user: currentUser, mustSetup2FA: setupRequired } = await getCurrentUser(token);
       setUser(currentUser);
-      if (currentUser.twoFactorEnabled) {
-        setMustSetup2FA(false);
-      }
+      setMustSetup2FA(Boolean(setupRequired));
     } catch {
       logout();
     }

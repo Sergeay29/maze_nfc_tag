@@ -1,15 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Save } from 'lucide-react';
+import { Building2, Save, AlertTriangle, Shield } from 'lucide-react';
 import { Card, Button, Input, Tabs, Badge, LogoUpload, Avatar, PhoneInput } from '../../components';
+import TwoFactorSetup from '../../components/TwoFactorSetup';
 import { getMyEnterprise, updateMyEnterprise, uploadFile } from '../../api/enterpriseApi';
 import type { MyEnterpriseData } from '../../api/enterpriseApi';
 import { useAuth } from '../../auth/useAuth';
 import { isValidPhoneNumber } from 'react-phone-number-input';
 import { formatSubscriptionPrice, getSubscriptionPlanLabel } from '../../config/subscriptions';
+import { useSearchParams } from 'react-router-dom';
+
+const ENTERPRISE_2FA_ROLES = ['OWNER', 'MANAGER'] as const;
 
 const EnterpriseSettingsPage: React.FC = () => {
-  const { updateUserEnterprise, updateUser } = useAuth();
-  const [activeTab, setActiveTab] = useState('info');
+  const { updateUserEnterprise, updateUser, user, mustSetup2FA } = useAuth();
+  const [searchParams] = useSearchParams();
+  const canManage2FA = ENTERPRISE_2FA_ROLES.includes(
+    user?.Role?.name as (typeof ENTERPRISE_2FA_ROLES)[number]
+  );
+  const [activeTab, setActiveTab] = useState(
+    searchParams.get('setup2fa') === '1' && canManage2FA ? 'security' : 'modules'
+  );
   const [enterprise, setEnterprise] = useState<MyEnterpriseData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -65,7 +75,7 @@ const EnterpriseSettingsPage: React.FC = () => {
   };
 
   const tabs = [
-    // { id: 'info', label: 'Informations' },
+    ...(canManage2FA ? [{ id: 'security', label: 'Sécurité', icon: <Shield className="w-4 h-4" /> }] : []),
     { id: 'modules', label: 'Modules' },
     { id: 'subscription', label: 'Abonnement' },
     { id: 'notifications', label: 'Notifications' },
@@ -87,6 +97,19 @@ const EnterpriseSettingsPage: React.FC = () => {
       </div>
 
       <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
+
+      {mustSetup2FA && canManage2FA && (
+        <div className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800">
+          <AlertTriangle className="w-5 h-5 flex-shrink-0" />
+          <span>
+            La 2FA est obligatoire pour votre compte. Veuillez l'activer dans l'onglet Sécurité.
+          </span>
+        </div>
+      )}
+
+      {activeTab === 'security' && canManage2FA && (
+        <TwoFactorSetup />
+      )}
 
       {activeTab === 'info' && (
         <form onSubmit={handleSaveInfo}>

@@ -1,7 +1,10 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const { Op } = require("sequelize");
 const { User, Role, Enterprise, Setting } = require("../models");
 const twoFactorService = require("./twoFactorService");
+
+const ENTERPRISE_2FA_ROLES = ["OWNER", "MANAGER"];
 
 function sanitizeUser(user) {
   const plainUser = user.get({ plain: true });
@@ -37,12 +40,28 @@ async function findUserWithIncludes(userId) {
 }
 
 async function is2FARequiredForUser(user) {
-  if (user.Role?.name !== "SUPER_ADMIN") {
-    return false;
+  const role = user.Role?.name;
+  if (!role) return false;
+
+  const keys = [];
+  if (role === "SUPER_ADMIN") {
+    keys.push("require_2fa_super_admin");
+  }
+  if (ENTERPRISE_2FA_ROLES.includes(role)) {
+    keys.push("require_2fa_enterprise");
   }
 
-  const setting = await Setting.findOne({ where: { key: "require_2fa_super_admin" } });
-  return setting?.value === "true";
+  if (keys.length === 0) return false;
+
+  const settings = await Setting.findAll({
+    where: { key: { [Op.in]: keys } },
+  });
+
+  return settings.some((setting) => setting.value === "true");
+}
+
+async function computeMustSetup2FA(user) {
+  return (await is2FARequiredForUser(user)) && !user.twoFactorEnabled;
 }
 
 async function login(email, password) {
@@ -67,7 +86,7 @@ async function login(email, password) {
     throw error;
   }
 
-  const mustSetup2FA = await is2FARequiredForUser(user) && !user.twoFactorEnabled;
+  const mustSetup2FA = await computeMustSetup2FA(user);
 
   if (user.twoFactorEnabled) {
     return {
@@ -118,7 +137,7 @@ async function verify2FA(tempToken, code, backupCode) {
     throw error;
   }
 
-  const mustSetup2FA = await is2FARequiredForUser(user) && !user.twoFactorEnabled;
+  const mustSetup2FA = await computeMustSetup2FA(user);
 
   return {
     token: signToken(user),
@@ -174,6 +193,21 @@ async function getProfile(userId) {
   return sanitizeUser(user);
 }
 
+async function getProfileWithMeta(userId) {
+  const user = await findUserWithIncludes(userId);
+
+  if (!user || !user.isActive) {
+    const error = new Error("Utilisateur introuvable");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  return {
+    user: sanitizeUser(user),
+    mustSetup2FA: await computeMustSetup2FA(user),
+  };
+}
+
 async function changePassword(userId, newPassword) {
   const hashedPassword = await bcrypt.hash(newPassword, 10);
   await User.update(
@@ -187,7 +221,10 @@ module.exports = {
   verify2FA,
   register,
   getProfile,
+  getProfileWithMeta,
   changePassword,
   sanitizeUser,
   signToken,
+  computeMustSetup2FA,
+  ENTERPRISE_2FA_ROLES,
 };

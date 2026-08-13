@@ -105,12 +105,10 @@ export async function updateCurrentUser(token: string, body: { firstName?: strin
   });
 }
 
-export async function getCurrentUser(token: string): Promise<AuthUser> {
-  const data = await request<{ user: AuthUser }>('/auth/me', {
+export async function getCurrentUser(token: string): Promise<{ user: AuthUser; mustSetup2FA?: boolean }> {
+  return request<{ user: AuthUser; mustSetup2FA?: boolean }>('/auth/me', {
     headers: {
       Authorization: `Bearer ${token}`,
     },
   });
-
-  return data.user;
 }

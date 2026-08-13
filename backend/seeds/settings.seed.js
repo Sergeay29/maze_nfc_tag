@@ -51,6 +51,12 @@ async function seedSettings() {
       group: "security",
     },
     {
+      key: "require_2fa_enterprise",
+      value: "false",
+      label: "2FA obligatoire pour les comptes entreprise (Owner/Manager)",
+      group: "security",
+    },
+    {
       key: "session_timeout_hours",
       value: "24",
       label: "Durée de session (heures)",

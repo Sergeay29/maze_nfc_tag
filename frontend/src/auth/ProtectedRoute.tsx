@@ -7,6 +7,14 @@ interface ProtectedRouteProps {
   allowedRoles?: RoleName[];
 }
 
+const ENTERPRISE_2FA_ROLES: RoleName[] = ['OWNER', 'MANAGER'];
+
+function getTwoFactorSetupPath(role?: RoleName): string | null {
+  if (role === 'SUPER_ADMIN') return '/admin/settings';
+  if (role && ENTERPRISE_2FA_ROLES.includes(role)) return '/enterprise/settings';
+  return null;
+}
+
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles }) => {
   const { user, loading, mustSetup2FA } = useAuth();
   const location = useLocation();
@@ -30,12 +38,13 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles }) => {
     return <Navigate to="/login" replace />;
   }
 
+  const setupPath = getTwoFactorSetupPath(user.Role?.name as RoleName);
   if (
     mustSetup2FA &&
-    user.Role?.name === 'SUPER_ADMIN' &&
-    !location.pathname.startsWith('/admin/settings')
+    setupPath &&
+    !location.pathname.startsWith(setupPath)
   ) {
-    return <Navigate to="/admin/settings" replace />;
+    return <Navigate to={`${setupPath}?setup2fa=1`} replace />;
   }
 
   return <Outlet />;
