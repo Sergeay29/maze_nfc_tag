@@ -65,7 +65,8 @@ const RESOURCE_LABELS: Record<string, string> = {
   auth: 'Authentification',
 };
 
-
+const LOGS_PER_PAGE = 15;
+const TABLE_MAX_HEIGHT = '32rem';
 
 export default function AuditPage() {
   const [logs, setLogs] = useState<AuditLog[]>([]);
@@ -82,9 +83,13 @@ export default function AuditPage() {
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
   const [showDetails, setShowDetails] = useState(false);
 
-  // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filters.action, filters.resource, filters.success, filters.period]);
 
   useEffect(() => {
     loadAuditLogs();
@@ -96,7 +101,7 @@ export default function AuditPage() {
       setLoading(true);
       const response = await getAuditLogs({
         page: currentPage,
-        limit: 20,
+        limit: LOGS_PER_PAGE,
         search: searchTerm,
         ...filters,
       });
@@ -104,6 +109,7 @@ export default function AuditPage() {
       if (response.success) {
         setLogs(response.data);
         setTotalPages(response.pagination.pages);
+        setTotalItems(response.pagination.total);
       }
     } catch (error) {
       console.error('Erreur lors du chargement des logs d\'audit:', error);
@@ -125,7 +131,6 @@ export default function AuditPage() {
 
   const handleFilterChange = (key: string, value: string) => {
     setFilters(prev => ({ ...prev, [key]: value }));
-    setCurrentPage(1);
   };
 
   const formatDateTime = (dateString: string) => {
@@ -174,7 +179,7 @@ export default function AuditPage() {
     }
   };
 
-  if (loading && !logs.length) {
+  if (loading && logs.length === 0 && totalItems === 0) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -363,36 +368,46 @@ export default function AuditPage() {
       </Card>
 
       {/* Table des logs */}
+      <Card padding="none" className="overflow-hidden">
+        <Table
+          data={logs}
+          columns={columns}
+          emptyMessage="Aucun log d'audit trouvé"
+          maxHeight={TABLE_MAX_HEIGHT}
+          loading={loading}
+          embedded
+        />
 
-  <Table
-    data={logs}
-    columns={columns}
-    emptyMessage="Aucun log d'audit trouvé"
-  />
-
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex justify-center gap-2">
-          <Button
-            variant="primary"
-            disabled={currentPage === 1}
-            onClick={() => setCurrentPage(prev => prev - 1)}
-          >
-            Précédent
-          </Button>
-          <span className="flex items-center px-4 py-2 text-sm">
-            Page {currentPage} sur {totalPages}
-          </span>
-          <Button
-            variant="primary"
-            disabled={currentPage === totalPages}
-            onClick={() => setCurrentPage(prev => prev + 1)}
-          >
-            Suivant
-          </Button>
-        </div>
-      )}
+        {totalItems > 0 && (
+          <div className="px-4 py-3 border-t border-slate/10 flex flex-col sm:flex-row items-center justify-between gap-4 bg-white">
+            <p className="text-sm text-slate">
+              {totalItems} résultat{totalItems > 1 ? 's' : ''}
+              {' · '}
+              Page {currentPage} sur {totalPages}
+            </p>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="primary"
+                  size="sm"
+                  disabled={currentPage === 1 || loading}
+                  onClick={() => setCurrentPage((prev) => prev - 1)}
+                >
+                  Précédent
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  disabled={currentPage === totalPages || loading}
+                  onClick={() => setCurrentPage((prev) => prev + 1)}
+                >
+                  Suivant
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+      </Card>
 
       {/* Modal détails */}
       {showDetails && selectedLog && (

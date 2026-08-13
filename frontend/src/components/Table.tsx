@@ -12,6 +12,9 @@ export interface TableProps<T> {
   columns: Column<T>[];
   onRowClick?: (item: T) => void;
   emptyMessage?: string;
+  maxHeight?: string;
+  loading?: boolean;
+  embedded?: boolean;
 }
 
 function Table<T extends { id: string }>({
@@ -19,19 +22,38 @@ function Table<T extends { id: string }>({
   columns,
   onRowClick,
   emptyMessage = 'Aucune donnée disponible',
+  maxHeight,
+  loading = false,
+  embedded = false,
 }: TableProps<T>) {
+  const containerClass = embedded
+    ? 'overflow-hidden'
+    : 'bg-white rounded-xl sm:rounded-2xl shadow-soft overflow-hidden';
+  if (loading) {
+    return (
+      <div
+        className={`${containerClass} flex items-center justify-center text-slate`}
+        style={maxHeight ? { minHeight: maxHeight } : { minHeight: '12rem' }}
+      >
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+  }
+
   if (data.length === 0) {
     return (
-      <div className="bg-white rounded-xl sm:rounded-2xl shadow-soft p-6 sm:p-8 text-center">
+      <div className={`${containerClass} p-6 sm:p-8 text-center`}>
         <p className="text-slate">{emptyMessage}</p>
       </div>
     );
   }
 
+  const scrollStyle = maxHeight ? { maxHeight } : undefined;
+
   return (
-    <div className="bg-white rounded-xl sm:rounded-2xl shadow-soft overflow-hidden">
+    <div className={containerClass}>
       {/* Version mobile : cartes empilées */}
-      <div className="block sm:hidden">
+      <div className="block sm:hidden overflow-y-auto" style={scrollStyle}>
         <div className="divide-y divide-slate/10">
           {data.map((item) => (
             <div
@@ -54,10 +76,10 @@ function Table<T extends { id: string }>({
         </div>
       </div>
 
-      {/* Version desktop : tableau classique */}
-      <div className="hidden sm:block overflow-x-auto">
+      {/* Version desktop : tableau classique avec scroll interne */}
+      <div className="hidden sm:block overflow-x-auto overflow-y-auto" style={scrollStyle}>
         <table className="w-full min-w-full">
-          <thead className="bg-cloud border-b border-slate/10">
+          <thead className="sticky top-0 z-10 bg-cloud border-b border-slate/10">
             <tr>
               {columns.map((column) => (
                 <th
@@ -69,7 +91,7 @@ function Table<T extends { id: string }>({
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate/10">
+          <tbody className="divide-y divide-slate/10 bg-white">
             {data.map((item) => (
               <tr
                 key={item.id}
@@ -80,7 +102,7 @@ function Table<T extends { id: string }>({
                   <td key={column.key} className={`table-cell px-4 lg:px-6 py-3 lg:py-4 text-sm whitespace-nowrap ${column.className || ''}`}>
                     {column.render ? column.render(item) : (item as Record<string, unknown>)[column.key] as React.ReactNode}
                   </td>
-                ))} 
+                ))}
               </tr>
             ))}
           </tbody>
