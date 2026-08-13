@@ -1284,7 +1284,12 @@ exports.generateStockCards = async (req, res) => {
     });
   } catch (error) {
     console.error("Generate stock cards error:", error);
-    res.status(500).json({ success: false, message: "Erreur lors de la génération du stock" });
+    const message =
+      error.name === "SequelizeDatabaseError" &&
+      /enterpriseId|enterprise_id|not-null/i.test(error.message)
+        ? "Impossible de créer le stock global : la base de données doit autoriser les cartes sans entreprise. Exécutez les migrations."
+        : "Erreur lors de la génération du stock";
+    res.status(500).json({ success: false, message });
   }
 };
 
