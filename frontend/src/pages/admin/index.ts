@@ -10,3 +10,4 @@ export { default as ModulesPage } from './ModulesPage';
 export { default as StockPage } from './StockPage';
 export { default as UsersPage } from './UsersPage';
 export { default as SettingsPage } from './SettingsPage';
+export { default as AuditPage } from "./AuditPage";

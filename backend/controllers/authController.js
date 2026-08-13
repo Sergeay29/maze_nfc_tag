@@ -1,4 +1,9 @@
 const authService = require("../services/authService");
+const crypto = require("crypto");
+const { User } = require("../models");
+const { Op } = require("sequelize");
+const bcrypt = require("bcryptjs");
+const { sendPasswordResetEmail } = require("../services/emailService");
 
 async function login(req, res) {
   try {
@@ -131,10 +136,108 @@ async function changePassword(req, res) {
   }
 }
 
+/**
+ * POST /api/auth/forgot-password
+ * Envoie un email de réinitialisation si l'email existe.
+ * Répond toujours avec succès pour ne pas divulguer si l'email existe.
+ */
+async function forgotPassword(req, res) {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ success: false, message: "Email requis" });
+    }
+
+    const user = await User.findOne({ where: { email: email.trim().toLowerCase() } });
+
+    // Réponse identique que l'utilisateur existe ou non (sécurité)
+    const genericMessage = "Si cet email est enregistré, un lien de réinitialisation vous a été envoyé.";
+
+    if (user && user.isActive) {
+      // Générer un token sécurisé de 64 caractères hex
+      const token = crypto.randomBytes(32).toString("hex");
+      const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 heure
+
+      await user.update({
+        resetPasswordToken: token,
+        resetPasswordExpires: expires,
+      });
+
+      const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+      const resetUrl = `${frontendUrl}/reset-password?token=${token}`;
+
+      try {
+        await sendPasswordResetEmail(user.email, resetUrl);
+      } catch (mailErr) {
+        console.error("Erreur envoi email reset:", mailErr);
+        // On ne bloque pas la réponse même si l'email échoue
+      }
+    }
+
+    return res.json({ success: true, message: genericMessage });
+  } catch (error) {
+    console.error("forgotPassword error:", error);
+    return res.status(500).json({ success: false, message: "Erreur serveur" });
+  }
+}
+
+/**
+ * POST /api/auth/reset-password
+ * Réinitialise le mot de passe via le token reçu par email.
+ */
+async function resetPassword(req, res) {
+  try {
+    const { token, password } = req.body;
+
+    if (!token || !password) {
+      return res.status(400).json({ success: false, message: "Token et mot de passe requis" });
+    }
+
+    if (password.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: "Le mot de passe doit contenir au moins 8 caractères",
+      });
+    }
+
+    // Trouver l'utilisateur avec ce token valide et non expiré
+    const user = await User.findOne({
+      where: {
+        resetPasswordToken: token,
+        resetPasswordExpires: { [Op.gt]: new Date() },
+      },
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: "Lien invalide ou expiré. Veuillez refaire une demande.",
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    await user.update({
+      password: hashedPassword,
+      mustChangePassword: false,
+      resetPasswordToken: null,
+      resetPasswordExpires: null,
+    });
+
+    return res.json({ success: true, message: "Mot de passe réinitialisé avec succès." });
+  } catch (error) {
+    console.error("resetPassword error:", error);
+    return res.status(500).json({ success: false, message: "Erreur serveur" });
+  }
+}
+
 module.exports = {
   login,
   register,
   me,
   updateMe,
   changePassword,
+  forgotPassword,
+  resetPassword,
 };

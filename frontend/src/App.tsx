@@ -5,6 +5,8 @@ import ProtectedRoute from './auth/ProtectedRoute';
 import {
   LoginPage,
   RegisterPage,
+  ForgotPasswordPage,
+  ResetPasswordPage,
   AdminDashboard,
   EnterprisesPage,
   NFCCardsPage,
@@ -17,6 +19,7 @@ import {
   StockPage,
   UsersPage,
   SettingsPage,
+  AuditPage,
   EnterpriseDashboard,
   ClientsPage,
   ClientDetailPage,

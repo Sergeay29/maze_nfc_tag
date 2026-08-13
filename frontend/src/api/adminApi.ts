@@ -693,6 +693,143 @@ export async function updateSettings(
   });
 }
 
+// ─── Audit ────────────────────────────────────────────────────
+
+export interface AuditLog {
+  id: string;
+  action: string;
+  resource: string;
+  resourceId?: string;
+  oldValues?: any;
+  newValues?: any;
+  details?: string;
+  ipAddress?: string;
+  userAgent?: string;
+  success: boolean;
+  errorMessage?: string;
+  createdAt: string;
+  User: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+}
+
+export interface AuditStats {
+  period: string;
+  stats: {
+    total: number;
+    success: number;
+    failed: number;
+    successRate: string;
+  };
+  topActions: Array<{ action: string; count: number }>;
+  topUsers: Array<{
+    user: { id: string; name: string; email: string };
+    count: number;
+  }>;
+}
+
+export interface GetAuditLogsParams {
+  page?: number;
+  limit?: number;
+  action?: string;
+  resource?: string;
+  userId?: string;
+  success?: string;
+  startDate?: string;
+  endDate?: string;
+  search?: string;
+}
+
+export async function getAuditLogs(
+  params: GetAuditLogsParams = {}
+): Promise<{
+  success: boolean;
+  data: AuditLog[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    pages: number;
+  };
+}> {
+  const query = new URLSearchParams();
+  if (params.page) query.append('page', String(params.page));
+  if (params.limit) query.append('limit', String(params.limit));
+  if (params.action) query.append('action', params.action);
+  if (params.resource) query.append('resource', params.resource);
+  if (params.userId) query.append('userId', params.userId);
+  if (params.success) query.append('success', params.success);
+  if (params.startDate) query.append('startDate', params.startDate);
+  if (params.endDate) query.append('endDate', params.endDate);
+  if (params.search) query.append('search', params.search);
+
+  const queryString = query.toString();
+  const response = await fetch(
+    `${API_BASE_URL}/admin/audit${queryString ? '?' + queryString : ''}`,
+    {
+      headers: {
+        Authorization: `Bearer ${await getAuthToken()}`,
+        'Content-Type': 'application/json',
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.message || 'Erreur lors de la récupération des logs d\'audit');
+  }
+
+  return response.json();
+}
+
+export async function getAuditStats(params: { period?: string } = {}): Promise<{
+  success: boolean;
+  data: AuditStats;
+}> {
+  const query = new URLSearchParams();
+  if (params.period) query.append('period', params.period);
+
+  const queryString = query.toString();
+  const response = await fetch(
+    `${API_BASE_URL}/admin/audit/stats${queryString ? '?' + queryString : ''}`,
+    {
+      headers: {
+        Authorization: `Bearer ${await getAuthToken()}`,
+        'Content-Type': 'application/json',
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.message || 'Erreur lors de la récupération des statistiques');
+  }
+
+  return response.json();
+}
+
+export async function getAuditLogDetail(id: string): Promise<{
+  success: boolean;
+  data: AuditLog;
+}> {
+  const response = await fetch(`${API_BASE_URL}/admin/audit/${id}`, {
+    headers: {
+      Authorization: `Bearer ${await getAuthToken()}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.message || 'Erreur lors de la récupération du détail');
+  }
+
+  return response.json();
+}
+
 // ─── Upload ───────────────────────────────────────────────────
 
 export async function uploadLogo(file: File): Promise<string> {
