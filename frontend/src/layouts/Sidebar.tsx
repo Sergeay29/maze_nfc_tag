@@ -16,6 +16,7 @@ import {
   Zap,
   Package,
   Layers,
+  X,
 } from 'lucide-react';
 import { Tooltip } from '../components';
 import { useAuth } from '../auth/useAuth';
@@ -55,60 +56,68 @@ interface SidebarProps {
   type: 'admin' | 'enterprise';
   collapsed: boolean;
   setCollapsed: (collapsed: boolean) => void;
+  mobileOpen: boolean;
+  setMobileOpen: (open: boolean) => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ type, collapsed, setCollapsed }) => {
+const Sidebar: React.FC<SidebarProps> = ({
+  type,
+  collapsed,
+  setCollapsed,
+  mobileOpen,
+  setMobileOpen,
+}) => {
   const items = type === 'admin' ? adminItems : enterpriseItems;
   const { user } = useAuth();
   const isEnterprise = type === 'enterprise';
   const displayName = isEnterprise && user?.enterprise?.name ? user.enterprise.name : 'Maze NFC';
-  const displayLogo = isEnterprise && user?.enterprise?.logo ? user.enterprise.logo : `${import.meta.env.BASE_URL}images/icons/icons.png`;
+  const displayLogo = isEnterprise && user?.enterprise?.logo
+    ? user.enterprise.logo
+    : `${import.meta.env.BASE_URL}images/icons/icons.png`;
 
-  return (
-    <aside
-      className={`fixed left-0 top-0 h-screen bg-white border-r border-slate/10 transition-all duration-300 z-40 ${collapsed ? 'w-20' : 'w-64'
-        }`}
-    >
+  const navContent = (forceExpanded = false) => {
+    const isExpanded = forceExpanded || !collapsed;
+    return (
       <div className="flex flex-col h-full">
-        <div className="flex items-center justify-between p-6 border-b border-slate/10">
-          {!collapsed && (
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 flex items-center justify-center overflow-hidden rounded-xl">
-                <img
-                  src={displayLogo}
-                  alt={displayName}
-                  className="max-w-full h-full object-cover drop-shadow-2xl"
-                />
-              </div>
-              <div>
-                <h1 className="font-bold font-poppins text-dark text-lg">{displayName}</h1>
-              </div>
-            </div>
-          )}
-          {collapsed && (
-            <div className="w-10 h-10 mx-auto flex items-center justify-center overflow-hidden rounded-xl">
+        {/* Header sidebar */}
+        <div className="flex items-center justify-between p-5 border-b border-slate/10">
+          <div className={`flex items-center gap-3 ${!isExpanded ? 'justify-center w-full' : ''}`}>
+            <div className="w-10 h-10 flex-shrink-0 flex items-center justify-center overflow-hidden rounded-xl">
               <img
                 src={displayLogo}
                 alt={displayName}
-                className="w-full h-full object-cover drop-shadow-2xl"
+                className="max-w-full h-full object-cover drop-shadow-2xl"
               />
             </div>
+            {isExpanded && (
+              <h1 className="font-bold font-poppins text-dark text-lg truncate">{displayName}</h1>
+            )}
+          </div>
+          {/* Bouton fermer mobile */}
+          {forceExpanded && (
+            <button
+              onClick={() => setMobileOpen(false)}
+              className="p-1 rounded-lg text-slate hover:text-dark hover:bg-cloud transition-colors lg:hidden"
+            >
+              <X className="w-5 h-5" />
+            </button>
           )}
         </div>
 
-        <nav className="flex-1 p-4 overflow-y-auto">
+        {/* Navigation */}
+        <nav className="flex-1 p-3 overflow-y-auto">
           <ul className="space-y-1">
             {items.map((item) => (
               <li key={item.path}>
-                {collapsed ? (
+                {!isExpanded ? (
                   <Tooltip content={item.label} position="right">
                     <NavLink
                       to={item.path}
                       className={({ isActive }) =>
-                        `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${isActive
+                        `flex items-center justify-center p-3 rounded-xl font-medium transition-all duration-200 ${isActive
                           ? 'bg-gradient text-white shadow-soft'
                           : 'text-slate hover:bg-primary/10 hover:text-primary'
-                        } justify-center px-0`
+                        }`
                       }
                     >
                       <span className="w-5 h-5 flex-shrink-0">{item.icon}</span>
@@ -117,6 +126,7 @@ const Sidebar: React.FC<SidebarProps> = ({ type, collapsed, setCollapsed }) => {
                 ) : (
                   <NavLink
                     to={item.path}
+                      onClick={() => setMobileOpen(false)}
                     className={({ isActive }) =>
                       `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${isActive
                         ? 'bg-gradient text-white shadow-soft'
@@ -132,7 +142,19 @@ const Sidebar: React.FC<SidebarProps> = ({ type, collapsed, setCollapsed }) => {
             ))}
           </ul>
         </nav>
+      </div>
+    );
+  };
 
+  return (
+    <>
+      {/* Sidebar desktop */}
+      <aside
+        className={`hidden lg:flex fixed left-0 top-0 h-screen bg-white border-r border-slate/10 flex-col transition-all duration-300 z-40 ${collapsed ? 'w-20' : 'w-64'
+          }`}
+      >
+        {navContent()}
+        {/* Bouton collapse desktop */}
         <button
           onClick={() => setCollapsed(!collapsed)}
           className="absolute -right-3 top-20 w-6 h-6 bg-white rounded-full border border-slate/20 shadow-soft flex items-center justify-center text-slate hover:text-primary transition-colors duration-200"
@@ -143,8 +165,16 @@ const Sidebar: React.FC<SidebarProps> = ({ type, collapsed, setCollapsed }) => {
             <ChevronLeft className="w-4 h-4" />
           )}
         </button>
-      </div>
-    </aside>
+      </aside>
+
+      {/* Sidebar mobile (drawer) */}
+      <aside
+        className={`lg:hidden fixed left-0 top-0 h-screen w-72 bg-white border-r border-slate/10 flex flex-col z-40 transform transition-transform duration-300 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
+      >
+        {navContent(true)}
+      </aside>
+    </>
   );
 };
 

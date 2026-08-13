@@ -47,7 +47,8 @@ const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-cloud flex">
+    <div className="min-h-screen bg-cloud flex flex-col lg:flex-row">
+      {/* Panel gauche — caché sur mobile */}
       <div className="hidden lg:flex lg:flex-1 bg-gradient relative overflow-hidden">
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-20 left-20 w-64 h-64 rounded-full bg-white blur-3xl" />
@@ -77,29 +78,30 @@ const LoginPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex-1 flex items-center justify-center p-8">
+      {/* Panel droit — formulaire */}
+      <div className="flex-1 flex items-center justify-center p-4 sm:p-8">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
             <div className="inline-flex items-center gap-3 mb-2">
               <img
                 src={`${import.meta.env.BASE_URL}images/icons/icons.png`}
                 alt="Maze NFC"
-                className="w-[100px] max-w-full drop-shadow-2xl animate-float rounded-3xl"
+                className="w-[80px] sm:w-[100px] max-w-full drop-shadow-2xl animate-float rounded-3xl"
               />
               <div>
-                <h1 className="font-bold font-poppins text-dark text-2xl">Maze NFC</h1>
+                <h1 className="font-bold font-poppins text-dark text-xl sm:text-2xl">Maze NFC</h1>
               </div>
             </div>
-            <h2 className="text-2xl font-bold font-poppins text-dark mb-2">
+            <h2 className="text-xl sm:text-2xl font-bold font-poppins text-dark mb-2">
               Bienvenue
             </h2>
-            <p className="text-slate">
+            <p className="text-slate text-sm sm:text-base">
               Connectez-vous pour accéder à votre espace
             </p>
           </div>
 
-          <Card className="p-8">
-            <form onSubmit={handleSubmit} className="space-y-6">
+          <Card className="p-6 sm:p-8">
+            <form onSubmit={handleSubmit} className="space-y-5">
               {formError && (
                 <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
                   {formError}
@@ -123,7 +125,7 @@ const LoginPage: React.FC = () => {
                 icon={<Lock className="w-5 h-5" />}
                 required
               />
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-2">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"

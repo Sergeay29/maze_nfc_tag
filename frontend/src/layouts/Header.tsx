@@ -7,6 +7,7 @@ import {
   LogOut,
   User,
   Settings,
+  Menu,
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -14,6 +15,7 @@ interface HeaderProps {
   userRole: string;
   userAvatar?: string;
   onLogout?: () => void;
+  onMenuToggle?: () => void;
 }
 
 const Header: React.FC<HeaderProps> = ({
@@ -21,6 +23,7 @@ const Header: React.FC<HeaderProps> = ({
   userRole,
   userAvatar,
   onLogout,
+  onMenuToggle,
 }) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const navigate = useNavigate();
@@ -32,9 +35,17 @@ const Header: React.FC<HeaderProps> = ({
 
   return (
     <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-lg border-b border-slate/10">
-      <div className="flex items-center justify-between px-6 py-4">
-        <div className="flex items-center gap-4 flex-1">
-          <div className="relative max-w-md flex-1">
+      <div className="flex items-center justify-between px-4 sm:px-6 py-4">
+        <div className="flex items-center gap-3 flex-1">
+          {/* Bouton hamburger mobile */}
+          <button
+            onClick={onMenuToggle}
+            className="lg:hidden p-2 rounded-xl bg-cloud hover:bg-primary/10 text-slate hover:text-primary transition-colors duration-200"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+
+          <div className="relative max-w-xs sm:max-w-md flex-1 hidden sm:block">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-light" />
             <input
               type="text"
@@ -44,7 +55,7 @@ const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4">
           <button className="relative p-2.5 rounded-xl bg-cloud hover:bg-primary/10 transition-colors duration-200 group">
             <Bell className="w-5 h-5 text-slate group-hover:text-primary" />
             <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-primary rounded-full" />
@@ -53,9 +64,9 @@ const Header: React.FC<HeaderProps> = ({
           <div className="relative">
             <button
               onClick={() => setDropdownOpen(!dropdownOpen)}
-              className="flex items-center gap-3 p-2 rounded-xl hover:bg-cloud transition-colors duration-200"
+              className="flex items-center gap-2 sm:gap-3 p-2 rounded-xl hover:bg-cloud transition-colors duration-200"
             >
-              <div className="w-10 h-10 rounded-xl bg-gradient flex items-center justify-center overflow-hidden">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient flex items-center justify-center overflow-hidden flex-shrink-0">
                 {userAvatar ? (
                   <img
                     src={userAvatar}
@@ -63,7 +74,7 @@ const Header: React.FC<HeaderProps> = ({
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <span className="text-white font-semibold font-poppins">
+                    <span className="text-white font-semibold font-poppins text-sm">
                     {userName.charAt(0)}
                   </span>
                 )}
@@ -83,7 +94,7 @@ const Header: React.FC<HeaderProps> = ({
                 />
                 <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-soft border border-slate/10 overflow-hidden z-50 animate-fade-in">
                   <div className="p-4 border-b border-slate/10">
-                    <p className="font-semibold text-dark">{userName}</p>
+                    <p className="font-semibold text-dark truncate">{userName}</p>
                     <p className="text-sm text-slate">{userRole}</p>
                   </div>
                   <div className="p-2">

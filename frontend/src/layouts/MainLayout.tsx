@@ -19,21 +19,39 @@ const MainLayout: React.FC<MainLayoutProps> = ({
 }) => {
   const { user, logout } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const fullName = user ? `${user.firstName} ${user.lastName}` : userName || '';
   const roleName = user?.Role?.description || user?.Role?.name || userRole || '';
   const avatar = type === 'enterprise' ? (user?.enterprise?.logo ?? userAvatar) : userAvatar;
 
   return (
     <div className="min-h-screen bg-cloud">
-      <Sidebar type={type} collapsed={collapsed} setCollapsed={setCollapsed} />
-      <div className={`transition-all duration-300 ${collapsed ? 'ml-20' : 'ml-64'}`}>
+      {/* Overlay mobile */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      <Sidebar
+        type={type}
+        collapsed={collapsed}
+        setCollapsed={setCollapsed}
+        mobileOpen={mobileOpen}
+        setMobileOpen={setMobileOpen}
+      />
+
+      {/* Contenu principal — décalé seulement sur desktop */}
+      <div className={`transition-all duration-300 lg:${collapsed ? 'ml-20' : 'ml-64'}`}>
         <Header
           userName={fullName}
           userRole={roleName}
           userAvatar={avatar}
           onLogout={logout}
+          onMenuToggle={() => setMobileOpen(true)}
         />
-        <main className="p-6">
+        <main className="p-4 sm:p-6">
           <Outlet />
         </main>
       </div>
