@@ -31,9 +31,6 @@ import {
   EnterpriseSettingsPage,
   AddPointsPage,
   PointsHistoryPage,
-  ClientHomePage,
-  ClientRewardsPage,
-  ClientProfilePage,
   EnterpriseProfilePage,
   ServicesPage,
 } from './pages';
@@ -97,10 +94,7 @@ const App: React.FC = () => {
           </Route>
         </Route>
 
-        {/* Client Mobile Routes */}
-        <Route path="/client/home" element={<ClientHomePage />} />
-        <Route path="/client/rewards" element={<ClientRewardsPage />} />
-        <Route path="/client/profile" element={<ClientProfilePage />} />
+
 
         {/* Catch all */}
         <Route path="*" element={<Navigate to="/login" replace />} />
