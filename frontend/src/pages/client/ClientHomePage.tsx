@@ -1,11 +1,14 @@
 import React from 'react';
 import { Crown, Gift, ChevronRight, Star } from 'lucide-react';
 import { Card, Badge, ProgressBar } from '../../components';
-import { clients, rewards, pointsHistory } from '../../data/mockData';
+import { rewards, pointsHistory } from '../../data/mockData';
 import { ClientBottomNav } from '../../layouts/MobileLayout';
+import { useClientAuth } from '../../auth/client/useClientAuth';
 
 const ClientHomePage: React.FC = () => {
-  const client = clients[0];
+  const { client } = useClientAuth();
+  if (!client) return null;
+
   const pointsToNextReward = 500 - (client.points % 500);
 
   const recentActivity = pointsHistory.slice(0, 3);
@@ -15,12 +18,16 @@ const ClientHomePage: React.FC = () => {
     <div className="min-h-screen bg-cloud pb-24">
       <div className="bg-gradient px-6 pt-8 pb-16 rounded-b-3xl">
         <div className="text-center mb-6">
-          <div className="w-20 h-20 rounded-2xl bg-white/20 backdrop-blur-lg border border-white/30 mx-auto mb-4 overflow-hidden">
-            <img
-              src={client.photo}
-              alt={client.name}
-              className="w-full h-full object-cover"
-            />
+          <div className="w-20 h-20 rounded-2xl bg-white/20 backdrop-blur-lg border border-white/30 mx-auto mb-4 overflow-hidden flex items-center justify-center">
+            {client.photo ? (
+              <img
+                src={client.photo}
+                alt={client.name}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <span className="text-white text-2xl font-bold">{client.name.charAt(0)}</span>
+            )}
           </div>
           <h1 className="text-xl font-bold text-white font-poppins mb-1">
             {client.name}

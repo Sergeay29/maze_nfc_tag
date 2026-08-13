@@ -34,12 +34,16 @@ import {
   ClientHomePage,
   ClientRewardsPage,
   ClientProfilePage,
+  ClientLoginPage,
+  ClientForgotPasswordPage,
+  ClientResetPasswordPage,
   EnterpriseProfilePage,
   ServicesPage,
 } from './pages';
 import ScanLandingPage from './pages/ScanLandingPage';
 import GenerateStockPage from './pages/admin/GenerateStockPage';
 import AssignStockPage from './pages/admin/AssignStockPage';
+import ClientProtectedRoute from './auth/ClientProtectedRoute';
 import { Toaster } from 'react-hot-toast';
 
 const App: React.FC = () => {
@@ -98,9 +102,14 @@ const App: React.FC = () => {
         </Route>
 
         {/* Client Mobile Routes */}
-        <Route path="/client/home" element={<ClientHomePage />} />
-        <Route path="/client/rewards" element={<ClientRewardsPage />} />
-        <Route path="/client/profile" element={<ClientProfilePage />} />
+        <Route path="/client/login" element={<ClientLoginPage />} />
+        <Route path="/client/forgot-password" element={<ClientForgotPasswordPage />} />
+        <Route path="/client/reset-password" element={<ClientResetPasswordPage />} />
+        <Route element={<ClientProtectedRoute />}>
+          <Route path="/client/home" element={<ClientHomePage />} />
+          <Route path="/client/rewards" element={<ClientRewardsPage />} />
+          <Route path="/client/profile" element={<ClientProfilePage />} />
+        </Route>
 
         {/* Catch all */}
         <Route path="*" element={<Navigate to="/login" replace />} />

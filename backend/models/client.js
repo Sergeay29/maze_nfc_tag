@@ -63,6 +63,21 @@ const Client = sequelize.define(
       type: DataTypes.DATE,
       allowNull: true,
     },
+
+    password: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+
+    resetPasswordToken: {
+      type: DataTypes.STRING(64),
+      allowNull: true,
+    },
+
+    resetPasswordExpires: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
   },
   {
     tableName: "clients",
