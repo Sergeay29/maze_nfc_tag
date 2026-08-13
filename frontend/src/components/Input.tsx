@@ -22,7 +22,7 @@ const Input: React.FC<InputProps> = ({
   as = 'input',
   ...props
 }) => {
-  const fieldClass = `input-field ${icon ? 'pl-12' : ''} ${rightIcon ? 'pr-12' : ''} ${error ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : ''} ${className}`;
+  const fieldClass = `input-field ${icon ? 'pl-10 sm:pl-12' : 'pl-3 sm:pl-4'} ${rightIcon ? 'pr-10 sm:pr-12' : 'pr-3 sm:pr-4'} ${error ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : ''} text-sm sm:text-base py-2.5 sm:py-3 ${className}`;
 
   return (
     <div className="w-full">
@@ -33,8 +33,8 @@ const Input: React.FC<InputProps> = ({
       )}
       <div className="relative">
         {icon && (
-          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate">
-            <span className="w-5 h-5">{icon}</span>
+          <div className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 text-slate">
+            <span className="w-4 h-4 sm:w-5 sm:h-5">{icon}</span>
           </div>
         )}
         {as === 'textarea' ? (
@@ -49,8 +49,8 @@ const Input: React.FC<InputProps> = ({
           />
         )}
         {rightIcon && (
-          <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate">
-            <span className="w-5 h-5">{rightIcon}</span>
+          <div className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 text-slate">
+            <span className="w-4 h-4 sm:w-5 sm:h-5">{rightIcon}</span>
           </div>
         )}
       </div>
