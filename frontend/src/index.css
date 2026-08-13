@@ -34,11 +34,11 @@ h1, h2, h3, h4, h5, h6 {
   }
 
   .card {
-    @apply bg-white rounded-xl sm:rounded-2xl shadow-soft p-4 sm:p-6 transition-all duration-300 hover:shadow-card;
+    @apply bg-white rounded-xl tablet:rounded-2xl shadow-soft p-4 tablet:p-6 transition-all duration-300 hover:shadow-card;
   }
 
   .input-field {
-    @apply w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-cloud border border-slate/20 rounded-xl text-dark placeholder:text-slate-light focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200 text-sm sm:text-base;
+    @apply w-full px-3 tablet:px-4 py-2.5 tablet:py-3 bg-cloud border border-slate/20 rounded-xl text-dark placeholder:text-slate-light focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200 text-sm tablet:text-base;
   }
 
   .sidebar-item {
@@ -50,7 +50,7 @@ h1, h2, h3, h4, h5, h6 {
   }
 
   .badge {
-    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-medium;
+    @apply inline-flex items-center px-2 xs:px-3 py-1 rounded-full text-xs font-medium;
   }
 
   .badge-active {
@@ -78,24 +78,67 @@ h1, h2, h3, h4, h5, h6 {
   }
 
   .table-cell {
-    @apply py-3 sm:py-4 text-sm text-dark;
+    @apply py-3 tablet:py-4 text-sm text-dark;
   }
 
   .responsive-table {
-    @apply block sm:table overflow-x-auto whitespace-nowrap sm:whitespace-normal;
+    @apply block tablet:table overflow-x-auto whitespace-nowrap tablet:whitespace-normal;
   }
 
   .responsive-table-row {
-    @apply block sm:table-row border-b sm:border-b-0 mb-4 sm:mb-0 bg-white sm:bg-transparent rounded-lg sm:rounded-none p-4 sm:p-0;
+    @apply block tablet:table-row border-b tablet:border-b-0 mb-4 tablet:mb-0 bg-white tablet:bg-transparent rounded-lg tablet:rounded-none p-4 tablet:p-0;
   }
 
   .responsive-table-cell {
-    @apply block sm:table-cell py-2 sm:py-4 text-sm;
+    @apply block tablet:table-cell py-2 tablet:py-4 text-sm;
   }
 
   .responsive-table-cell::before {
     content: attr(data-label) ": ";
-    @apply sm:hidden font-semibold text-slate;
+    @apply tablet:hidden font-semibold text-slate;
+  }
+
+  /* Utility classes pour la responsivité */
+  .grid-responsive {
+    @apply grid grid-cols-1 xs:grid-cols-2 tablet:grid-cols-3 laptop:grid-cols-4 gap-4 laptop:gap-6;
+  }
+
+  .grid-cards-responsive {
+    @apply grid grid-cols-1 laptop:grid-cols-2 desktop:grid-cols-3 gap-6;
+  }
+
+  .flex-responsive {
+    @apply flex flex-col tablet:flex-row gap-4;
+  }
+
+  .text-responsive {
+    @apply text-sm tablet:text-base;
+  }
+
+  .text-responsive-large {
+    @apply text-base tablet:text-lg laptop:text-xl;
+  }
+
+  /* Padding et margin responsive */
+  .p-responsive {
+    @apply p-4 tablet:p-6 laptop:p-8;
+  }
+
+  .px-responsive {
+    @apply px-4 tablet:px-6 laptop:px-8;
+  }
+
+  .py-responsive {
+    @apply py-4 tablet:py-6 laptop:py-8;
+  }
+
+  .m-responsive {
+    @apply m-4 tablet:m-6 laptop:m-8;
+  }
+
+  /* Container responsive */
+  .container-responsive {
+    @apply mx-auto px-4 tablet:px-6 laptop:px-8 max-w-7xl;
   }
 }
 
@@ -225,4 +268,39 @@ h1, h2, h3, h4, h5, h6 {
 
 .phone-input-custom .PhoneInputInput::placeholder {
   color: #94a3b8;
+}
+
+/* Responsive Design Enhancements */
+@media (max-width: 640px) {
+  .mobile-hidden {
+    display: none !important;
+  }
+  
+  .mobile-full-width {
+    width: 100% !important;
+  }
+
+  .mobile-stack {
+    flex-direction: column !important;
+  }
+
+  .mobile-text-center {
+    text-align: center !important;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 1023px) {
+  .tablet-hidden {
+    display: none !important;
+  }
+
+  .tablet-grid-2 {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .desktop-visible {
+    display: block !important;
+  }
 }

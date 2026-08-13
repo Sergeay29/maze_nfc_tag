@@ -3,6 +3,13 @@ export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
+      screens: {
+        'xs': '475px',
+        'tablet': '640px',
+        'laptop': '1024px',
+        'desktop': '1280px',
+        'wide': '1536px',
+      },
       colors: {
         primary: {
           DEFAULT: '#6A35FF',
@@ -42,6 +49,10 @@ export default {
       backgroundImage: {
         gradient: 'linear-gradient(90deg, #6A35FF 0%, #BC43FF 50%, #D64DFF 100%)',
         'gradient-light': 'linear-gradient(135deg, #FBF9FC 0%, #F5F2F8 100%)',
+      },
+      spacing: {
+        '18': '4.5rem',
+        '88': '22rem',
       },
     },
   },
