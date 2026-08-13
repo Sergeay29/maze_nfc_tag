@@ -8,7 +8,7 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles }) => {
-  const { user, loading } = useAuth();
+  const { user, loading, mustSetup2FA } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -28,6 +28,14 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles }) => {
 
   if (allowedRoles && !allowedRoles.includes(user.Role?.name as RoleName)) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (
+    mustSetup2FA &&
+    user.Role?.name === 'SUPER_ADMIN' &&
+    !location.pathname.startsWith('/admin/settings')
+  ) {
+    return <Navigate to="/admin/settings" replace />;
   }
 
   return <Outlet />;

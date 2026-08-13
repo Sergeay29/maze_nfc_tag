@@ -3,6 +3,7 @@
 const express = require("express");
 const router = express.Router();
 const adminController = require("../controllers/adminController");
+const auditController = require("../controllers/auditController");
 const { authenticate, requireRole } = require("../middlewares/authMiddleware");
 
 // Toutes les routes /api/admin/* exigent d'être authentifié ET SUPER_ADMIN
@@ -776,7 +777,13 @@ router.get("/settings", adminController.getSettings);
  */
 router.put("/settings", adminController.updateSettings);
 
-module.exports = router;
+// ─────────────────────────────────────────────────────────────
+// AUDIT
+// ─────────────────────────────────────────────────────────────
 
+router.get("/audit/stats", auditController.getAuditStats);
+router.get("/audit/export", auditController.exportAuditCsv);
+router.get("/audit/:id", auditController.getAuditLogDetail);
+router.get("/audit", auditController.getAuditLogs);
 
 module.exports = router;

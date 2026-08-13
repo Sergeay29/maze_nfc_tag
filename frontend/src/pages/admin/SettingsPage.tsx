@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Save, CheckCircle, AlertTriangle } from 'lucide-react';
 import { Card, Button, Input } from '../../components';
+import TwoFactorSetup from '../../components/TwoFactorSetup';
 import { getSettings, updateSettings } from '../../api/adminApi';
 import type { SettingsGrouped } from '../../api/adminApi';
+import { useAuth } from '../../auth/useAuth';
 
 // Clés booléennes affichées comme toggles
-const BOOLEAN_KEYS = ['notify_email_alerts', 'notify_push', 'notify_weekly_report'];
+const BOOLEAN_KEYS = ['notify_email_alerts', 'notify_push', 'notify_weekly_report', 'require_2fa_super_admin'];
 
 // Labels de groupes
 const GROUP_LABELS: Record<string, string> = {
@@ -15,6 +17,7 @@ const GROUP_LABELS: Record<string, string> = {
 };
 
 const SettingsPage: React.FC = () => {
+  const { mustSetup2FA } = useAuth();
   const [settings, setSettings] = useState<SettingsGrouped>({});
   // Valeurs éditées en local (clé → valeur string)
   const [values, setValues] = useState<Record<string, string>>({});
@@ -91,10 +94,20 @@ const SettingsPage: React.FC = () => {
     );
   }
 
-  const groups = Object.keys(settings).filter((g) => g !== 'security');
+  const groups = Object.keys(settings);
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {mustSetup2FA && (
+        <div className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800">
+          <AlertTriangle className="w-5 h-5 flex-shrink-0" />
+          <span>
+            La 2FA est obligatoire pour les super administrateurs. Veuillez l'activer ci-dessous.
+          </span>
+        </div>
+      )}
+
+      <TwoFactorSetup />
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold font-poppins text-dark">Paramètres</h1>

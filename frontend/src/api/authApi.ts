@@ -1,6 +1,6 @@
 import type { AuthUser, LoginCredentials, LoginResult, RegisterPayload } from '../auth/types';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 interface ApiResponse<T> {
   success: boolean;
@@ -31,6 +31,54 @@ export async function login(credentials: LoginCredentials): Promise<LoginResult>
   return request<LoginResult>('/auth/login', {
     method: 'POST',
     body: JSON.stringify(credentials),
+  });
+}
+
+export async function verify2FA(body: {
+  tempToken: string;
+  code?: string;
+  backupCode?: string;
+}): Promise<LoginResult> {
+  return request<LoginResult>('/auth/verify-2fa', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function get2FAStatus(token: string): Promise<{ enabled: boolean }> {
+  return request<{ enabled: boolean }>('/auth/2fa/status', {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export async function setup2FA(token: string): Promise<{
+  qrCodeDataUrl: string;
+  otpauthUrl: string;
+  secret: string;
+}> {
+  return request('/auth/2fa/setup', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export async function enable2FA(token: string, code: string): Promise<{ backupCodes: string[] }> {
+  return request('/auth/2fa/enable', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ code }),
+  });
+}
+
+export async function disable2FA(
+  token: string,
+  password: string,
+  code: string
+): Promise<void> {
+  await request<void>('/auth/2fa/disable', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ password, code }),
   });
 }
 

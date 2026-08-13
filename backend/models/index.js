@@ -10,6 +10,7 @@ const Service = require("./service");
 const Reward = require("./reward");
 const Redemption = require("./redemption");
 const CardType = require("./cardType");
+const AuditLog = require("./auditLog");
 
 // CardType -> NFCCard
 CardType.hasMany(NFCCard, { foreignKey: 'cardTypeId' });
@@ -173,4 +174,22 @@ Redemption.belongsTo(Reward, {
   foreignKey: "rewardId",
 });
 
-module.exports = { User, Role, Enterprise, NFCCard, Client, Scan, Subscription, Setting, Service, Reward, Redemption, CardType };
+// User -> AuditLog
+User.hasMany(AuditLog, { foreignKey: "userId" });
+AuditLog.belongsTo(User, { foreignKey: "userId" });
+
+module.exports = {
+  User,
+  Role,
+  Enterprise,
+  NFCCard,
+  Client,
+  Scan,
+  Subscription,
+  Setting,
+  Service,
+  Reward,
+  Redemption,
+  CardType,
+  AuditLog,
+};

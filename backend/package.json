@@ -26,7 +26,10 @@
     "helmet": "^8.2.0",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.2.0",
+    "nodemailer": "^9.0.5",
+    "otplib": "^13.4.1",
     "pg": "^8.22.0",
+    "qrcode": "^1.5.4",
     "sequelize": "^6.37.8",
     "swagger-jsdoc": "^6.3.0",
     "swagger-ui-express": "^5.0.1"

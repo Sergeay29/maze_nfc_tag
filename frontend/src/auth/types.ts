@@ -13,6 +13,7 @@ export interface AuthUser {
   email: string;
   isActive: boolean;
   mustChangePassword?: boolean;
+  twoFactorEnabled?: boolean;
   roleId: string;
   enterpriseId?: string | null;
   Role?: Role;
@@ -38,6 +39,9 @@ export interface RegisterPayload {
 }
 
 export interface LoginResult {
-  token: string;
-  user: AuthUser;
+  token?: string;
+  user?: AuthUser;
+  requires2FA?: boolean;
+  tempToken?: string;
+  mustSetup2FA?: boolean;
 }

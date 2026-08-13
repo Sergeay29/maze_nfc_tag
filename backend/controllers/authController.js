@@ -1,4 +1,6 @@
 const authService = require("../services/authService");
+const twoFactorService = require("../services/twoFactorService");
+const { logFromReq, AUDIT_ACTIONS } = require("../services/auditService");
 const crypto = require("crypto");
 const { User } = require("../models");
 const { Op } = require("sequelize");
@@ -18,15 +20,172 @@ async function login(req, res) {
 
     const data = await authService.login(email, password);
 
+    if (data.requires2FA) {
+      return res.json({
+        success: true,
+        message: "Code 2FA requis",
+        data,
+      });
+    }
+
+    await logFromReq(req, {
+      userId: data.user.id,
+      action: AUDIT_ACTIONS.LOGIN_SUCCESS,
+      resource: "auth",
+      details: `Connexion réussie (${email})`,
+      success: true,
+    });
+
     return res.json({
       success: true,
       message: "Connexion réussie",
       data,
     });
   } catch (error) {
+    await logFromReq(req, {
+      action: AUDIT_ACTIONS.LOGIN_FAILED,
+      resource: "auth",
+      details: `Échec connexion (${req.body?.email || "inconnu"})`,
+      success: false,
+      errorMessage: error.message,
+    });
+
     return res.status(error.statusCode || 500).json({
       success: false,
       message: error.message || "Erreur lors de la connexion",
+    });
+  }
+}
+
+async function verify2FA(req, res) {
+  try {
+    const { tempToken, code, backupCode } = req.body;
+
+    if (!tempToken || (!code && !backupCode)) {
+      return res.status(400).json({
+        success: false,
+        message: "Token temporaire et code 2FA requis",
+      });
+    }
+
+    const data = await authService.verify2FA(tempToken, code, backupCode);
+
+    await logFromReq(req, {
+      userId: data.user.id,
+      action: AUDIT_ACTIONS.LOGIN_SUCCESS,
+      resource: "auth",
+      details: "Connexion réussie avec 2FA",
+      success: true,
+    });
+
+    return res.json({
+      success: true,
+      message: "Connexion réussie",
+      data,
+    });
+  } catch (error) {
+    await logFromReq(req, {
+      action: AUDIT_ACTIONS.LOGIN_FAILED,
+      resource: "auth",
+      details: "Échec vérification 2FA",
+      success: false,
+      errorMessage: error.message,
+    });
+
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || "Erreur lors de la vérification 2FA",
+    });
+  }
+}
+
+async function setup2FA(req, res) {
+  try {
+    const data = await twoFactorService.setup(req.user.id);
+    return res.json({
+      success: true,
+      message: "Scannez le QR code avec votre application d'authentification",
+      data,
+    });
+  } catch (error) {
+    console.error("setup2FA error:", error);
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || "Erreur lors de la configuration 2FA",
+    });
+  }
+}
+
+async function enable2FA(req, res) {
+  try {
+    const { code } = req.body;
+    if (!code) {
+      return res.status(400).json({ success: false, message: "Code requis" });
+    }
+
+    const data = await twoFactorService.enable(req.user.id, code);
+
+    await logFromReq(req, {
+      action: AUDIT_ACTIONS.ENABLE_2FA,
+      resource: "auth",
+      resourceId: req.user.id,
+      details: "Authentification à double facteur activée",
+      success: true,
+    });
+
+    return res.json({
+      success: true,
+      message: "2FA activée avec succès. Conservez vos codes de secours.",
+      data,
+    });
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || "Erreur lors de l'activation 2FA",
+    });
+  }
+}
+
+async function disable2FA(req, res) {
+  try {
+    const { password, code } = req.body;
+    if (!password || !code) {
+      return res.status(400).json({
+        success: false,
+        message: "Mot de passe et code 2FA requis",
+      });
+    }
+
+    await twoFactorService.disable(req.user.id, password, code);
+
+    await logFromReq(req, {
+      action: AUDIT_ACTIONS.DISABLE_2FA,
+      resource: "auth",
+      resourceId: req.user.id,
+      details: "Authentification à double facteur désactivée",
+      success: true,
+    });
+
+    return res.json({
+      success: true,
+      message: "2FA désactivée avec succès",
+    });
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || "Erreur lors de la désactivation 2FA",
+    });
+  }
+}
+
+async function get2FAStatus(req, res) {
+  try {
+    const data = await twoFactorService.getStatus(req.user.id);
+    return res.json({ success: true, data });
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || "Erreur",
     });
   }
 }
@@ -136,11 +295,6 @@ async function changePassword(req, res) {
   }
 }
 
-/**
- * POST /api/auth/forgot-password
- * Envoie un email de réinitialisation si l'email existe.
- * Répond toujours avec succès pour ne pas divulguer si l'email existe.
- */
 async function forgotPassword(req, res) {
   try {
     const { email } = req.body;
@@ -151,13 +305,11 @@ async function forgotPassword(req, res) {
 
     const user = await User.findOne({ where: { email: email.trim().toLowerCase() } });
 
-    // Réponse identique que l'utilisateur existe ou non (sécurité)
     const genericMessage = "Si cet email est enregistré, un lien de réinitialisation vous a été envoyé.";
 
     if (user && user.isActive) {
-      // Générer un token sécurisé de 64 caractères hex
       const token = crypto.randomBytes(32).toString("hex");
-      const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 heure
+      const expires = new Date(Date.now() + 60 * 60 * 1000);
 
       await user.update({
         resetPasswordToken: token,
@@ -171,7 +323,6 @@ async function forgotPassword(req, res) {
         await sendPasswordResetEmail(user.email, resetUrl);
       } catch (mailErr) {
         console.error("Erreur envoi email reset:", mailErr);
-        // On ne bloque pas la réponse même si l'email échoue
       }
     }
 
@@ -182,10 +333,6 @@ async function forgotPassword(req, res) {
   }
 }
 
-/**
- * POST /api/auth/reset-password
- * Réinitialise le mot de passe via le token reçu par email.
- */
 async function resetPassword(req, res) {
   try {
     const { token, password } = req.body;
@@ -201,7 +348,6 @@ async function resetPassword(req, res) {
       });
     }
 
-    // Trouver l'utilisateur avec ce token valide et non expiré
     const user = await User.findOne({
       where: {
         resetPasswordToken: token,
@@ -234,6 +380,11 @@ async function resetPassword(req, res) {
 
 module.exports = {
   login,
+  verify2FA,
+  setup2FA,
+  enable2FA,
+  disable2FA,
+  get2FAStatus,
   register,
   me,
   updateMe,

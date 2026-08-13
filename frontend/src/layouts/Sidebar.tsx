@@ -16,6 +16,7 @@ import {
   Zap,
   Package,
   Layers,
+  ScrollText,
   X,
 } from 'lucide-react';
 import { Tooltip } from '../components';
@@ -36,6 +37,7 @@ const adminItems: SidebarItem[] = [
   { path: '/admin/subscriptions', icon: <BarChart3 className="w-5 h-5" />, label: 'Abonnements' },
   { path: '/admin/card-types', icon: <Layers className="w-5 h-5" />, label: 'Types de cartes' },
   { path: '/admin/users', icon: <Users className="w-5 h-5" />, label: 'Utilisateurs' },
+  { path: '/admin/audit', icon: <ScrollText className="w-5 h-5" />, label: 'Audit' },
   { path: '/admin/settings', icon: <Settings className="w-5 h-5" />, label: 'Paramètres' },
 ];
 

@@ -44,6 +44,18 @@ async function seedSettings() {
       label: "Rapports hebdomadaires",
       group: "notifications",
     },
+    {
+      key: "require_2fa_super_admin",
+      value: "false",
+      label: "2FA obligatoire pour les super admins",
+      group: "security",
+    },
+    {
+      key: "session_timeout_hours",
+      value: "24",
+      label: "Durée de session (heures)",
+      group: "security",
+    },
   ];
 
   for (const setting of defaults) {

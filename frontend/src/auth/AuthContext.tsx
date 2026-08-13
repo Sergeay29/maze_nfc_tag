@@ -1,5 +1,11 @@
 import React, { createContext, useEffect, useMemo, useState } from 'react';
-import { getCurrentUser, login as loginRequest, register as registerRequest, updateCurrentUser } from '../api/authApi';
+import {
+  getCurrentUser,
+  login as loginRequest,
+  register as registerRequest,
+  updateCurrentUser,
+  verify2FA as verify2FARequest,
+} from '../api/authApi';
 import type { AuthUser, LoginCredentials, RegisterPayload } from './types';
 
 const TOKEN_STORAGE_KEY = 'maze_nfc_auth_token';
@@ -8,7 +14,9 @@ export interface AuthContextValue {
   user: AuthUser | null;
   token: string | null;
   loading: boolean;
-  login: (credentials: LoginCredentials) => Promise<AuthUser>;
+  mustSetup2FA: boolean;
+  login: (credentials: LoginCredentials) => Promise<AuthUser | { requires2FA: true; tempToken: string }>;
+  verify2FA: (tempToken: string, code: string, backupCode?: string) => Promise<AuthUser>;
   register: (payload: RegisterPayload) => Promise<AuthUser>;
   logout: () => void;
   refreshUser: () => Promise<void>;
@@ -25,6 +33,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.getItem(TOKEN_STORAGE_KEY)
   );
   const [loading, setLoading] = useState(true);
+  const [mustSetup2FA, setMustSetup2FA] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -65,15 +74,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   async function login(credentials: LoginCredentials) {
     const result = await loginRequest(credentials);
 
+    if (result.requires2FA && result.tempToken) {
+      return { requires2FA: true as const, tempToken: result.tempToken };
+    }
+
+    if (!result.token || !result.user) {
+      throw new Error('Réponse de connexion invalide');
+    }
+
     localStorage.setItem(TOKEN_STORAGE_KEY, result.token);
     setToken(result.token);
     setUser(result.user);
+    setMustSetup2FA(Boolean(result.mustSetup2FA));
+
+    return result.user;
+  }
+
+  async function verify2FA(tempToken: string, code: string, backupCode?: string) {
+    const result = await verify2FARequest({
+      tempToken,
+      code: backupCode ? undefined : code,
+      backupCode,
+    });
+
+    if (!result.token || !result.user) {
+      throw new Error('Réponse 2FA invalide');
+    }
+
+    localStorage.setItem(TOKEN_STORAGE_KEY, result.token);
+    setToken(result.token);
+    setUser(result.user);
+    setMustSetup2FA(Boolean(result.mustSetup2FA));
 
     return result.user;
   }
 
   async function register(payload: RegisterPayload) {
     const result = await registerRequest(payload);
+
+    if (!result.token || !result.user) {
+      throw new Error('Réponse inscription invalide');
+    }
 
     localStorage.setItem(TOKEN_STORAGE_KEY, result.token);
     setToken(result.token);
@@ -87,6 +128,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const currentUser = await getCurrentUser(token);
       setUser(currentUser);
+      if (currentUser.twoFactorEnabled) {
+        setMustSetup2FA(false);
+      }
     } catch {
       logout();
     }
@@ -108,6 +152,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem(TOKEN_STORAGE_KEY);
     setToken(null);
     setUser(null);
+    setMustSetup2FA(false);
   }
 
   const value = useMemo(
@@ -115,7 +160,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       user,
       token,
       loading,
+      mustSetup2FA,
       login,
+      verify2FA,
       register,
       logout,
       refreshUser,
@@ -123,7 +170,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       updateUser,
       setUser,
     }),
-    [user, token, loading]
+    [user, token, loading, mustSetup2FA]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

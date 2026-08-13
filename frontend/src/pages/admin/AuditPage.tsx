@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Eye,  Download, User, Activity, AlertTriangle, CheckCircle2, Clock } from 'lucide-react';
-import { Card, Table, Badge, SearchInput, Button } from '../../components';
-import { getAuditLogs, getAuditStats } from '../../api/adminApi';
+import { Card, Table, Badge, SearchInput, Button, Column } from '../../components';
+import { getAuditLogs, getAuditStats, exportAuditCsv } from '../../api/adminApi';
+import toast from 'react-hot-toast';
 
 interface AuditLog {
   id: string;
@@ -16,7 +17,7 @@ interface AuditLog {
     firstName: string;
     lastName: string;
     email: string;
-  };
+  } | null;
 }
 
 interface AuditStats {
@@ -48,6 +49,11 @@ const ACTION_LABELS: Record<string, string> = {
   LOGIN_FAILED: 'Échec connexion',
   LOGOUT: 'Déconnexion',
   UPDATE_SETTINGS: 'Mise à jour config',
+  ENABLE_2FA: 'Activation 2FA',
+  DISABLE_2FA: 'Désactivation 2FA',
+  UPDATE_SUBSCRIPTION: 'Modification abonnement',
+  UPDATE_CARD: 'Modification carte',
+  RESET_PASSWORD: 'Réinitialisation mot de passe',
 };
 
 const RESOURCE_LABELS: Record<string, string> = {
@@ -59,10 +65,13 @@ const RESOURCE_LABELS: Record<string, string> = {
   auth: 'Authentification',
 };
 
+
+
 export default function AuditPage() {
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [stats, setStats] = useState<AuditStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState({
     action: '',
@@ -135,6 +144,36 @@ export default function AuditPage() {
     setShowDetails(true);
   };
 
+  const downloadCsv = (blob: Blob, filename: string) => {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExport = async () => {
+    try {
+      setExporting(true);
+      const { blob, filename } = await exportAuditCsv({
+        search: searchTerm,
+        action: filters.action,
+        resource: filters.resource,
+        success: filters.success,
+        period: filters.period,
+      });
+      downloadCsv(blob, filename);
+      toast.success('Export CSV généré avec succès.');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Erreur lors de l'export CSV");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   if (loading && !logs.length) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -142,6 +181,69 @@ export default function AuditPage() {
       </div>
     );
   }
+  const columns: Column<AuditLog>[] = [
+    {
+      key: 'createdAt',
+      header: 'Date & Heure',
+      render: (log) => <span className="text-sm">{formatDateTime(log.createdAt)}</span>,
+    },
+    {
+      key: 'user',
+      header: 'Utilisateur',
+      render: (log) =>
+        log.User ? (
+          <div className="flex items-center gap-2">
+            <User className="w-4 h-4 text-gray-400" />
+            <div>
+              <p className="font-medium">{log.User.firstName} {log.User.lastName}</p>
+              <p className="text-xs text-gray-500">{log.User.email}</p>
+            </div>
+          </div>
+        ) : (
+          <span className="text-sm text-gray-400">—</span>
+        ),
+    },
+    {
+      key: 'action',
+      header: 'Action',
+      render: (log) => <Badge variant="primary">{ACTION_LABELS[log.action] || log.action}</Badge>,
+    },
+    {
+      key: 'resource',
+      header: 'Ressource',
+      render: (log) => <Badge variant="primary">{RESOURCE_LABELS[log.resource] || log.resource}</Badge>,
+    },
+    {
+      key: 'success',
+      header: 'Statut',
+      render: (log) => (
+        <Badge variant={getActionBadgeColor(log.success)}>
+          {log.success ? 'Réussie' : 'Échouée'}
+        </Badge>
+      ),
+    },
+    {
+      key: 'details',
+      header: 'Détails',
+      className: 'max-w-xs truncate',
+      render: (log) => <span className="text-sm text-gray-600">{log.details || '-'}</span>,
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      render: (log) => (
+        <Button
+          variant="primary"
+          size="sm"
+          onClick={() => showLogDetails(log)}
+          className="flex items-center gap-1"
+        >
+          <Eye className="w-4 h-4" />
+          Voir
+        </Button>
+      ),
+    },
+  ];
 
   return (
     <div className="space-y-6">
@@ -152,9 +254,15 @@ export default function AuditPage() {
           <p className="text-gray-600">Suivi des actions administrateurs</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="primary" size="sm" className="flex items-center gap-2">
+          <Button
+            variant="primary"
+            size="sm"
+            className="flex items-center gap-2"
+            onClick={handleExport}
+            disabled={exporting}
+          >
             <Download className="w-4 h-4" />
-            Exporter
+            {exporting ? 'Export...' : 'Exporter'}
           </Button>
         </div>
       </div>
@@ -255,76 +363,13 @@ export default function AuditPage() {
       </Card>
 
       {/* Table des logs */}
-      <Card>
-        <Table>
-          <thead>
-            <tr>
-              <th>Date & Heure</th>
-              <th>Utilisateur</th>
-              <th>Action</th>
-              <th>Ressource</th>
-              <th>Statut</th>
-              <th>Détails</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {logs.map((log) => (
-              <tr key={log.id}>
-                <td className="text-sm">
-                  {formatDateTime(log.createdAt)}
-                </td>
-                <td>
-                  <div className="flex items-center gap-2">
-                    <User className="w-4 h-4 text-gray-400" />
-                    <div>
-                      <p className="font-medium">
-                        {log.User.firstName} {log.User.lastName}
-                      </p>
-                      <p className="text-xs text-gray-500">{log.User.email}</p>
-                    </div>
-                  </div>
-                </td>
-                <td>
-                  <Badge variant="primary">
-                    {ACTION_LABELS[log.action] || log.action}
-                  </Badge>
-                </td>
-                <td>
-                  <Badge variant="primary">
-                    {RESOURCE_LABELS[log.resource] || log.resource}
-                  </Badge>
-                </td>
-                <td>
-                  <Badge variant={getActionBadgeColor(log.success)}>
-                    {log.success ? 'Réussie' : 'Échouée'}
-                  </Badge>
-                </td>
-                <td className="max-w-xs truncate text-sm text-gray-600">
-                  {log.details || '-'}
-                </td>
-                <td>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={() => showLogDetails(log)}
-                    className="flex items-center gap-1"
-                  >
-                    <Eye className="w-4 h-4" />
-                    Voir
-                  </Button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </Table>
 
-        {logs.length === 0 && (
-          <div className="text-center py-8">
-            <p className="text-gray-500">Aucun log d'audit trouvé</p>
-          </div>
-        )}
-      </Card>
+  <Table
+    data={logs}
+    columns={columns}
+    emptyMessage="Aucun log d'audit trouvé"
+  />
+
 
       {/* Pagination */}
       {totalPages > 1 && (
@@ -399,7 +444,9 @@ export default function AuditPage() {
                 <div>
                   <label className="text-sm font-medium text-gray-700">Utilisateur</label>
                   <p className="text-sm">
-                    {selectedLog.User.firstName} {selectedLog.User.lastName} ({selectedLog.User.email})
+                    {selectedLog.User
+                      ? `${selectedLog.User.firstName} ${selectedLog.User.lastName} (${selectedLog.User.email})`
+                      : '—'}
                   </p>
                 </div>
 

@@ -738,9 +738,54 @@ export interface GetAuditLogsParams {
   resource?: string;
   userId?: string;
   success?: string;
+  period?: string;
   startDate?: string;
   endDate?: string;
   search?: string;
+}
+
+export interface ExportAuditParams extends Omit<GetAuditLogsParams, 'page' | 'limit'> {
+  ids?: string[];
+}
+
+export async function exportAuditCsv(
+  params: ExportAuditParams = {}
+): Promise<{ blob: Blob; filename: string }> {
+  const token = await getAuthToken();
+  const query = new URLSearchParams();
+
+  if (params.action) query.append('action', params.action);
+  if (params.resource) query.append('resource', params.resource);
+  if (params.userId) query.append('userId', params.userId);
+  if (params.success) query.append('success', params.success);
+  if (params.period) query.append('period', params.period);
+  if (params.startDate) query.append('startDate', params.startDate);
+  if (params.endDate) query.append('endDate', params.endDate);
+  if (params.search) query.append('search', params.search);
+  if (params.ids?.length) query.append('ids', params.ids.join(','));
+
+  const queryString = query.toString();
+  const response = await fetch(
+    `${API_BASE_URL}/admin/audit/export${queryString ? '?' + queryString : ''}`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => null);
+    throw new Error(errorData?.message || "Erreur lors de l'export CSV");
+  }
+
+  const disposition = response.headers.get('Content-Disposition') || '';
+  const filenameMatch = disposition.match(/filename="?([^";]+)"?/i);
+
+  return {
+    blob: await response.blob(),
+    filename: filenameMatch?.[1] || 'audit.csv',
+  };
 }
 
 export async function getAuditLogs(
@@ -762,6 +807,7 @@ export async function getAuditLogs(
   if (params.resource) query.append('resource', params.resource);
   if (params.userId) query.append('userId', params.userId);
   if (params.success) query.append('success', params.success);
+  if (params.period) query.append('period', params.period);
   if (params.startDate) query.append('startDate', params.startDate);
   if (params.endDate) query.append('endDate', params.endDate);
   if (params.search) query.append('search', params.search);

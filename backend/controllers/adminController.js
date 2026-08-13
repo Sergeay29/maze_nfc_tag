@@ -18,6 +18,7 @@ const {
   getSubscriptionPlanConfig,
   isValidSubscriptionPlan,
 } = require("../utils/subscriptionPlans");
+const { logFromReq, AUDIT_ACTIONS } = require("../services/auditService");
 
 /**
  * Générer un mot de passe aléatoire
@@ -806,6 +807,15 @@ exports.createEnterprise = async (req, res) => {
 
     await t.commit();
 
+    await logFromReq(req, {
+      action: AUDIT_ACTIONS.CREATE_ENTERPRISE,
+      resource: "enterprise",
+      resourceId: enterprise.id,
+      details: `Entreprise créée : ${name}`,
+      newValues: { name, email, subscription: selectedPlan },
+      success: true,
+    });
+
     const responseData = {
       enterprise,
       generatedPassword: plainPassword,
@@ -849,6 +859,15 @@ exports.deleteEnterprise = async (req, res) => {
     await enterprise.destroy({ transaction: t });
 
     await t.commit();
+
+    await logFromReq(req, {
+      action: AUDIT_ACTIONS.DELETE_ENTERPRISE,
+      resource: "enterprise",
+      resourceId: id,
+      details: `Entreprise supprimée : ${enterprise.name}`,
+      oldValues: { name: enterprise.name, email: enterprise.email },
+      success: true,
+    });
 
     res.json({ success: true, message: "Entreprise supprimée avec succès" });
   } catch (error) {
@@ -951,6 +970,15 @@ exports.updateEnterprise = async (req, res) => {
       enterprise.subscription = subscription;
       await enterprise.save();
     }
+
+    await logFromReq(req, {
+      action: AUDIT_ACTIONS.UPDATE_ENTERPRISE,
+      resource: "enterprise",
+      resourceId: id,
+      details: `Entreprise modifiée : ${enterprise.name}`,
+      newValues: { name, email, status, subscription },
+      success: true,
+    });
 
     res.json({
       success: true,
@@ -1128,6 +1156,15 @@ exports.generateCards = async (req, res) => {
       where: { id: enterpriseId },
     });
 
+    await logFromReq(req, {
+      action: AUDIT_ACTIONS.GENERATE_CARDS,
+      resource: "nfcCard",
+      resourceId: enterpriseId,
+      details: `${created.length} carte(s) générée(s) pour ${enterprise.name}`,
+      newValues: { quantity: created.length, type, enterpriseId },
+      success: true,
+    });
+
     res.status(201).json({
       success: true,
       message: `${created.length} carte(s) générée(s) avec succès`,
@@ -1228,6 +1265,14 @@ exports.generateStockCards = async (req, res) => {
 
     // bulkCreate sans ignoreDuplicates : si un doublon passe malgré tout, l'erreur est remontée
     const created = await NFCCard.bulkCreate(cards);
+
+    await logFromReq(req, {
+      action: AUDIT_ACTIONS.GENERATE_CARDS,
+      resource: "nfcCard",
+      details: `${created.length} carte(s) ajoutée(s) au stock global (lot ${batchId})`,
+      newValues: { quantity: created.length, batchId },
+      success: true,
+    });
 
     res.status(201).json({
       success: true,
@@ -1372,6 +1417,15 @@ exports.assignStockToEnterprise = async (req, res) => {
 
     await t.commit();
 
+    await logFromReq(req, {
+      action: AUDIT_ACTIONS.ASSIGN_CARD,
+      resource: "nfcCard",
+      resourceId: enterpriseId,
+      details: `${cardsToAssign.length} carte(s) assignée(s) à ${enterprise.name}`,
+      newValues: { enterpriseId, type, assigned: cardsToAssign.length },
+      success: true,
+    });
+
     res.status(200).json({
       success: true,
       message: `${cardsToAssign.length} carte(s) assignée(s) à ${enterprise.name} avec le type "${type}"`,
@@ -1424,6 +1478,15 @@ exports.updateCardStatus = async (req, res) => {
     }
 
     await card.update({ status });
+
+    await logFromReq(req, {
+      action: AUDIT_ACTIONS.UPDATE_CARD,
+      resource: "nfcCard",
+      resourceId: id,
+      details: `Carte ${card.cardNumber} → ${status}`,
+      newValues: { status },
+      success: true,
+    });
 
     res.json({
       success: true,
@@ -1524,6 +1587,15 @@ exports.assignCard = async (req, res) => {
       assignedToClientId: client.id,
       status: "active",
       assignedAt: new Date(),
+    });
+
+    await logFromReq(req, {
+      action: AUDIT_ACTIONS.ASSIGN_CARD,
+      resource: "nfcCard",
+      resourceId: card.id,
+      details: `Carte ${cardNumber} attribuée à ${clientName}`,
+      newValues: { cardNumber, clientName, enterpriseId },
+      success: true,
     });
 
     res.status(201).json({
@@ -1685,6 +1757,15 @@ exports.updateSubscription = async (req, res) => {
         { where: { id: subscription.enterpriseId } }
       );
     }
+
+    await logFromReq(req, {
+      action: AUDIT_ACTIONS.UPDATE_SUBSCRIPTION,
+      resource: "enterprise",
+      resourceId: subscription.enterpriseId,
+      details: `Abonnement modifié : plan=${plan || subscription.plan}, statut=${status || subscription.status}`,
+      newValues: { plan, status },
+      success: true,
+    });
 
     res.json({
       success: true,
@@ -2017,6 +2098,14 @@ exports.updateSettings = async (req, res) => {
       updates.push({ key, value: String(value) });
     }
 
+    await logFromReq(req, {
+      action: AUDIT_ACTIONS.UPDATE_SETTINGS,
+      resource: "settings",
+      details: `${updates.length} paramètre(s) mis à jour`,
+      newValues: Object.fromEntries(updates.map((u) => [u.key, u.value])),
+      success: true,
+    });
+
     res.json({
       success: true,
       message: "Paramètres mis à jour avec succès",
@@ -2238,6 +2327,15 @@ exports.createUser = async (req, res) => {
       ],
     });
 
+    await logFromReq(req, {
+      action: AUDIT_ACTIONS.CREATE_USER,
+      resource: "user",
+      resourceId: user.id,
+      details: `Utilisateur créé : ${email}`,
+      newValues: { firstName, lastName, email, roleId },
+      success: true,
+    });
+
     res.status(201).json({
       success: true,
       message: "Utilisateur créé avec succès",
@@ -2350,6 +2448,14 @@ exports.updateUser = async (req, res) => {
       ],
     });
 
+    await logFromReq(req, {
+      action: AUDIT_ACTIONS.UPDATE_USER,
+      resource: "user",
+      resourceId: id,
+      details: `Utilisateur modifié : ${updatedUser.email}`,
+      success: true,
+    });
+
     res.json({
       success: true,
       message: "Utilisateur mis à jour avec succès",
@@ -2390,6 +2496,15 @@ exports.deleteUser = async (req, res) => {
     }
 
     await user.destroy();
+
+    await logFromReq(req, {
+      action: AUDIT_ACTIONS.DELETE_USER,
+      resource: "user",
+      resourceId: id,
+      details: `Utilisateur supprimé : ${user.email}`,
+      oldValues: { email: user.email, firstName: user.firstName, lastName: user.lastName },
+      success: true,
+    });
 
     res.json({
       success: true,
@@ -2432,6 +2547,15 @@ exports.toggleUserStatus = async (req, res) => {
     // Inverser le statut
     await user.update({ isActive: !user.isActive });
 
+    await logFromReq(req, {
+      action: AUDIT_ACTIONS.UPDATE_USER,
+      resource: "user",
+      resourceId: id,
+      details: `Utilisateur ${user.isActive ? "activé" : "désactivé"} : ${user.email}`,
+      newValues: { isActive: user.isActive },
+      success: true,
+    });
+
     res.json({
       success: true,
       message: `Utilisateur ${user.isActive ? 'activé' : 'désactivé'} avec succès`,
@@ -2471,6 +2595,14 @@ exports.resetUserPassword = async (req, res) => {
     await user.update({
       password: hashedPassword,
       mustChangePassword: true,
+    });
+
+    await logFromReq(req, {
+      action: AUDIT_ACTIONS.RESET_PASSWORD,
+      resource: "user",
+      resourceId: id,
+      details: `Mot de passe réinitialisé pour ${user.email}`,
+      success: true,
     });
 
     res.json({

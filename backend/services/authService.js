@@ -1,10 +1,15 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const { User, Role, Enterprise } = require("../models");
+const { User, Role, Enterprise, Setting } = require("../models");
+const twoFactorService = require("./twoFactorService");
 
 function sanitizeUser(user) {
   const plainUser = user.get({ plain: true });
   delete plainUser.password;
+  delete plainUser.twoFactorSecret;
+  delete plainUser.twoFactorBackupCodes;
+  delete plainUser.resetPasswordToken;
+  delete plainUser.resetPasswordExpires;
   return plainUser;
 }
 
@@ -22,7 +27,6 @@ function signToken(user) {
   );
 }
 
-// Inclure toutes les infos utiles au frontend dans un seul objet user
 async function findUserWithIncludes(userId) {
   return User.findByPk(userId, {
     include: [
@@ -30,6 +34,15 @@ async function findUserWithIncludes(userId) {
       { model: Enterprise, as: "enterprise", attributes: ["id", "name", "logo", "status", "subscription"] },
     ],
   });
+}
+
+async function is2FARequiredForUser(user) {
+  if (user.Role?.name !== "SUPER_ADMIN") {
+    return false;
+  }
+
+  const setting = await Setting.findOne({ where: { key: "require_2fa_super_admin" } });
+  return setting?.value === "true";
 }
 
 async function login(email, password) {
@@ -54,9 +67,63 @@ async function login(email, password) {
     throw error;
   }
 
+  const mustSetup2FA = await is2FARequiredForUser(user) && !user.twoFactorEnabled;
+
+  if (user.twoFactorEnabled) {
+    return {
+      requires2FA: true,
+      tempToken: twoFactorService.signTempToken(user.id),
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+      },
+    };
+  }
+
   return {
     token: signToken(user),
     user: sanitizeUser(user),
+    mustSetup2FA,
+  };
+}
+
+async function verify2FA(tempToken, code, backupCode) {
+  const userId = twoFactorService.verifyTempToken(tempToken);
+  const user = await User.findByPk(userId, {
+    include: [
+      { model: Role, attributes: ["id", "name", "description"] },
+      { model: Enterprise, as: "enterprise", attributes: ["id", "name", "logo", "status", "subscription"] },
+    ],
+  });
+
+  if (!user || !user.isActive || !user.twoFactorEnabled) {
+    const error = new Error("Session 2FA invalide");
+    error.statusCode = 401;
+    throw error;
+  }
+
+  let verified = false;
+
+  if (code) {
+    verified = await twoFactorService.verifyCode(user, code);
+  } else if (backupCode) {
+    verified = await twoFactorService.verifyBackupCode(user, backupCode);
+  }
+
+  if (!verified) {
+    const error = new Error("Code 2FA invalide");
+    error.statusCode = 401;
+    throw error;
+  }
+
+  const mustSetup2FA = await is2FARequiredForUser(user) && !user.twoFactorEnabled;
+
+  return {
+    token: signToken(user),
+    user: sanitizeUser(user),
+    mustSetup2FA,
   };
 }
 
@@ -82,7 +149,7 @@ async function register({ firstName, lastName, email, password }) {
     email,
     password: hashedPassword,
     roleId: role.id,
-    enterpriseId: null, // Pas d'entreprise liée à l'inscription libre
+    enterpriseId: null,
   });
 
   const userWithRole = await findUserWithIncludes(
@@ -115,4 +182,12 @@ async function changePassword(userId, newPassword) {
   );
 }
 
-module.exports = { login, register, getProfile, changePassword };
+module.exports = {
+  login,
+  verify2FA,
+  register,
+  getProfile,
+  changePassword,
+  sanitizeUser,
+  signToken,
+};

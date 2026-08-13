@@ -73,6 +73,7 @@ const App: React.FC = () => {
             <Route path="/admin/stock/generate" element={<GenerateStockPage />} />
             <Route path="/admin/stock/assign" element={<AssignStockPage />} />
             <Route path="/admin/users" element={<UsersPage />} />
+            <Route path="/admin/audit" element={<AuditPage />} />
             <Route path="/admin/settings" element={<SettingsPage />} />
           </Route>
         </Route>

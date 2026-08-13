@@ -117,4 +117,10 @@ router.put("/change-password", authenticate, authController.changePassword);
 router.post("/forgot-password", authController.forgotPassword);
 router.post("/reset-password", authController.resetPassword);
 
+router.post("/verify-2fa", authController.verify2FA);
+router.get("/2fa/status", authenticate, authController.get2FAStatus);
+router.post("/2fa/setup", authenticate, authController.setup2FA);
+router.post("/2fa/enable", authenticate, authController.enable2FA);
+router.post("/2fa/disable", authenticate, authController.disable2FA);
+
 module.exports = router;

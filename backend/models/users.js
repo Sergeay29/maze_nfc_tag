@@ -55,6 +55,21 @@ const User = sequelize.define(
       allowNull: true,
     },
 
+    twoFactorEnabled: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+    },
+
+    twoFactorSecret: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+    },
+
+    twoFactorBackupCodes: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
+
     roleId: {
       type: DataTypes.UUID,
       allowNull: false,
