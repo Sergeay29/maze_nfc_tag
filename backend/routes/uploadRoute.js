@@ -4,6 +4,7 @@ const express = require("express");
 const router = express.Router();
 const { upload } = require("../config/upload");
 const { authenticate, requireRole } = require("../middlewares/authMiddleware");
+const { logFromReq, AUDIT_ACTIONS } = require("../services/auditService");
 
 /**
  * @swagger
@@ -42,7 +43,7 @@ router.post(
   "/logo",
   authenticate,
   upload.single("file"),
-  (req, res) => {
+  async (req, res) => {
     if (!req.file) {
       return res.status(400).json({
         success: false,
@@ -60,6 +61,15 @@ router.post(
 
     const fileUrl =
       `${publicAppUrl}/uploads/${req.file.filename}`;
+
+    await logFromReq(req, {
+      action: AUDIT_ACTIONS.UPLOAD_LOGO,
+      resource: "enterprise",
+      resourceId: req.user?.enterpriseId ?? null,
+      details: `Upload logo : ${req.file.filename}`,
+      newValues: { url: fileUrl },
+      success: true,
+    });
 
     return res.json({
       success: true,

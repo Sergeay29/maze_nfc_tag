@@ -1,4 +1,4 @@
-const { AuditLog, User } = require("../models");
+const { AuditLog, User, Client } = require("../models");
 const { Op } = require("sequelize");
 const sequelize = require("../config/database");
 
@@ -21,6 +21,25 @@ const ACTION_LABELS = {
   UPDATE_SUBSCRIPTION: "Modification abonnement",
   UPDATE_CARD: "Modification carte",
   RESET_PASSWORD: "Réinitialisation mot de passe",
+  CREATE_CLIENT: "Création client",
+  UPDATE_CLIENT: "Modification client",
+  DELETE_CLIENT: "Suppression client",
+  CREATE_SERVICE: "Création service",
+  UPDATE_SERVICE: "Modification service",
+  DELETE_SERVICE: "Suppression service",
+  CREATE_REWARD: "Création récompense",
+  UPDATE_REWARD: "Modification récompense",
+  DELETE_REWARD: "Suppression récompense",
+  SCAN_CARD: "Scan carte NFC",
+  ADJUST_POINTS: "Ajustement points",
+  REDEEM_REWARD: "Utilisation récompense",
+  CLIENT_IDENTIFY: "Identification client (scan)",
+  CLIENT_LOGIN_SUCCESS: "Connexion portail client",
+  CLIENT_LOGIN_FAILED: "Échec connexion portail client",
+  CLIENT_RESET_PASSWORD: "Réinitialisation mot de passe client",
+  CHANGE_PASSWORD: "Changement mot de passe",
+  UPDATE_PROFILE: "Mise à jour profil",
+  UPLOAD_LOGO: "Upload logo",
 };
 
 const RESOURCE_LABELS = {
@@ -30,9 +49,42 @@ const RESOURCE_LABELS = {
   scan: "Scan",
   settings: "Paramètres",
   auth: "Authentification",
+  client: "Client",
+  service: "Service",
+  reward: "Récompense",
+  redemption: "Échange récompense",
 };
 
 const EXPORT_LIMIT = 10000;
+
+const auditLogIncludes = [
+  {
+    model: User,
+    attributes: ["id", "firstName", "lastName", "email"],
+    required: false,
+  },
+  {
+    model: Client,
+    attributes: ["id", "name", "email"],
+    required: false,
+  },
+];
+
+function getActorLabel(log) {
+  if (log.User) {
+    return {
+      name: `${log.User.firstName} ${log.User.lastName}`,
+      email: log.User.email,
+    };
+  }
+  if (log.Client) {
+    return {
+      name: `${log.Client.name} (client)`,
+      email: log.Client.email || "",
+    };
+  }
+  return { name: "Système / public", email: "" };
+}
 
 function getPeriodStart(period) {
   const now = new Date();
@@ -93,13 +145,7 @@ exports.getAuditLogs = async (req, res) => {
 
     const { count, rows } = await AuditLog.findAndCountAll({
       where,
-      include: [
-        {
-          model: User,
-          attributes: ["id", "firstName", "lastName", "email"],
-          required: false,
-        },
-      ],
+      include: auditLogIncludes,
       order: [["createdAt", "DESC"]],
       limit,
       offset,
@@ -199,13 +245,7 @@ exports.getAuditStats = async (req, res) => {
 exports.getAuditLogDetail = async (req, res) => {
   try {
     const log = await AuditLog.findByPk(req.params.id, {
-      include: [
-        {
-          model: User,
-          attributes: ["id", "firstName", "lastName", "email"],
-          required: false,
-        },
-      ],
+      include: auditLogIncludes,
     });
 
     if (!log) {
@@ -269,13 +309,7 @@ exports.exportAuditCsv = async (req, res) => {
 
     const rows = await AuditLog.findAll({
       where,
-      include: [
-        {
-          model: User,
-          attributes: ["firstName", "lastName", "email"],
-          required: false,
-        },
-      ],
+      include: auditLogIncludes,
       order: [["createdAt", "DESC"]],
     });
 
@@ -295,15 +329,12 @@ exports.exportAuditCsv = async (req, res) => {
     const csvLines = [
       header.map(escapeCsvValue).join(";"),
       ...rows.map((log) => {
-        const userName = log.User
-          ? `${log.User.firstName} ${log.User.lastName}`.trim()
-          : "";
-        const userEmail = log.User?.email ?? "";
+        const actor = getActorLabel(log);
 
         return [
           log.createdAt ? new Date(log.createdAt).toISOString() : "",
-          userName,
-          userEmail,
+          actor.name,
+          actor.email,
           ACTION_LABELS[log.action] || log.action,
           RESOURCE_LABELS[log.resource] || log.resource,
           log.resourceId ?? "",

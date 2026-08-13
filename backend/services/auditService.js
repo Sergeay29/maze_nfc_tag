@@ -19,6 +19,25 @@ const AUDIT_ACTIONS = {
   RESET_PASSWORD: "RESET_PASSWORD",
   ENABLE_2FA: "ENABLE_2FA",
   DISABLE_2FA: "DISABLE_2FA",
+  CHANGE_PASSWORD: "CHANGE_PASSWORD",
+  UPDATE_PROFILE: "UPDATE_PROFILE",
+  UPLOAD_LOGO: "UPLOAD_LOGO",
+  CREATE_CLIENT: "CREATE_CLIENT",
+  UPDATE_CLIENT: "UPDATE_CLIENT",
+  DELETE_CLIENT: "DELETE_CLIENT",
+  CREATE_SERVICE: "CREATE_SERVICE",
+  UPDATE_SERVICE: "UPDATE_SERVICE",
+  DELETE_SERVICE: "DELETE_SERVICE",
+  CREATE_REWARD: "CREATE_REWARD",
+  UPDATE_REWARD: "UPDATE_REWARD",
+  DELETE_REWARD: "DELETE_REWARD",
+  SCAN_CARD: "SCAN_CARD",
+  ADJUST_POINTS: "ADJUST_POINTS",
+  REDEEM_REWARD: "REDEEM_REWARD",
+  CLIENT_IDENTIFY: "CLIENT_IDENTIFY",
+  CLIENT_LOGIN_SUCCESS: "CLIENT_LOGIN_SUCCESS",
+  CLIENT_LOGIN_FAILED: "CLIENT_LOGIN_FAILED",
+  CLIENT_RESET_PASSWORD: "CLIENT_RESET_PASSWORD",
 };
 
 function getClientMeta(req) {
@@ -39,6 +58,8 @@ function getClientMeta(req) {
 
 async function log({
   userId = null,
+  clientId = null,
+  enterpriseId = null,
   action,
   resource,
   resourceId = null,
@@ -53,6 +74,8 @@ async function log({
   try {
     await AuditLog.create({
       userId,
+      clientId,
+      enterpriseId,
       action,
       resource,
       resourceId,
@@ -73,6 +96,20 @@ function logFromReq(req, data) {
   const meta = getClientMeta(req);
   return log({
     userId: req?.user?.id ?? data.userId ?? null,
+    enterpriseId:
+      data.enterpriseId ??
+      req?.user?.enterpriseId ??
+      req?.user?.enterprise?.id ??
+      null,
+    ipAddress: meta.ipAddress,
+    userAgent: meta.userAgent,
+    ...data,
+  });
+}
+
+function logFromPublicReq(req, data) {
+  const meta = getClientMeta(req);
+  return log({
     ipAddress: meta.ipAddress,
     userAgent: meta.userAgent,
     ...data,
@@ -84,4 +121,5 @@ module.exports = {
   getClientMeta,
   log,
   logFromReq,
+  logFromPublicReq,
 };

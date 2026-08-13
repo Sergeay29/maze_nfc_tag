@@ -13,6 +13,14 @@ const AuditLog = sequelize.define(
       type: DataTypes.UUID,
       allowNull: true,
     },
+    clientId: {
+      type: DataTypes.UUID,
+      allowNull: true,
+    },
+    enterpriseId: {
+      type: DataTypes.UUID,
+      allowNull: true,
+    },
     action: {
       type: DataTypes.STRING(64),
       allowNull: false,

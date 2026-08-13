@@ -2,6 +2,13 @@
 
 const { Enterprise, NFCCard, Client, Scan, Service, Reward, Redemption, User } = require("../models");
 const { Op } = require("sequelize");
+const { logFromReq, AUDIT_ACTIONS } = require("../services/auditService");
+
+function enterpriseAuditDetails(req, message) {
+  const enterpriseName =
+    req.user?.enterprise?.name || req.user?.Enterprise?.name || null;
+  return enterpriseName ? `[${enterpriseName}] ${message}` : message;
+}
 
 // ─────────────────────────────────────────────────────────────
 // HELPERS
@@ -101,6 +108,15 @@ exports.updateMyEnterprise = async (req, res) => {
     }
 
     const { name, phone, location, logo, adminFirstName, adminLastName } = req.body;
+    const oldValues = {
+      name: enterprise.name,
+      phone: enterprise.phone,
+      location: enterprise.location,
+      logo: enterprise.logo,
+      adminFirstName: enterprise.adminFirstName,
+      adminLastName: enterprise.adminLastName,
+    };
+
     await enterprise.update({
       name: name || enterprise.name,
       phone: phone || enterprise.phone,
@@ -120,6 +136,23 @@ exports.updateMyEnterprise = async (req, res) => {
         });
       }
     }
+
+    await logFromReq(req, {
+      action: AUDIT_ACTIONS.UPDATE_ENTERPRISE,
+      resource: "enterprise",
+      resourceId: enterprise.id,
+      details: enterpriseAuditDetails(req, `Profil entreprise mis à jour : ${enterprise.name}`),
+      oldValues,
+      newValues: {
+        name: enterprise.name,
+        phone: enterprise.phone,
+        location: enterprise.location,
+        logo: enterprise.logo,
+        adminFirstName: enterprise.adminFirstName,
+        adminLastName: enterprise.adminLastName,
+      },
+      success: true,
+    });
 
     res.json({
       success: true,
@@ -239,6 +272,15 @@ exports.createClient = async (req, res) => {
       level: "Silver",
     });
 
+    await logFromReq(req, {
+      action: AUDIT_ACTIONS.CREATE_CLIENT,
+      resource: "client",
+      resourceId: client.id,
+      details: enterpriseAuditDetails(req, `Client créé : ${name}`),
+      newValues: { name, email, phone },
+      success: true,
+    });
+
     res.status(201).json({
       success: true,
       message: "Client créé avec succès",
@@ -267,6 +309,14 @@ exports.updateClient = async (req, res) => {
       });
     }
 
+    const oldValues = {
+      name: client.name,
+      email: client.email,
+      phone: client.phone,
+      status: client.status,
+      level: client.level,
+    };
+
     await client.update({
       name: name || client.name,
       email: email !== undefined ? email : client.email,
@@ -274,6 +324,22 @@ exports.updateClient = async (req, res) => {
       photo: photo !== undefined ? photo : client.photo,
       status: status || client.status,
       level: level || client.level,
+    });
+
+    await logFromReq(req, {
+      action: AUDIT_ACTIONS.UPDATE_CLIENT,
+      resource: "client",
+      resourceId: client.id,
+      details: enterpriseAuditDetails(req, `Client modifié : ${client.name}`),
+      oldValues,
+      newValues: {
+        name: client.name,
+        email: client.email,
+        phone: client.phone,
+        status: client.status,
+        level: client.level,
+      },
+      success: true,
     });
 
     res.json({
@@ -302,6 +368,8 @@ exports.deleteClient = async (req, res) => {
       return res.status(404).json({ success: false, message: "Client non trouvé" });
     }
 
+    const clientSnapshot = { id: client.id, name: client.name, email: client.email };
+
     // 1. Désassigner les cartes NFC liées à ce client
     await NFCCard.update(
       { assignedToClientId: null, assignedAt: null, status: "unassigned" },
@@ -313,6 +381,15 @@ exports.deleteClient = async (req, res) => {
 
     // 3. Supprimer le client
     await client.destroy();
+
+    await logFromReq(req, {
+      action: AUDIT_ACTIONS.DELETE_CLIENT,
+      resource: "client",
+      resourceId: clientSnapshot.id,
+      details: enterpriseAuditDetails(req, `Client supprimé : ${clientSnapshot.name}`),
+      oldValues: clientSnapshot,
+      success: true,
+    });
 
     res.json({ success: true, message: "Client supprimé avec succès" });
   } catch (error) {
@@ -404,6 +481,15 @@ exports.createService = async (req, res) => {
       enterpriseId,
     });
 
+    await logFromReq(req, {
+      action: AUDIT_ACTIONS.CREATE_SERVICE,
+      resource: "service",
+      resourceId: service.id,
+      details: enterpriseAuditDetails(req, `Service créé : ${name}`),
+      newValues: { name, pointsToAdd: service.pointsToAdd },
+      success: true,
+    });
+
     res.status(201).json({
       success: true,
       message: "Service créé avec succès",
@@ -432,6 +518,12 @@ exports.updateService = async (req, res) => {
       });
     }
 
+    const oldValues = {
+      name: service.name,
+      pointsToAdd: service.pointsToAdd,
+      isActive: service.isActive,
+    };
+
     await service.update({
       name: name || service.name,
       description: description !== undefined ? description : service.description,
@@ -439,6 +531,20 @@ exports.updateService = async (req, res) => {
       icon: icon !== undefined ? icon : service.icon,
       color: color || service.color,
       isActive: isActive !== undefined ? isActive : service.isActive,
+    });
+
+    await logFromReq(req, {
+      action: AUDIT_ACTIONS.UPDATE_SERVICE,
+      resource: "service",
+      resourceId: service.id,
+      details: enterpriseAuditDetails(req, `Service modifié : ${service.name}`),
+      oldValues,
+      newValues: {
+        name: service.name,
+        pointsToAdd: service.pointsToAdd,
+        isActive: service.isActive,
+      },
+      success: true,
     });
 
     res.json({
@@ -468,7 +574,17 @@ exports.deleteService = async (req, res) => {
       });
     }
 
+    const serviceSnapshot = { id: service.id, name: service.name };
     await service.destroy();
+
+    await logFromReq(req, {
+      action: AUDIT_ACTIONS.DELETE_SERVICE,
+      resource: "service",
+      resourceId: serviceSnapshot.id,
+      details: enterpriseAuditDetails(req, `Service supprimé : ${serviceSnapshot.name}`),
+      oldValues: serviceSnapshot,
+      success: true,
+    });
 
     res.json({
       success: true,
@@ -567,6 +683,15 @@ exports.createReward = async (req, res) => {
       enterpriseId,
     });
 
+    await logFromReq(req, {
+      action: AUDIT_ACTIONS.CREATE_REWARD,
+      resource: "reward",
+      resourceId: reward.id,
+      details: enterpriseAuditDetails(req, `Récompense créée : ${title}`),
+      newValues: { title, pointsRequired: reward.pointsRequired },
+      success: true,
+    });
+
     res.status(201).json({
       success: true,
       message: "Récompense créée avec succès",
@@ -595,6 +720,13 @@ exports.updateReward = async (req, res) => {
       });
     }
 
+    const oldValues = {
+      title: reward.title,
+      pointsRequired: reward.pointsRequired,
+      isActive: reward.isActive,
+      stock: reward.stock,
+    };
+
     await reward.update({
       title: title || reward.title,
       description: description !== undefined ? description : reward.description,
@@ -603,6 +735,21 @@ exports.updateReward = async (req, res) => {
       category: category || reward.category,
       isActive: isActive !== undefined ? isActive : reward.isActive,
       stock: stock !== undefined ? (stock !== null ? parseInt(stock) : null) : reward.stock,
+    });
+
+    await logFromReq(req, {
+      action: AUDIT_ACTIONS.UPDATE_REWARD,
+      resource: "reward",
+      resourceId: reward.id,
+      details: enterpriseAuditDetails(req, `Récompense modifiée : ${reward.title}`),
+      oldValues,
+      newValues: {
+        title: reward.title,
+        pointsRequired: reward.pointsRequired,
+        isActive: reward.isActive,
+        stock: reward.stock,
+      },
+      success: true,
     });
 
     res.json({
@@ -632,7 +779,17 @@ exports.deleteReward = async (req, res) => {
       });
     }
 
+    const rewardSnapshot = { id: reward.id, title: reward.title };
     await reward.destroy();
+
+    await logFromReq(req, {
+      action: AUDIT_ACTIONS.DELETE_REWARD,
+      resource: "reward",
+      resourceId: rewardSnapshot.id,
+      details: enterpriseAuditDetails(req, `Récompense supprimée : ${rewardSnapshot.title}`),
+      oldValues: rewardSnapshot,
+      success: true,
+    });
 
     res.json({
       success: true,
@@ -702,6 +859,8 @@ exports.assignCard = async (req, res) => {
       return res.status(404).json({ success: false, message: "Carte non trouvée" });
     }
 
+    const previousClientId = card.assignedToClientId;
+
     if (clientId) {
       const client = await Client.findOne({ where: { id: clientId, enterpriseId } });
       if (!client) {
@@ -715,6 +874,21 @@ exports.assignCard = async (req, res) => {
 
     const updated = await NFCCard.findByPk(id, {
       include: [{ model: Client, as: "assignedClient", attributes: ["id", "name", "email"] }],
+    });
+
+    await logFromReq(req, {
+      action: AUDIT_ACTIONS.ASSIGN_CARD,
+      resource: "nfcCard",
+      resourceId: card.id,
+      details: enterpriseAuditDetails(
+        req,
+        clientId
+          ? `Carte ${card.cardNumber} attribuée au client ${updated.assignedClient?.name || clientId}`
+          : `Carte ${card.cardNumber} désassignée`
+      ),
+      oldValues: { assignedToClientId: previousClientId },
+      newValues: { assignedToClientId: clientId || null, status: updated.status },
+      success: true,
     });
 
     res.json({ success: true, message: clientId ? "Carte attribuée avec succès" : "Carte désattribuée", data: updated });
@@ -754,7 +928,21 @@ exports.updateCardStatus = async (req, res) => {
       });
     }
 
+    const previousStatus = card.status;
     await card.update({ status });
+
+    await logFromReq(req, {
+      action: AUDIT_ACTIONS.UPDATE_CARD,
+      resource: "nfcCard",
+      resourceId: card.id,
+      details: enterpriseAuditDetails(
+        req,
+        `Carte ${card.cardNumber} ${status === "active" ? "activée" : "désactivée"}`
+      ),
+      oldValues: { status: previousStatus },
+      newValues: { status },
+      success: true,
+    });
 
     res.json({
       success: true,
@@ -846,6 +1034,23 @@ exports.scanCard = async (req, res) => {
     // Récupérer les données complètes pour la réponse
     const fullScan = await Scan.findByPk(scan.id, {
       include: [Client, Service, NFCCard],
+    });
+
+    await logFromReq(req, {
+      action: AUDIT_ACTIONS.SCAN_CARD,
+      resource: "scan",
+      resourceId: scan.id,
+      details: enterpriseAuditDetails(
+        req,
+        `Scan carte ${card.cardCode} — ${client.name}${pointsToAdd !== 0 ? ` (${pointsToAdd > 0 ? "+" : ""}${pointsToAdd} pts)` : ""}`
+      ),
+      newValues: {
+        cardId: card.id,
+        clientId: client.id,
+        pointsAdded: pointsToAdd,
+        serviceId: serviceId || null,
+      },
+      success: true,
     });
 
     res.status(201).json({
@@ -941,6 +1146,9 @@ exports.adjustPoints = async (req, res) => {
       });
     }
 
+    const previousPoints = client.points;
+    const pointsDelta = parseInt(points);
+
     // Mettre à jour le client
     await client.update({ points: newPoints });
     await updateClientLevel(client);
@@ -952,10 +1160,23 @@ exports.adjustPoints = async (req, res) => {
       clientId: client.id,
       enterpriseId,
       serviceId: null,
-      pointsAdded: parseInt(points),
-      notes: reason || (points > 0 ? "Ajout manuel de points" : "Retrait manuel de points"),
+      pointsAdded: pointsDelta,
+      notes: reason || (pointsDelta > 0 ? "Ajout manuel de points" : "Retrait manuel de points"),
       userAgent: req.get("user-agent") || null,
       ipAddress: req.ip || null,
+    });
+
+    await logFromReq(req, {
+      action: AUDIT_ACTIONS.ADJUST_POINTS,
+      resource: "client",
+      resourceId: client.id,
+      details: enterpriseAuditDetails(
+        req,
+        `Points ${pointsDelta > 0 ? "ajoutés" : "retirés"} pour ${client.name} (${pointsDelta > 0 ? "+" : ""}${pointsDelta} pts)${reason ? ` — ${reason}` : ""}`
+      ),
+      oldValues: { points: previousPoints },
+      newValues: { points: newPoints },
+      success: true,
     });
 
     res.json({

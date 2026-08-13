@@ -18,6 +18,11 @@ interface AuditLog {
     lastName: string;
     email: string;
   } | null;
+  Client?: {
+    id: string;
+    name: string;
+    email?: string | null;
+  } | null;
 }
 
 interface AuditStats {
@@ -54,6 +59,25 @@ const ACTION_LABELS: Record<string, string> = {
   UPDATE_SUBSCRIPTION: 'Modification abonnement',
   UPDATE_CARD: 'Modification carte',
   RESET_PASSWORD: 'Réinitialisation mot de passe',
+  CREATE_CLIENT: 'Création client',
+  UPDATE_CLIENT: 'Modification client',
+  DELETE_CLIENT: 'Suppression client',
+  CREATE_SERVICE: 'Création service',
+  UPDATE_SERVICE: 'Modification service',
+  DELETE_SERVICE: 'Suppression service',
+  CREATE_REWARD: 'Création récompense',
+  UPDATE_REWARD: 'Modification récompense',
+  DELETE_REWARD: 'Suppression récompense',
+  SCAN_CARD: 'Scan carte NFC',
+  ADJUST_POINTS: 'Ajustement points',
+  REDEEM_REWARD: 'Utilisation récompense',
+  CLIENT_IDENTIFY: 'Identification client (scan)',
+  CLIENT_LOGIN_SUCCESS: 'Connexion portail client',
+  CLIENT_LOGIN_FAILED: 'Échec connexion portail client',
+  CLIENT_RESET_PASSWORD: 'Réinitialisation mot de passe client',
+  CHANGE_PASSWORD: 'Changement mot de passe',
+  UPDATE_PROFILE: 'Mise à jour profil',
+  UPLOAD_LOGO: 'Upload logo',
 };
 
 const RESOURCE_LABELS: Record<string, string> = {
@@ -63,6 +87,10 @@ const RESOURCE_LABELS: Record<string, string> = {
   scan: 'Scan',
   settings: 'Paramètres',
   auth: 'Authentification',
+  client: 'Client',
+  service: 'Service',
+  reward: 'Récompense',
+  redemption: 'Échange récompense',
 };
 
 const LOGS_PER_PAGE = 15;
@@ -194,7 +222,7 @@ export default function AuditPage() {
     },
     {
       key: 'user',
-      header: 'Utilisateur',
+      header: 'Acteur',
       render: (log) =>
         log.User ? (
           <div className="flex items-center gap-2">
@@ -204,8 +232,16 @@ export default function AuditPage() {
               <p className="text-xs text-gray-500">{log.User.email}</p>
             </div>
           </div>
+        ) : log.Client ? (
+          <div className="flex items-center gap-2">
+            <User className="w-4 h-4 text-primary/60" />
+            <div>
+              <p className="font-medium">{log.Client.name}</p>
+              <p className="text-xs text-gray-500">{log.Client.email || 'Client fidélité'}</p>
+            </div>
+          </div>
         ) : (
-          <span className="text-sm text-gray-400">—</span>
+          <span className="text-sm text-gray-400">Scan public / système</span>
         ),
     },
     {
@@ -256,7 +292,7 @@ export default function AuditPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold font-poppins text-dark">Journal d'audit</h1>
-          <p className="text-slate mt-1">Suivi des actions administrateurs</p>
+          <p className="text-slate mt-1">Suivi des actions administrateurs et entreprises</p>
         </div>
         <div className="flex gap-2 w-full sm:w-auto">
           <Button

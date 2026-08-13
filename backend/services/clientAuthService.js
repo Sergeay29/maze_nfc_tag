@@ -143,7 +143,7 @@ async function forgotPassword({ email }) {
     }
   }
 
-  return { message: genericMessage };
+  return { message: genericMessage, clientId: client?.id ?? null, enterpriseId: client?.enterpriseId ?? null };
 }
 
 async function resetPassword({ token, password }) {
@@ -181,7 +181,11 @@ async function resetPassword({ token, password }) {
     resetPasswordExpires: null,
   });
 
-  return { message: "Mot de passe réinitialisé avec succès." };
+  return {
+    message: "Mot de passe réinitialisé avec succès.",
+    clientId: client.id,
+    enterpriseId: client.enterpriseId,
+  };
 }
 
 async function getMe(clientId) {

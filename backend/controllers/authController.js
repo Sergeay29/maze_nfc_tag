@@ -265,6 +265,15 @@ async function updateMe(req, res) {
     );
 
     const user = await authService.getProfile(userId);
+
+    await logFromReq(req, {
+      action: AUDIT_ACTIONS.UPDATE_PROFILE,
+      resource: "user",
+      resourceId: userId,
+      details: `Profil mis à jour (${user.email})`,
+      success: true,
+    });
+
     return res.json({ success: true, message: "Profil mis à jour", data: user });
   } catch (error) {
     return res.status(error.statusCode || 500).json({ success: false, message: error.message || "Erreur" });
@@ -283,6 +292,13 @@ async function changePassword(req, res) {
     }
 
     await authService.changePassword(req.user.id, newPassword);
+
+    await logFromReq(req, {
+      action: AUDIT_ACTIONS.CHANGE_PASSWORD,
+      resource: "auth",
+      details: `Mot de passe modifié (${req.user.email})`,
+      success: true,
+    });
 
     return res.json({
       success: true,
@@ -325,6 +341,14 @@ async function forgotPassword(req, res) {
       } catch (mailErr) {
         console.error("Erreur envoi email reset:", mailErr);
       }
+
+      await logFromReq(req, {
+        userId: user.id,
+        action: AUDIT_ACTIONS.RESET_PASSWORD,
+        resource: "auth",
+        details: `Demande réinitialisation mot de passe (${user.email})`,
+        success: true,
+      });
     }
 
     return res.json({ success: true, message: genericMessage });
@@ -370,6 +394,15 @@ async function resetPassword(req, res) {
       mustChangePassword: false,
       resetPasswordToken: null,
       resetPasswordExpires: null,
+    });
+
+    await logFromReq(req, {
+      userId: user.id,
+      enterpriseId: user.enterpriseId,
+      action: AUDIT_ACTIONS.RESET_PASSWORD,
+      resource: "auth",
+      details: `Mot de passe réinitialisé (${user.email})`,
+      success: true,
     });
 
     return res.json({ success: true, message: "Mot de passe réinitialisé avec succès." });

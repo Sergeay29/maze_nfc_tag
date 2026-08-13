@@ -2,6 +2,7 @@
 
 const { Service, Enterprise, Client, NFCCard, Scan, Reward, Redemption } = require("../models");
 const { Op } = require("sequelize");
+const { logFromPublicReq, AUDIT_ACTIONS } = require("../services/auditService");
 
 /**
  * Calcule les infos de niveau d'un client (niveau actuel, prochain, progression)
@@ -196,6 +197,16 @@ exports.identifyClient = async (req, res) => {
 
     const levelInfo = getLevelInfo(client.points);
 
+    await logFromPublicReq(req, {
+      clientId: client.id,
+      enterpriseId,
+      action: AUDIT_ACTIONS.CLIENT_IDENTIFY,
+      resource: "client",
+      resourceId: client.id,
+      details: `[Scan NFC] Identification client : ${client.name}`,
+      success: true,
+    });
+
     res.json({
       success: true,
       data: {
@@ -268,6 +279,7 @@ exports.validateServiceScan = async (req, res) => {
 
     // 3. Résoudre le client : priorité à assignedClient, sinon phone/email
     let client = card.assignedClient || null;
+    let clientCreated = false;
 
     if (!client) {
       if (!phone && !email) {
@@ -291,11 +303,12 @@ exports.validateServiceScan = async (req, res) => {
           points: 0,
           level: "Silver",
         });
+        clientCreated = true;
       }
     }
 
     // 4. Créer le scan et ajouter les points
-    await Scan.create({
+    const scan = await Scan.create({
       cardId: card.id,
       clientId: client.id,
       enterpriseId,
@@ -304,6 +317,35 @@ exports.validateServiceScan = async (req, res) => {
       notes: `Scan via carte ${card.cardCode} - Service: ${service.name}`,
       userAgent: req.get("user-agent") || null,
       ipAddress: req.ip || null,
+    });
+
+    if (clientCreated) {
+      await logFromPublicReq(req, {
+        clientId: client.id,
+        enterpriseId,
+        action: AUDIT_ACTIONS.CREATE_CLIENT,
+        resource: "client",
+        resourceId: client.id,
+        details: `[Scan NFC] Client créé : ${client.name}`,
+        newValues: { name: client.name, email: client.email, phone: client.phone },
+        success: true,
+      });
+    }
+
+    await logFromPublicReq(req, {
+      clientId: client.id,
+      enterpriseId,
+      action: AUDIT_ACTIONS.SCAN_CARD,
+      resource: "scan",
+      resourceId: scan.id,
+      details: `[Scan NFC] ${client.name} — +${service.pointsToAdd} pts (${service.name})`,
+      newValues: {
+        cardId: card.id,
+        clientId: client.id,
+        pointsAdded: service.pointsToAdd,
+        serviceId: service.id,
+      },
+      success: true,
     });
 
     // 5. Mettre à jour les points du client
@@ -461,6 +503,22 @@ exports.redeemRewardScan = async (req, res) => {
     if (reward.stock !== null) {
       await reward.update({ stock: reward.stock - 1 });
     }
+
+    await logFromPublicReq(req, {
+      clientId: client.id,
+      enterpriseId,
+      action: AUDIT_ACTIONS.REDEEM_REWARD,
+      resource: "reward",
+      resourceId: reward.id,
+      details: `[Scan NFC] ${client.name} — récompense « ${reward.title} » (-${reward.pointsRequired} pts)`,
+      oldValues: { points: client.points },
+      newValues: {
+        points: newPoints,
+        redemptionId: redemption.id,
+        rewardTitle: reward.title,
+      },
+      success: true,
+    });
 
     // ── 10. Retourner le résultat avec solde mis à jour ───────────────────────
     const updatedRewards = await Reward.findAll({

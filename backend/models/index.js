@@ -178,6 +178,14 @@ Redemption.belongsTo(Reward, {
 User.hasMany(AuditLog, { foreignKey: "userId" });
 AuditLog.belongsTo(User, { foreignKey: "userId" });
 
+// Client -> AuditLog
+Client.hasMany(AuditLog, { foreignKey: "clientId" });
+AuditLog.belongsTo(Client, { foreignKey: "clientId" });
+
+// Enterprise -> AuditLog
+Enterprise.hasMany(AuditLog, { foreignKey: "enterpriseId" });
+AuditLog.belongsTo(Enterprise, { foreignKey: "enterpriseId" });
+
 module.exports = {
   User,
   Role,
