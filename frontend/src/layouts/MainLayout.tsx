@@ -43,7 +43,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({
       />
 
       {/* Contenu principal — décalé seulement sur desktop */}
-      <div className={`transition-all duration-300 lg:${collapsed ? 'ml-20' : 'ml-64'}`}>
+      <div className={`transition-all duration-300 ${collapsed ? 'lg:ml-20' : 'lg:ml-64'
+        }`}>
         <Header
           userName={fullName}
           userRole={roleName}
@@ -51,7 +52,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
           onLogout={logout}
           onMenuToggle={() => setMobileOpen(true)}
         />
-        <main className="p-4 sm:p-6">
+        <main className="p-4 sm:p-6 lg:p-8 max-w-full">
           <Outlet />
         </main>
       </div>
