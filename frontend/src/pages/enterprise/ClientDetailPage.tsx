@@ -205,7 +205,8 @@ const ClientDetailPage: React.FC = () => {
                 <p className="text-sm">Aucun scan enregistré</p>
               </div>
             ) : (
-              <table className="w-full">
+              <div className="overflow-x-auto">
+              <table className="w-full min-w-[28rem]">
                 <thead className="bg-cloud/60">
                   <tr>
                     <th className="text-left text-xs font-semibold text-slate uppercase tracking-wider px-5 py-3">Date</th>
@@ -248,6 +249,7 @@ const ClientDetailPage: React.FC = () => {
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
             {scans.length >= 10 && (
               <div className="p-4 border-t border-slate/10 text-center">

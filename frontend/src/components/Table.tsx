@@ -5,6 +5,8 @@ export interface Column<T> {
   header: string;
   render?: (item: T) => React.ReactNode;
   className?: string;
+  /** Masquer cette colonne sur mobile (vue cartes) */
+  hideOnMobile?: boolean;
 }
 
 export interface TableProps<T> {
@@ -15,6 +17,12 @@ export interface TableProps<T> {
   maxHeight?: string;
   loading?: boolean;
   embedded?: boolean;
+}
+
+function renderCell<T>(column: Column<T>, item: T) {
+  return column.render
+    ? column.render(item)
+    : ((item as Record<string, unknown>)[column.key] as React.ReactNode);
 }
 
 function Table<T extends { id: string }>({
@@ -29,6 +37,9 @@ function Table<T extends { id: string }>({
   const containerClass = embedded
     ? 'overflow-hidden'
     : 'bg-white rounded-xl sm:rounded-2xl shadow-soft overflow-hidden';
+
+  const mobileColumns = columns.filter((column) => !column.hideOnMobile);
+
   if (loading) {
     return (
       <div
@@ -52,8 +63,8 @@ function Table<T extends { id: string }>({
 
   return (
     <div className={containerClass}>
-      {/* Version mobile : cartes empilées */}
-      <div className="block sm:hidden overflow-y-auto" style={scrollStyle}>
+      {/* Mobile & petites tablettes : cartes */}
+      <div className="block md:hidden overflow-y-auto" style={scrollStyle}>
         <div className="divide-y divide-slate/10">
           {data.map((item) => (
             <div
@@ -61,13 +72,13 @@ function Table<T extends { id: string }>({
               className={`p-4 space-y-3 ${onRowClick ? 'cursor-pointer hover:bg-cloud active:bg-slate/5' : ''}`}
               onClick={() => onRowClick?.(item)}
             >
-              {columns.slice(0, 3).map((column) => (
-                <div key={column.key} className="flex justify-between items-start">
-                  <span className="text-sm font-medium text-slate-600 min-w-0 flex-shrink-0 mr-3">
-                    {column.header}:
+              {mobileColumns.map((column) => (
+                <div key={column.key} className="flex flex-col gap-1 sm:flex-row sm:justify-between sm:items-start sm:gap-3">
+                  <span className="text-xs font-semibold text-slate uppercase tracking-wide shrink-0">
+                    {column.header}
                   </span>
-                  <div className="text-sm text-right min-w-0 flex-1">
-                    {column.render ? column.render(item) : (item as Record<string, unknown>)[column.key] as React.ReactNode}
+                  <div className="text-sm text-dark min-w-0 sm:text-right sm:max-w-[65%]">
+                    {renderCell(column, item)}
                   </div>
                 </div>
               ))}
@@ -76,15 +87,15 @@ function Table<T extends { id: string }>({
         </div>
       </div>
 
-      {/* Version desktop : tableau classique avec scroll interne */}
-      <div className="hidden sm:block overflow-x-auto overflow-y-auto" style={scrollStyle}>
-        <table className="w-full min-w-full">
+      {/* Desktop & tablette large : tableau avec scroll horizontal si besoin */}
+      <div className="hidden md:block overflow-x-auto overflow-y-auto" style={scrollStyle}>
+        <table className="w-full min-w-[640px]">
           <thead className="sticky top-0 z-10 bg-cloud border-b border-slate/10">
             <tr>
               {columns.map((column) => (
                 <th
                   key={column.key}
-                  className={`table-header px-4 lg:px-6 py-3 lg:py-4 text-left text-xs lg:text-sm font-medium text-slate-700 uppercase tracking-wider whitespace-nowrap ${column.className || ''}`}
+                  className={`table-header px-3 lg:px-6 py-3 lg:py-4 text-left text-xs lg:text-sm font-medium text-slate-700 uppercase tracking-wider ${column.className?.includes('hidden') ? column.className : ''}`}
                 >
                   {column.header}
                 </th>
@@ -99,8 +110,11 @@ function Table<T extends { id: string }>({
                 onClick={() => onRowClick?.(item)}
               >
                 {columns.map((column) => (
-                  <td key={column.key} className={`table-cell px-4 lg:px-6 py-3 lg:py-4 text-sm whitespace-nowrap ${column.className || ''}`}>
-                    {column.render ? column.render(item) : (item as Record<string, unknown>)[column.key] as React.ReactNode}
+                  <td
+                    key={column.key}
+                    className={`table-cell px-3 lg:px-6 py-3 lg:py-4 text-sm align-middle ${column.className || ''}`}
+                  >
+                    {renderCell(column, item)}
                   </td>
                 ))}
               </tr>

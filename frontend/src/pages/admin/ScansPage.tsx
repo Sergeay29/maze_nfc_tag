@@ -492,7 +492,7 @@ const ScansPage: React.FC = () => {
         ) : (
           <>
             <Table data={scans} columns={columns} />
-            <div className="p-4 border-t border-slate/10 flex items-center justify-between">
+            <div className="p-4 border-t border-slate/10 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
               <p className="text-sm text-slate">
                 {total} résultat{total > 1 ? 's' : ''}
               </p>

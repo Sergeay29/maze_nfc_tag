@@ -206,7 +206,7 @@ const AdminDashboard: React.FC = () => {
               data.recentScans.map((scan) => (
                 <div
                   key={scan.id}
-                  className="flex items-center justify-between p-3 rounded-xl hover:bg-cloud transition-colors duration-200"
+                  className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-2 p-3 rounded-xl hover:bg-cloud transition-colors duration-200"
                 >
                   <div className="flex items-center gap-3">
                     <Avatar name={scan.clientName ?? '?'} size="md" shape="circle" />

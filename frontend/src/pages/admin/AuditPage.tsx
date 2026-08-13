@@ -253,12 +253,12 @@ export default function AuditPage() {
   return (
     <div className="space-y-6">
       {/* En-tête */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Journal d'audit</h1>
-          <p className="text-gray-600">Suivi des actions administrateurs</p>
+          <h1 className="text-xl sm:text-2xl font-bold font-poppins text-dark">Journal d'audit</h1>
+          <p className="text-slate mt-1">Suivi des actions administrateurs</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 w-full sm:w-auto">
           <Button
             variant="primary"
             size="sm"
@@ -274,7 +274,7 @@ export default function AuditPage() {
 
       {/* Statistiques */}
       {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card className="p-4">
             <div className="flex items-center gap-3">
               <Activity className="w-8 h-8 text-blue-500" />
@@ -316,7 +316,7 @@ export default function AuditPage() {
 
       {/* Filtres */}
       <Card className="p-4">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           <SearchInput
             placeholder="Rechercher..."
             value={searchTerm}
@@ -414,7 +414,7 @@ export default function AuditPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <Card className="max-w-2xl w-full max-h-[80vh] overflow-y-auto">
             <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
+              <div className="flex flex-col xs:flex-row xs:justify-between xs:items-center gap-3 mb-4">
                 <h3 className="text-lg font-semibold">Détails du log d'audit</h3>
                 <Button
                   variant="primary"
@@ -426,7 +426,7 @@ export default function AuditPage() {
               </div>
 
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm font-medium text-gray-700">ID</label>
                     <p className="text-sm">{selectedLog.id}</p>
@@ -437,7 +437,7 @@ export default function AuditPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm font-medium text-gray-700">Action</label>
                     <p className="text-sm">

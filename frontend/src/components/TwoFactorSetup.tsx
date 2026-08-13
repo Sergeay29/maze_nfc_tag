@@ -147,7 +147,7 @@ export default function TwoFactorSetup() {
           <p className="text-sm text-yellow-700 mb-3">
             Conservez ces codes en lieu sûr. Chaque code ne peut être utilisé qu'une fois.
           </p>
-          <div className="grid grid-cols-2 gap-2 font-mono text-sm mb-3">
+          <div className="grid grid-cols-1 xs:grid-cols-2 gap-2 font-mono text-sm mb-3">
             {backupCodes.map((code) => (
               <span key={code} className="bg-white px-2 py-1 rounded border">
                 {code}
@@ -180,7 +180,7 @@ export default function TwoFactorSetup() {
             <img
               src={setupData.qrCodeDataUrl}
               alt="QR Code 2FA"
-              className="w-48 h-48 border rounded-xl"
+              className="w-full max-w-[12rem] sm:w-48 sm:h-48 aspect-square mx-auto sm:mx-0 border rounded-xl"
             />
             <div className="text-sm">
               <p className="text-slate mb-1">Clé manuelle :</p>

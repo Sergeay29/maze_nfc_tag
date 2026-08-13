@@ -255,10 +255,10 @@ const EnterpriseDetailPage: React.FC = () => {
         />
       )}
       {/* Header navigation */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-slate hover:text-primary transition-colors duration-200"
+          className="flex items-center gap-2 text-slate hover:text-primary transition-colors duration-200 self-start"
         >
           <ArrowLeft className="w-5 h-5" />
           Retour aux entreprises

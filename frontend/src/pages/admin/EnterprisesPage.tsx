@@ -446,7 +446,7 @@ const EnterprisesPage: React.FC = () => {
               columns={columns}
               onRowClick={(enterprise) => navigate(`/admin/enterprises/${enterprise.id}`)}
             />
-            <div className="p-4 border-t border-slate/10 flex items-center justify-between">
+            <div className="p-4 border-t border-slate/10 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
               <p className="text-sm text-slate">
                 {filtered.length} résultat{filtered.length > 1 ? 's' : ''}
                 {(search || statusFilter !== 'all') && ` · ${allEnterprises.length} au total`}

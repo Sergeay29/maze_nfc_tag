@@ -20,21 +20,24 @@ const Tabs: React.FC<TabsProps> = ({
   className = '',
 }) => {
   return (
-    <div className={`flex flex-wrap gap-2 ${className}`}>
-      {tabs.map((tab) => (
-        <button
-          key={tab.id}
-          onClick={() => onChange(tab.id)}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${
-            activeTab === tab.id
-              ? 'bg-gradient text-white shadow-soft'
-              : 'bg-white text-slate hover:bg-primary/10 hover:text-primary'
-          }`}
-        >
-          {tab.icon && <span className="w-4 h-4">{tab.icon}</span>}
-          {tab.label}
-        </button>
-      ))}
+    <div className={`overflow-x-auto -mx-1 px-1 pb-1 ${className}`}>
+      <div className="flex flex-nowrap gap-2 min-w-max sm:min-w-0 sm:flex-wrap">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => onChange(tab.id)}
+            className={`flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl font-medium text-sm whitespace-nowrap transition-all duration-200 shrink-0 ${
+              activeTab === tab.id
+                ? 'bg-gradient text-white shadow-soft'
+                : 'bg-white text-slate hover:bg-primary/10 hover:text-primary'
+            }`}
+          >
+            {tab.icon && <span className="w-4 h-4 shrink-0">{tab.icon}</span>}
+            {tab.label}
+          </button>
+        ))}
+      </div>
     </div>
   );
 };

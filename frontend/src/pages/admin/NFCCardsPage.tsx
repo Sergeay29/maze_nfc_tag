@@ -367,7 +367,7 @@ const NFCCardsPage: React.FC = () => {
                   <div className="flex-1">
                     <Table data={paginated} columns={columns} />
                   </div>
-              <div className="p-4 border-t border-slate/10 flex items-center justify-between">
+              <div className="p-4 border-t border-slate/10 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
                 <p className="text-sm text-slate">
                   {filtered.length} résultat{filtered.length > 1 ? 's' : ''}
                   {(search || statusFilter !== 'all') && ` · ${allCards.length} au total`}

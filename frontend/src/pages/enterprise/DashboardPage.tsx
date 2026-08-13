@@ -94,7 +94,7 @@ const EnterpriseDashboard: React.FC = () => {
               <h3 className="text-lg font-semibold font-poppins text-dark mb-6">Top clients</h3>
               <div className="space-y-3">
                 {(data?.topClients ?? []).map((client, index) => (
-                  <div key={client.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-cloud transition-colors duration-200">
+                  <div key={client.id} className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-2 p-2 rounded-lg hover:bg-cloud transition-colors duration-200">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-gradient flex items-center justify-center text-white text-sm font-medium">#{index + 1}</div>
                       <div>
@@ -115,8 +115,8 @@ const EnterpriseDashboard: React.FC = () => {
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold font-poppins text-dark">Derniers scans</h3>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full">
+            <div className="overflow-x-auto -mx-2 sm:mx-0">
+              <table className="w-full min-w-[28rem]">
                 <thead className="bg-cloud">
                   <tr>
                     <th className="table-header px-4 py-3">Client</th>

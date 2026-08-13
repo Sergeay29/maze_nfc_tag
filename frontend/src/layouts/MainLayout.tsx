@@ -25,7 +25,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   const avatar = type === 'enterprise' ? (user?.enterprise?.logo ?? userAvatar) : userAvatar;
 
   return (
-    <div className="min-h-screen bg-cloud">
+    <div className="min-h-screen bg-cloud overflow-x-hidden">
       {/* Overlay mobile */}
       {mobileOpen && (
         <div
@@ -43,7 +43,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
       />
 
       {/* Contenu principal — décalé seulement sur desktop */}
-      <div className={`transition-all duration-300 ${collapsed ? 'lg:ml-20' : 'lg:ml-64'
+      <div className={`min-w-0 transition-all duration-300 ${collapsed ? 'lg:ml-20' : 'lg:ml-64'
         }`}>
         <Header
           userName={fullName}

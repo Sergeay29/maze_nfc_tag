@@ -317,7 +317,7 @@ const UsersPage: React.FC = () => {
               emptyMessage="Aucun utilisateur trouvé"
             />
             {totalPages > 1 && (
-              <div className="p-4 border-t border-slate/10 flex items-center justify-between">
+              <div className="p-4 border-t border-slate/10 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
                 <p className="text-sm text-slate">
                   Page {page} sur {totalPages} · {filtered.length} résultat{filtered.length > 1 ? 's' : ''}
                 </p>

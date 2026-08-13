@@ -59,10 +59,10 @@ const Modal: React.FC<ModalProps> = ({
         className={`relative w-full ${sizeClass} bg-white rounded-2xl shadow-card animate-fade-in overflow-y-auto max-h-[90vh]`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate/10">
+        <div className="flex items-start sm:items-center justify-between gap-3 p-4 sm:p-6 border-b border-slate/10">
           <h2
             id="modal-title"
-            className="text-xl font-bold font-poppins text-dark"
+            className="text-lg sm:text-xl font-bold font-poppins text-dark pr-2"
           >
             {title}
           </h2>
@@ -76,7 +76,7 @@ const Modal: React.FC<ModalProps> = ({
         </div>
 
         {/* Body */}
-        <div className="p-6">{children}</div>
+        <div className="p-4 sm:p-6">{children}</div>
       </div>
     </div>
   );

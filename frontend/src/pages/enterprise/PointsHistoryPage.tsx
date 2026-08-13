@@ -113,7 +113,8 @@ const PointsHistoryPage: React.FC = () => {
       </div>
 
       <Card padding="none">
-        <table className="w-full">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[32rem]">
           <thead className="bg-cloud border-b border-slate/10">
             <tr>
               <th className="table-header px-6 py-4">Date</th>
@@ -166,6 +167,7 @@ const PointsHistoryPage: React.FC = () => {
             )}
           </tbody>
         </table>
+        </div>
       </Card>
     </div>
   );

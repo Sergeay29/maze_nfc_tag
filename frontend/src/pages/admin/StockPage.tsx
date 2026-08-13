@@ -44,7 +44,7 @@ const StockPage: React.FC = () => {
           <h1 className="text-2xl font-bold font-poppins text-dark">Gestion de stocks</h1>
           <p className="text-slate mt-1">Vue d'ensemble des cartes NFC — stock global et distribution</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-col xs:flex-row flex-wrap gap-3 w-full sm:w-auto">
           <Button
             variant="secondary"
             icon={<ChevronRight className="w-4 h-4" />}
@@ -63,15 +63,17 @@ const StockPage: React.FC = () => {
 
       {/* ── STOCK GLOBAL MAZE ── */}
       <div className="p-4 rounded-2xl border-2 border-dashed border-primary/30 bg-primary/5 space-y-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
-            <Warehouse className="w-5 h-5 text-primary" />
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center shrink-0">
+              <Warehouse className="w-5 h-5 text-primary" />
+            </div>
+            <div className="min-w-0">
+              <h2 className="font-semibold font-poppins text-dark">Stock global Maze</h2>
+              <p className="text-xs text-slate">Cartes vierges — sans type ni entreprise, prêtes à être assignées</p>
+            </div>
           </div>
-          <div>
-            <h2 className="font-semibold font-poppins text-dark">Stock global Maze</h2>
-            <p className="text-xs text-slate">Cartes vierges — sans type ni entreprise, prêtes à être assignées</p>
-          </div>
-          <div className="ml-auto text-right">
+          <div className="sm:ml-auto sm:text-right">
             <p className="text-3xl font-bold text-primary">{(globalStock?.total ?? 0).toLocaleString('fr-FR')}</p>
             <p className="text-xs text-slate">cartes disponibles</p>
           </div>
@@ -95,7 +97,7 @@ const StockPage: React.FC = () => {
             <p className="text-xs font-semibold text-slate uppercase tracking-wider mb-2">Lots récents</p>
             <div className="space-y-1.5">
               {globalStock?.byBatch.slice(0, 4).map((b) => (
-                <div key={b.batchId} className="flex items-center justify-between bg-white rounded-xl px-3 py-2 shadow-sm">
+                <div key={b.batchId} className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-2 bg-white rounded-xl px-3 py-2 shadow-sm">
                   <div className="flex items-center gap-2 min-w-0">
                     <Package className="w-3.5 h-3.5 text-slate flex-shrink-0" />
                     <span className="font-mono text-xs text-slate truncate">{b.batchId}</span>
