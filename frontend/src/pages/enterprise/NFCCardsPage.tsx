@@ -48,7 +48,9 @@ const EnterpriseCardsPage: React.FC = () => {
     try {
       const res = await getClients({ limit: 100 });
       setClients(res.data);
-    } catch { }
+    } catch (error) {
+      console.error('Erreur lors du chargement des clients', error);
+    }
   };
 
   const handleAssign = async (clientId: string | null) => {

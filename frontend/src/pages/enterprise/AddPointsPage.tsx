@@ -4,7 +4,8 @@ import {
   Star as StarIcon, Gift, Scissors, Camera, Music, Heart, Sparkles, 
   Home, Phone, Mail, Calendar, Clock, Settings, User, Users, ShoppingCart, 
   CreditCard, MapPin, Building, Briefcase, FileText, Check, X, MoreHorizontal, 
-  Bell, Bookmark, Tag, DollarSign, Euro, Activity, TrendingUp, TrendingDown, Trophy 
+  Bell, Bookmark, Tag, DollarSign, Euro, Activity, TrendingUp, TrendingDown, Trophy,
+  type LucideIcon
 } from 'lucide-react';
 import { Button, Input, Select, Card, Toast } from '../../components';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -12,7 +13,7 @@ import { getClientDetail, getServices, adjustPoints } from '../../api/enterprise
 import type { ClientData, ServiceData } from '../../api/enterpriseApi';
 
 // Icônes prédéfinies (même que dans ServicesPage)
-const ICON_MAP: Record<string, any> = {
+const ICON_MAP: Record<string, LucideIcon> = {
   zap: Zap,
   coffee: Coffee,
   'shopping-bag': ShoppingBag,

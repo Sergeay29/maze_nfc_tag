@@ -700,8 +700,8 @@ export interface AuditLog {
   action: string;
   resource: string;
   resourceId?: string;
-  oldValues?: any;
-  newValues?: any;
+  oldValues?: Record<string, unknown>;
+  newValues?: Record<string, unknown>;
   details?: string;
   ipAddress?: string;
   userAgent?: string;

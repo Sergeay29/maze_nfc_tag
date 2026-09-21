@@ -52,7 +52,7 @@ const RewardsPage: React.FC = () => {
       category: r.category ?? '',
       stock: r.stock != null ? String(r.stock) : '',
       isActive: r.isActive,
-      serviceId: (r as any).serviceId ?? '',
+      serviceId: r.serviceId ?? '',
     });
     setSaveError(null);
     setModalOpen(true);
@@ -178,8 +178,8 @@ const RewardsPage: React.FC = () => {
                 {reward.stock != null && (
                   <p className="text-xs text-slate mt-2">Stock : {reward.stock}</p>
                 )}
-                {(reward as any).serviceId && (
-                  <p className="text-xs text-slate mt-1">Service : {services.find(s => s.id === (reward as any).serviceId)?.name ?? '—'}</p>
+                {reward.serviceId && (
+                  <p className="text-xs text-slate mt-1">Service : {services.find(s => s.id === reward.serviceId)?.name ?? '—'}</p>
                 )}
               </div>
             </Card>

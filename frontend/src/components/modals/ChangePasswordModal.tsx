@@ -35,7 +35,7 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
 
     try {
       await onSubmit(newPassword);
-    } catch (err) {
+    } catch {
       // L'erreur est gérée par le parent
     }
   };

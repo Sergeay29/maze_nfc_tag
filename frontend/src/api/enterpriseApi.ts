@@ -185,6 +185,7 @@ export interface RewardData {
   image?: string;
   category?: string;
   stock?: number;
+  serviceId?: string;
   enterpriseId: string;
   createdAt: string;
 }
