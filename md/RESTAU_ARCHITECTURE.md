@@ -133,7 +133,7 @@ Les commandes, lignes de commande, paiements, réservations, événements de sca
 
 Les routes seront ajoutées progressivement, avec le préfixe `/api/restau` :
 
-- `GET /api/restau/public/:token` — résolution d'une table et récupération du menu public ;
+- `GET /api/restau/public/menu/:enterpriseId` — lecture publique v1 du menu publié ; le remplacement par un `publicToken` de table connectée est prévu avec la tâche QR/NFC ;
 - `GET /api/restau/menus` — menus du restaurateur authentifié ;
 - `POST|PATCH|DELETE /api/restau/menus/...` — gestion du menu côté dashboard ;
 - `GET|POST|PATCH /api/restau/tables/...` — gestion des tables et marqueurs ;
@@ -150,4 +150,3 @@ Les routes publiques ne doivent accepter que le token public. Les routes dashboa
 - aucune modification du schéma au démarrage de l'API : les évolutions passent par une migration ;
 - menu client responsive et rapide, sans authentification obligatoire ;
 - compatibilité Android/Chrome et iOS/Safari via URL web, QR en solution de secours.
-

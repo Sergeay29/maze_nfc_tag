@@ -4,6 +4,7 @@ const express = require("express");
 const router = express.Router();
 const enterpriseController = require("../controllers/enterpriseController");
 const { authenticate, requireRole } = require("../middlewares/authMiddleware");
+const restaurantMenuController = require("../controllers/restaurantMenuController");
 
 // Toutes les routes /api/enterprise/* exigent d'être authentifié
 router.use(authenticate);
@@ -541,5 +542,21 @@ router.get("/scans", enterpriseController.getScans);
  *         description: Points ajustés
  */
 router.post("/points/adjust", enterpriseController.adjustPoints);
+
+// ─────────────────────────────────────────────────────────────
+// RESTAU — MENU
+// ─────────────────────────────────────────────────────────────
+router.get("/menu", restaurantMenuController.getMenu);
+router.post("/menu", restaurantMenuController.createMenu);
+router.put("/menu/:id", restaurantMenuController.updateMenu);
+router.delete("/menu/:id", restaurantMenuController.deleteMenu);
+
+router.post("/menu/:menuId/categories", restaurantMenuController.createCategory);
+router.put("/menu/categories/:id", restaurantMenuController.updateCategory);
+router.delete("/menu/categories/:id", restaurantMenuController.deleteCategory);
+
+router.post("/menu/categories/:categoryId/items", restaurantMenuController.createItem);
+router.put("/menu/items/:id", restaurantMenuController.updateItem);
+router.delete("/menu/items/:id", restaurantMenuController.deleteItem);
 
 module.exports = router;

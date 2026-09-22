@@ -33,7 +33,9 @@ import {
   PointsHistoryPage,
   EnterpriseProfilePage,
   ServicesPage,
+  MenuPage,
 } from './pages';
+import RestaurantMenuPage from './pages/RestaurantMenuPage';
 import ScanLandingPage from './pages/ScanLandingPage';
 import GenerateStockPage from './pages/admin/GenerateStockPage';
 import AssignStockPage from './pages/admin/AssignStockPage';
@@ -52,6 +54,7 @@ const App: React.FC = () => {
         {/* Routes publiques de scan NFC */}
         {/* Format: /entreprise/type/token */}
         <Route path="/:enterpriseSlug/:cardType/:token" element={<ScanLandingPage />} />
+        <Route path="/restau/menu/:enterpriseId" element={<RestaurantMenuPage />} />
 
         {/* Admin Routes */}
         <Route element={<ProtectedRoute allowedRoles={['SUPER_ADMIN']} />}>
@@ -86,6 +89,7 @@ const App: React.FC = () => {
             <Route path="/enterprise/clients/:id/history" element={<PointsHistoryPage />} />
             <Route path="/enterprise/cards" element={<EnterpriseCardsPage />} />
             <Route path="/enterprise/services" element={<ServicesPage />} />
+            <Route path="/enterprise/menu" element={<MenuPage />} />
             <Route path="/enterprise/scans" element={<EnterpriseScansPage />} />
             <Route path="/enterprise/rewards" element={<RewardsPage />} />
             <Route path="/enterprise/levels" element={<LevelsPage />} />

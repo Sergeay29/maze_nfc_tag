@@ -1,0 +1,280 @@
+import React, { useEffect, useState } from 'react';
+import { Eye, EyeOff, Pencil, Plus, Trash2, Utensils, X } from 'lucide-react';
+import { Badge, Button, Card, Input, Toast } from '../../components';
+import {
+  createMenuCategory,
+  createMenuItem,
+  createRestaurantMenu,
+  deleteMenuCategory,
+  deleteMenuItem,
+  getRestaurantMenu,
+  updateMenuCategory,
+  updateMenuItem,
+  updateRestaurantMenu,
+} from '../../api/restaurantMenuApi';
+import type {
+  RestaurantMenu,
+  RestaurantMenuCategory,
+  RestaurantMenuItem,
+} from '../../api/restaurantMenuApi';
+
+const EMPTY_CATEGORY = { name: '', description: '' };
+const EMPTY_ITEM = { name: '', description: '', priceMinor: 0, imageUrl: '' };
+
+const formatPrice = (priceMinor: number) =>
+  `${new Intl.NumberFormat('fr-FR').format(priceMinor)} FCFA`;
+
+const MenuPage: React.FC = () => {
+  const [menu, setMenu] = useState<RestaurantMenu | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [categoryForm, setCategoryForm] = useState(EMPTY_CATEGORY);
+  const [itemForm, setItemForm] = useState(EMPTY_ITEM);
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [itemCategoryId, setItemCategoryId] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; variant: 'success' | 'error' } | null>(null);
+
+  const loadMenu = async () => {
+    try {
+      setLoading(true);
+      setMenu(await getRestaurantMenu());
+    } catch (error) {
+      setToast({ message: error instanceof Error ? error.message : 'Impossible de charger le menu', variant: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadMenu();
+  }, []);
+
+  const handleCreateMenu = async () => {
+    try {
+      setSaving(true);
+      const createdMenu = await createRestaurantMenu();
+      setMenu({ ...createdMenu, categories: [] });
+      setToast({ message: 'Menu créé. Ajoutez maintenant vos catégories.', variant: 'success' });
+    } catch (error) {
+      setToast({ message: error instanceof Error ? error.message : 'Impossible de créer le menu', variant: 'error' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handlePublish = async () => {
+    if (!menu) return;
+    try {
+      setSaving(true);
+      const nextStatus = menu.status === 'published' ? 'draft' : 'published';
+      setMenu({ ...menu, ...(await updateRestaurantMenu(menu.id, { status: nextStatus })) });
+      setToast({ message: nextStatus === 'published' ? 'Menu publié côté client.' : 'Menu repassé en brouillon.', variant: 'success' });
+    } catch (error) {
+      setToast({ message: error instanceof Error ? error.message : 'Impossible de modifier le statut du menu', variant: 'error' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const resetCategoryForm = () => {
+    setCategoryForm(EMPTY_CATEGORY);
+    setEditingCategoryId(null);
+  };
+
+  const resetItemForm = () => {
+    setItemForm(EMPTY_ITEM);
+    setEditingItemId(null);
+    setItemCategoryId(null);
+  };
+
+  const handleCategorySubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!menu || !categoryForm.name.trim()) return;
+
+    try {
+      setSaving(true);
+      if (editingCategoryId) {
+        await updateMenuCategory(editingCategoryId, categoryForm);
+        setToast({ message: 'Catégorie mise à jour.', variant: 'success' });
+      } else {
+        await createMenuCategory(menu.id, categoryForm);
+        setToast({ message: 'Catégorie ajoutée.', variant: 'success' });
+      }
+      resetCategoryForm();
+      await loadMenu();
+    } catch (error) {
+      setToast({ message: error instanceof Error ? error.message : 'Impossible d’enregistrer la catégorie', variant: 'error' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleItemSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!itemCategoryId || !itemForm.name.trim()) return;
+
+    try {
+      setSaving(true);
+      if (editingItemId) {
+        await updateMenuItem(editingItemId, itemForm);
+        setToast({ message: 'Plat mis à jour.', variant: 'success' });
+      } else {
+        await createMenuItem(itemCategoryId, itemForm);
+        setToast({ message: 'Plat ajouté.', variant: 'success' });
+      }
+      resetItemForm();
+      await loadMenu();
+    } catch (error) {
+      setToast({ message: error instanceof Error ? error.message : 'Impossible d’enregistrer le plat', variant: 'error' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const editCategory = (category: RestaurantMenuCategory) => {
+    setCategoryForm({ name: category.name, description: category.description || '' });
+    setEditingCategoryId(category.id);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const editItem = (categoryId: string, item: RestaurantMenuItem) => {
+    setItemCategoryId(categoryId);
+    setEditingItemId(item.id);
+    setItemForm({
+      name: item.name,
+      description: item.description || '',
+      priceMinor: item.priceMinor,
+      imageUrl: item.imageUrl || '',
+    });
+  };
+
+  const handleDeleteCategory = async (category: RestaurantMenuCategory) => {
+    if (!window.confirm(`Supprimer la catégorie « ${category.name} » et ses plats ?`)) return;
+    try {
+      await deleteMenuCategory(category.id);
+      await loadMenu();
+      setToast({ message: 'Catégorie supprimée.', variant: 'success' });
+    } catch (error) {
+      setToast({ message: error instanceof Error ? error.message : 'Impossible de supprimer la catégorie', variant: 'error' });
+    }
+  };
+
+  const handleDeleteItem = async (item: RestaurantMenuItem) => {
+    if (!window.confirm(`Supprimer le plat « ${item.name} » ?`)) return;
+    try {
+      await deleteMenuItem(item.id);
+      await loadMenu();
+      setToast({ message: 'Plat supprimé.', variant: 'success' });
+    } catch (error) {
+      setToast({ message: error instanceof Error ? error.message : 'Impossible de supprimer le plat', variant: 'error' });
+    }
+  };
+
+  if (loading) {
+    return <div className="flex items-center justify-center py-20"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" /></div>;
+  }
+
+  return (
+    <div className="space-y-6 animate-fade-in">
+      {toast && <Toast message={toast.message} variant={toast.variant} onClose={() => setToast(null)} />}
+
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold font-poppins text-dark">Menu digital</h1>
+          <p className="text-slate mt-1">Gérez les catégories, les plats et leur disponibilité.</p>
+        </div>
+        {menu && (
+          <Button onClick={handlePublish} disabled={saving} icon={menu.status === 'published' ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}>
+            {menu.status === 'published' ? 'Repasser en brouillon' : 'Publier le menu'}
+          </Button>
+        )}
+      </div>
+
+      {!menu ? (
+        <Card className="text-center py-14">
+          <Utensils className="w-12 h-12 text-primary mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-dark">Votre menu est prêt à être créé</h2>
+          <p className="text-slate mt-2 mb-6">Créez le menu principal de votre restaurant pour commencer.</p>
+          <Button onClick={handleCreateMenu} disabled={saving} icon={<Plus className="w-5 h-5" />}>Créer le menu</Button>
+        </Card>
+      ) : (
+        <>
+          <Card className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <p className="text-sm text-slate">Menu actif</p>
+              <h2 className="text-xl font-semibold text-dark">{menu.name}</h2>
+            </div>
+            <Badge variant={menu.status === 'published' ? 'success' : 'warning'}>
+              {menu.status === 'published' ? 'Publié' : 'Brouillon'}
+            </Badge>
+          </Card>
+
+          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6 items-start">
+            <div className="space-y-4">
+              {menu.categories.map((category) => (
+                <Card key={category.id} padding="none" className="overflow-hidden">
+                  <div className="p-5 border-b border-slate/10 flex items-start justify-between gap-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-dark">{category.name}</h3>
+                      {category.description && <p className="text-sm text-slate mt-1">{category.description}</p>}
+                    </div>
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="ghost" onClick={() => editCategory(category)} icon={<Pencil className="w-4 h-4" />} />
+                      <Button size="sm" variant="ghost" className="text-red-500" onClick={() => void handleDeleteCategory(category)} icon={<Trash2 className="w-4 h-4" />} />
+                    </div>
+                  </div>
+                  <div className="divide-y divide-slate/10">
+                    {category.items.map((item) => (
+                      <div key={item.id} className="p-4 flex items-center gap-4">
+                        {item.imageUrl ? <img src={item.imageUrl} alt="" className="w-14 h-14 rounded-xl object-cover" /> : <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center"><Utensils className="w-6 h-6 text-primary" /></div>}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2"><h4 className="font-medium text-dark">{item.name}</h4>{!item.isAvailable && <Badge variant="warning">Indisponible</Badge>}</div>
+                          {item.description && <p className="text-sm text-slate truncate mt-1">{item.description}</p>}
+                          <p className="text-sm font-semibold text-primary mt-1">{formatPrice(item.priceMinor)}</p>
+                        </div>
+                        <div className="flex gap-1">
+                          <Button size="sm" variant="ghost" onClick={() => editItem(category.id, item)} icon={<Pencil className="w-4 h-4" />} />
+                          <Button size="sm" variant="ghost" className="text-red-500" onClick={() => void handleDeleteItem(item)} icon={<Trash2 className="w-4 h-4" />} />
+                        </div>
+                      </div>
+                    ))}
+                    {category.items.length === 0 && <p className="p-5 text-sm text-slate">Aucun plat dans cette catégorie.</p>}
+                  </div>
+                  <button type="button" onClick={() => { resetItemForm(); setItemCategoryId(category.id); }} className="w-full p-4 text-sm font-medium text-primary hover:bg-primary/5 transition-colors flex items-center justify-center gap-2"><Plus className="w-4 h-4" />Ajouter un plat</button>
+                </Card>
+              ))}
+              {menu.categories.length === 0 && <Card className="text-center py-10"><p className="text-slate">Ajoutez votre première catégorie à droite.</p></Card>}
+            </div>
+
+            <div className="space-y-4 xl:sticky xl:top-6">
+              <Card>
+                <div className="flex items-center justify-between mb-4"><h2 className="font-semibold text-dark">{editingCategoryId ? 'Modifier la catégorie' : 'Nouvelle catégorie'}</h2>{editingCategoryId && <Button size="sm" variant="ghost" onClick={resetCategoryForm} icon={<X className="w-4 h-4" />} />}</div>
+                <form onSubmit={handleCategorySubmit} className="space-y-3">
+                  <Input value={categoryForm.name} onChange={(event) => setCategoryForm({ ...categoryForm, name: event.target.value })} placeholder="Ex. Entrées" required />
+                  <Input as="textarea" rows={2} value={categoryForm.description} onChange={(event) => setCategoryForm({ ...categoryForm, description: event.target.value })} placeholder="Description (facultatif)" />
+                  <Button type="submit" fullWidth disabled={saving}>{editingCategoryId ? 'Enregistrer' : 'Ajouter la catégorie'}</Button>
+                </form>
+              </Card>
+
+              {itemCategoryId && (
+                <Card>
+                  <div className="flex items-center justify-between mb-4"><h2 className="font-semibold text-dark">{editingItemId ? 'Modifier le plat' : 'Nouveau plat'}</h2><Button size="sm" variant="ghost" onClick={resetItemForm} icon={<X className="w-4 h-4" />} /></div>
+                  <form onSubmit={handleItemSubmit} className="space-y-3">
+                    <Input value={itemForm.name} onChange={(event) => setItemForm({ ...itemForm, name: event.target.value })} placeholder="Nom du plat" required />
+                    <Input as="textarea" rows={2} value={itemForm.description} onChange={(event) => setItemForm({ ...itemForm, description: event.target.value })} placeholder="Description (facultatif)" />
+                    <Input type="number" min="0" value={itemForm.priceMinor} onChange={(event) => setItemForm({ ...itemForm, priceMinor: Number(event.target.value) })} placeholder="Prix en FCFA" required />
+                    <Input value={itemForm.imageUrl} onChange={(event) => setItemForm({ ...itemForm, imageUrl: event.target.value })} placeholder="URL de la photo (facultatif)" />
+                    <Button type="submit" fullWidth disabled={saving}>{editingItemId ? 'Enregistrer' : 'Ajouter le plat'}</Button>
+                  </form>
+                </Card>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+export default MenuPage;

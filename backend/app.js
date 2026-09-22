@@ -11,6 +11,7 @@ const adminRoute = require("./routes/adminRoute");
 const uploadRoute = require("./routes/uploadRoute");
 const enterpriseRoute = require("./routes/enterpriseRoute");
 const scanRoute = require("./routes/scanRoute");
+const restauPublicRoute = require("./routes/restauPublicRoute");
 
 const app = express();
 
@@ -202,6 +203,7 @@ app.use("/api/admin", adminRoute);
 app.use("/api/enterprise", enterpriseRoute);
 app.use("/api/upload", uploadRoute);
 app.use("/api/scan", scanRoute);
+app.use("/api/restau/public", restauPublicRoute);
 
 /*
  * Réponse normalisée lorsqu'aucune route ne correspond.
