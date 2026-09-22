@@ -5,6 +5,7 @@ const router = express.Router();
 const enterpriseController = require("../controllers/enterpriseController");
 const { authenticate, requireRole } = require("../middlewares/authMiddleware");
 const restaurantMenuController = require("../controllers/restaurantMenuController");
+const qrCodeController = require("../controllers/qrCodeController");
 
 // Toutes les routes /api/enterprise/* exigent d'être authentifié
 router.use(authenticate);
@@ -455,6 +456,7 @@ router.delete("/rewards/:id", enterpriseController.deleteReward);
  *         description: Liste paginée des cartes
  */
 router.get("/cards", enterpriseController.getCards);
+router.get("/cards/:id/qr-code", qrCodeController.getEnterpriseCardQrCode);
 router.put("/cards/:id/assign", enterpriseController.assignCard);
 router.patch("/cards/:id/status", enterpriseController.updateCardStatus);
 

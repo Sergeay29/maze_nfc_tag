@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { CreditCard, User, UserPlus, X, ToggleLeft, ToggleRight } from 'lucide-react';
+import { CreditCard, Download, QrCode, User, UserPlus, X, ToggleLeft, ToggleRight } from 'lucide-react';
 import { Card, Badge, Pagination,  Input, Toast } from '../../components';
-import { getEnterpriseCards, assignCard, getClients, updateEnterpriseCardStatus } from '../../api/enterpriseApi';
+import { getEnterpriseCards, assignCard, getClients, getEnterpriseCardQrCode, updateEnterpriseCardStatus } from '../../api/enterpriseApi';
 import type { NFCCardData, ClientData } from '../../api/enterpriseApi';
 
 const CARDS_PER_PAGE = 12;
@@ -26,6 +26,8 @@ const EnterpriseCardsPage: React.FC = () => {
   const [clients, setClients] = useState<ClientData[]>([]);
   const [clientSearch, setClientSearch] = useState('');
   const [assigning, setAssigning] = useState(false);
+  const [qrModal, setQrModal] = useState<{ card: NFCCardData; qrCodeDataUrl: string; targetUrl: string } | null>(null);
+  const [qrLoadingId, setQrLoadingId] = useState<string | null>(null);
 
   const fetchCards = async () => {
     try {
@@ -96,6 +98,18 @@ const EnterpriseCardsPage: React.FC = () => {
     }
   };
 
+  const handleShowQr = async (card: NFCCardData) => {
+    try {
+      setQrLoadingId(card.id);
+      const qr = await getEnterpriseCardQrCode(card.id);
+      setQrModal({ card, qrCodeDataUrl: qr.qrCodeDataUrl, targetUrl: qr.targetUrl });
+    } catch (error) {
+      setToast({ message: error instanceof Error ? error.message : 'Impossible de générer le QR code', variant: 'error' });
+    } finally {
+      setQrLoadingId(null);
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       {toast && <Toast message={toast.message} variant={toast.variant} onClose={() => setToast(null)} />}
@@ -148,7 +162,15 @@ const EnterpriseCardsPage: React.FC = () => {
                     <User className="w-4 h-4 flex-shrink-0" />
                     <span className="truncate">{card.assignedClient ? card.assignedClient.name : 'Non attribuée'}</span>
                   </div>
-                  <div className="flex items-center gap-1">
+                   <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => void handleShowQr(card)}
+                      disabled={qrLoadingId === card.id || !card.scanUrl}
+                      className="p-1.5 rounded-lg hover:bg-primary/10 transition-colors text-slate hover:text-primary disabled:opacity-40 disabled:cursor-not-allowed"
+                      title={card.scanUrl ? 'Afficher le QR code de secours' : 'Aucune URL cible pour cette carte'}
+                    >
+                      <QrCode className="w-4 h-4" />
+                    </button>
                     {/* Toggle activation uniquement si attribuée à un client */}
                     {card.assignedClient && (
                       <button
@@ -225,6 +247,20 @@ const EnterpriseCardsPage: React.FC = () => {
                 {filteredClients.length === 0 && <p className="text-center text-slate text-sm py-4">Aucun client trouvé</p>}
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {qrModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 text-center">
+            <div className="flex items-center justify-between mb-4 text-left">
+              <div><h3 className="font-semibold font-poppins text-dark">QR code de secours</h3><p className="text-xs text-slate font-mono mt-0.5">{qrModal.card.cardCode}</p></div>
+              <button onClick={() => setQrModal(null)} className="p-2 rounded-xl hover:bg-cloud"><X className="w-5 h-5" /></button>
+            </div>
+            <img src={qrModal.qrCodeDataUrl} alt="QR code de secours" className="w-64 h-64 mx-auto border border-slate/10 rounded-xl" />
+            <p className="text-xs text-slate break-all mt-4">{qrModal.targetUrl}</p>
+            <a href={qrModal.qrCodeDataUrl} download={`maze-nfc-${qrModal.card.cardCode}.png`} className="inline-flex items-center gap-2 mt-5 px-4 py-2.5 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors"><Download className="w-4 h-4" />Télécharger le QR</a>
           </div>
         </div>
       )}

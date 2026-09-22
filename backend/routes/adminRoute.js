@@ -3,6 +3,7 @@
 const express = require("express");
 const router = express.Router();
 const adminController = require("../controllers/adminController");
+const qrCodeController = require("../controllers/qrCodeController");
 const auditController = require("../controllers/auditController");
 const { authenticate, requireRole } = require("../middlewares/authMiddleware");
 
@@ -245,6 +246,7 @@ router.get("/enterprises/:id/services", adminController.getEnterpriseServices);
  *         description: "Liste paginée des cartes"
  */
 router.get("/cards", adminController.getCards);
+router.get("/cards/:id/qr-code", qrCodeController.getAdminCardQrCode);
 
 /**
  * @swagger

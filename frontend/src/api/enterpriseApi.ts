@@ -213,6 +213,7 @@ export interface NFCCardData {
   id: string;
   cardNumber: string;
   cardCode: string;
+  scanUrl?: string | null;
   status: 'active' | 'inactive' | 'unassigned';
   enterpriseId: string;
   assignedToClientId?: string;
@@ -243,6 +244,18 @@ export async function updateEnterpriseCardStatus(
     method: "PATCH",
     body: JSON.stringify({ status }),
   });
+}
+
+export interface CardQrCodeData {
+  cardId: string;
+  cardNumber: string;
+  cardCode: string;
+  targetUrl: string;
+  qrCodeDataUrl: string;
+}
+
+export async function getEnterpriseCardQrCode(id: string): Promise<CardQrCodeData> {
+  return request<CardQrCodeData>(`/enterprise/cards/${id}/qr-code`);
 }
 
 // ─── UPLOAD ────────────────────────────────────────────────

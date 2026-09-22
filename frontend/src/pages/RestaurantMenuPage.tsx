@@ -41,13 +41,20 @@ const RestaurantMenuPage: React.FC = () => {
       </header>
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 -mt-5 space-y-5">
+        <nav aria-label="Catégories du menu" className="sticky top-3 z-10 bg-white/95 backdrop-blur rounded-2xl shadow-soft p-2 flex gap-2 overflow-x-auto">
+          {payload.menu.categories.map((category) => (
+            <a key={category.id} href={`#category-${category.id}`} className="whitespace-nowrap px-3 py-2 rounded-xl text-sm font-medium text-slate hover:bg-primary/10 hover:text-primary transition-colors">
+              {category.name}
+            </a>
+          ))}
+        </nav>
         {payload.menu.categories.map((category) => (
-          <section key={category.id} className="bg-white rounded-3xl shadow-soft overflow-hidden">
+          <section key={category.id} id={`category-${category.id}`} className="scroll-mt-24 bg-white rounded-3xl shadow-soft overflow-hidden">
             <div className="px-5 pt-6 pb-3"><h2 className="text-xl font-bold text-dark">{category.name}</h2>{category.description && <p className="text-sm text-slate mt-1">{category.description}</p>}</div>
             <div className="divide-y divide-slate/10">
               {category.items.map((item) => (
                 <article key={item.id} className="px-5 py-5 flex gap-4">
-                  {item.imageUrl && <img src={item.imageUrl} alt="" loading="lazy" className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover flex-shrink-0" />}
+                  {item.imageUrl && <img src={item.imageUrl} alt={item.name} loading="lazy" decoding="async" className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover flex-shrink-0" />}
                   <div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-3"><h3 className="font-semibold text-dark text-lg">{item.name}</h3><span className="text-primary font-bold whitespace-nowrap">{formatPrice(item.priceMinor)}</span></div>{item.description && <p className="text-sm text-slate mt-2 leading-6">{item.description}</p>}</div>
                 </article>
               ))}
