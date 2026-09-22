@@ -6,6 +6,7 @@ import {
   MapPin,
   Calendar,
   CreditCard,
+  Star,
   Users,
   QrCode,
   Pencil,
@@ -30,6 +31,7 @@ const EnterpriseProfilePage: React.FC = () => {
   const [editPhone, setEditPhone] = useState('');
   const phoneError = editPhone && !isValidPhoneNumber(editPhone) ? 'Numéro de téléphone invalide' : undefined;
   const [editLocation, setEditLocation] = useState('');
+  const [editGoogleReviewUrl, setEditGoogleReviewUrl] = useState('');
   const [editLogo, setEditLogo] = useState('');
   const [editLogoFile, setEditLogoFile] = useState<File | null>(null);
   const [editAdminFirstName, setEditAdminFirstName] = useState('');
@@ -59,6 +61,7 @@ const EnterpriseProfilePage: React.FC = () => {
     setEditName(enterprise.name ?? '');
     setEditPhone(enterprise.phone ?? '');
     setEditLocation(enterprise.location ?? '');
+    setEditGoogleReviewUrl(enterprise.googleReviewUrl ?? '');
     setEditLogo(enterprise.logo ?? '');
     setEditLogoFile(null);
     setEditAdminFirstName(enterprise.adminFirstName ?? '');
@@ -86,6 +89,7 @@ const EnterpriseProfilePage: React.FC = () => {
       const result = await updateMyEnterprise({
         phone: editPhone || undefined,
         location: editLocation || undefined,
+        googleReviewUrl: editGoogleReviewUrl || null,
         logo: finalLogo || undefined,
         adminFirstName: editAdminFirstName || undefined,
         adminLastName: editAdminLastName || undefined,
@@ -231,6 +235,15 @@ const EnterpriseProfilePage: React.FC = () => {
                     icon={<MapPin className="w-5 h-5" />}
                   />
                 </div>
+                <Input
+                  label="Lien d'avis Google"
+                  value={editGoogleReviewUrl}
+                  onChange={(e) => setEditGoogleReviewUrl(e.target.value)}
+                  icon={<Star className="w-5 h-5" />}
+                  placeholder="https://g.page/r/.../review"
+                  type="url"
+                />
+                <p className="text-xs text-slate -mt-2">Ce lien sera affiché aux clients sur le menu digital.</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Input
                     label="Prénom de l'administrateur"
@@ -292,6 +305,12 @@ const EnterpriseProfilePage: React.FC = () => {
                       <p className="font-medium text-dark">{enterprise.location}</p>
                     </div>
                   </div>
+                )}
+                {enterprise.googleReviewUrl && (
+                  <a href={enterprise.googleReviewUrl} target="_blank" rel="noreferrer" className="flex items-center gap-3 p-3 bg-cloud rounded-xl text-primary hover:bg-primary/10 transition-colors">
+                    <Star className="w-5 h-5 flex-shrink-0" />
+                    <div><p className="text-xs text-slate">Avis Google</p><p className="font-medium">Ouvrir le lien d'avis</p></div>
+                  </a>
                 )}
                 <div className="flex items-center gap-3 p-3 bg-cloud rounded-xl">
                   <Calendar className="w-5 h-5 text-primary flex-shrink-0" />

@@ -273,7 +273,7 @@ exports.getPublicMenu = async (req, res) => {
   try {
     const enterprise = await Enterprise.findOne({
       where: { id: req.params.enterpriseId, status: "active" },
-      attributes: ["id", "name", "logo", "location"],
+      attributes: ["id", "name", "logo", "location", "googleReviewUrl"],
     });
 
     if (!enterprise) {

@@ -36,6 +36,7 @@ export interface PublicRestaurant {
   name: string;
   logo?: string | null;
   location?: string | null;
+  googleReviewUrl?: string | null;
 }
 
 export interface PublicRestaurantMenu {
@@ -118,4 +119,26 @@ export async function deleteMenuItem(id: string): Promise<void> {
 
 export async function getPublicRestaurantMenu(enterpriseId: string): Promise<PublicRestaurantMenu> {
   return request<PublicRestaurantMenu>(`/restau/public/menu/${enterpriseId}`);
+}
+
+export interface PublicReservationPayload {
+  reservationDate: string;
+  reservationTime: string;
+  partySize: number;
+  contact: string;
+}
+
+export interface PublicReservationResponse {
+  id: string;
+  status: 'pending' | 'confirmed' | 'cancelled';
+}
+
+export async function createPublicReservation(
+  enterpriseId: string,
+  body: PublicReservationPayload,
+): Promise<PublicReservationResponse> {
+  return request<PublicReservationResponse>(`/restau/public/menu/${enterpriseId}/reservations`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
 }

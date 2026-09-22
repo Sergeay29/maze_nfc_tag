@@ -107,21 +107,32 @@ exports.updateMyEnterprise = async (req, res) => {
       });
     }
 
-    const { name, phone, location, logo, adminFirstName, adminLastName } = req.body;
+    const { name, phone, location, logo, googleReviewUrl, adminFirstName, adminLastName } = req.body;
     const oldValues = {
       name: enterprise.name,
       phone: enterprise.phone,
       location: enterprise.location,
       logo: enterprise.logo,
+      googleReviewUrl: enterprise.googleReviewUrl,
       adminFirstName: enterprise.adminFirstName,
       adminLastName: enterprise.adminLastName,
     };
+
+    if (googleReviewUrl !== undefined && googleReviewUrl !== null && googleReviewUrl !== "") {
+      try {
+        const parsedReviewUrl = new URL(googleReviewUrl);
+        if (!['http:', 'https:'].includes(parsedReviewUrl.protocol)) throw new Error('invalid protocol');
+      } catch {
+        return res.status(400).json({ success: false, message: "Le lien d'avis Google est invalide" });
+      }
+    }
 
     await enterprise.update({
       name: name || enterprise.name,
       phone: phone || enterprise.phone,
       location: location || enterprise.location,
       logo: logo || enterprise.logo,
+      googleReviewUrl: googleReviewUrl !== undefined ? (googleReviewUrl || null) : enterprise.googleReviewUrl,
       adminFirstName: adminFirstName || enterprise.adminFirstName,
       adminLastName: adminLastName || enterprise.adminLastName,
     });
@@ -148,6 +159,7 @@ exports.updateMyEnterprise = async (req, res) => {
         phone: enterprise.phone,
         location: enterprise.location,
         logo: enterprise.logo,
+        googleReviewUrl: enterprise.googleReviewUrl,
         adminFirstName: enterprise.adminFirstName,
         adminLastName: enterprise.adminLastName,
       },

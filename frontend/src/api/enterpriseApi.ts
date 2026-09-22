@@ -34,6 +34,7 @@ export interface MyEnterpriseData {
   email: string;
   phone?: string;
   location?: string;
+  googleReviewUrl?: string | null;
   logo?: string;
   status: string;
   subscription?: string;
@@ -57,6 +58,7 @@ export async function getMyEnterprise(): Promise<MyEnterpriseData> {
 export async function updateMyEnterprise(body: {
   name?: string; phone?: string; location?: string;
   logo?: string; adminFirstName?: string; adminLastName?: string;
+  googleReviewUrl?: string | null;
 }): Promise<MyEnterpriseData> {
   return request<MyEnterpriseData>('/enterprise/me', {
     method: 'PUT',

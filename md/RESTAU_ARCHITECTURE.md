@@ -119,7 +119,7 @@ erDiagram
 
 ### Entités à prévoir après le socle
 
-Les commandes, lignes de commande, paiements, réservations, événements de scan et avis seront ajoutés après la validation du socle menu. Ils devront tous porter `enterpriseId` pour faciliter l'isolation, les statistiques et les contrôles d'accès.
+Les commandes, lignes de commande, paiements et événements de scan seront ajoutés après la validation du socle menu. Les réservations sont désormais modélisées dans `restaurant_reservations` et portent `enterpriseId` pour garantir l'isolation et le suivi côté restaurateur. Le lien d'avis Google est stocké sur le tenant restaurant et exposé uniquement comme action publique.
 
 ## Flux publics
 

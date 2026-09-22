@@ -35,6 +35,14 @@ const Enterprise = sequelize.define(
       allowNull: true,
     },
 
+    googleReviewUrl: {
+      type: DataTypes.STRING(500),
+      allowNull: true,
+      validate: {
+        isUrl: true,
+      },
+    },
+
     logo: {
       type: DataTypes.STRING(500),
       allowNull: true,

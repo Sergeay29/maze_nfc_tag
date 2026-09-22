@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { MapPin, Utensils } from 'lucide-react';
+import { CalendarDays, MapPin, Star, Utensils, X } from 'lucide-react';
 import { useParams } from 'react-router-dom';
-import { getPublicRestaurantMenu } from '../api/restaurantMenuApi';
+import { createPublicReservation, getPublicRestaurantMenu } from '../api/restaurantMenuApi';
 import type { PublicRestaurantMenu } from '../api/restaurantMenuApi';
 
 const formatPrice = (priceMinor: number) =>
@@ -12,6 +12,11 @@ const RestaurantMenuPage: React.FC = () => {
   const [payload, setPayload] = useState<PublicRestaurantMenu | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [reservationOpen, setReservationOpen] = useState(false);
+  const [reservationSubmitting, setReservationSubmitting] = useState(false);
+  const [reservationSuccess, setReservationSuccess] = useState(false);
+  const [reservationError, setReservationError] = useState<string | null>(null);
+  const [reservationForm, setReservationForm] = useState({ reservationDate: '', reservationTime: '', partySize: 2, contact: '' });
 
   useEffect(() => {
     if (!enterpriseId) return;
@@ -20,6 +25,23 @@ const RestaurantMenuPage: React.FC = () => {
       .catch((requestError: unknown) => setError(requestError instanceof Error ? requestError.message : 'Menu indisponible'))
       .finally(() => setLoading(false));
   }, [enterpriseId]);
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  const handleReservationSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    try {
+      setReservationSubmitting(true);
+      setReservationError(null);
+      await createPublicReservation(enterpriseId, reservationForm);
+      setReservationSuccess(true);
+      setReservationForm({ reservationDate: '', reservationTime: '', partySize: 2, contact: '' });
+    } catch (requestError) {
+      setReservationError(requestError instanceof Error ? requestError.message : 'Impossible d’envoyer la réservation');
+    } finally {
+      setReservationSubmitting(false);
+    }
+  };
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center bg-cloud"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" /></div>;
@@ -36,6 +58,10 @@ const RestaurantMenuPage: React.FC = () => {
           <div className="flex items-center gap-4">
             {payload.restaurant.logo ? <img src={payload.restaurant.logo} alt="" className="w-16 h-16 rounded-2xl object-cover bg-white/10" /> : <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center"><Utensils className="w-8 h-8" /></div>}
             <div><p className="text-white/60 text-sm">Menu digital</p><h1 className="text-3xl sm:text-4xl font-bold font-poppins">{payload.restaurant.name}</h1>{payload.restaurant.location && <p className="text-white/70 flex items-center gap-1 mt-2 text-sm"><MapPin className="w-4 h-4" />{payload.restaurant.location}</p>}</div>
+          </div>
+          <div className="flex flex-wrap gap-3 mt-7">
+            <button type="button" onClick={() => { setReservationOpen(true); setReservationSuccess(false); setReservationError(null); }} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-white font-medium hover:bg-primary/90 transition-colors"><CalendarDays className="w-4 h-4" />Réserver une table</button>
+            {payload.restaurant.googleReviewUrl && <a href={payload.restaurant.googleReviewUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 text-white font-medium hover:bg-white/20 transition-colors"><Star className="w-4 h-4" />Donner un avis Google</a>}
           </div>
         </div>
       </header>
@@ -62,6 +88,21 @@ const RestaurantMenuPage: React.FC = () => {
           </section>
         ))}
       </div>
+
+      {reservationOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-xl w-full max-w-md p-6">
+            <div className="flex items-start justify-between gap-4 mb-5"><div><h2 className="text-xl font-bold text-dark">Réserver une table</h2><p className="text-sm text-slate mt-1">Votre demande sera transmise à {payload.restaurant.name}.</p></div><button type="button" onClick={() => setReservationOpen(false)} className="p-2 rounded-xl hover:bg-cloud"><X className="w-5 h-5" /></button></div>
+            {reservationSuccess ? <div className="rounded-2xl bg-green-50 text-green-800 p-5 text-center"><CalendarDays className="w-8 h-8 mx-auto mb-2" /><p className="font-semibold">Demande envoyée</p><p className="text-sm mt-1">Le restaurant vous recontactera pour confirmer la réservation.</p><button type="button" onClick={() => setReservationOpen(false)} className="mt-4 px-4 py-2 rounded-xl bg-green-700 text-white font-medium">Fermer</button></div> : <form onSubmit={handleReservationSubmit} className="space-y-4">
+              {reservationError && <div className="p-3 rounded-xl bg-red-50 text-red-700 text-sm">{reservationError}</div>}
+              <div className="grid grid-cols-2 gap-3"><label className="text-sm font-medium text-dark">Date<input type="date" min={today} required value={reservationForm.reservationDate} onChange={(event) => setReservationForm({ ...reservationForm, reservationDate: event.target.value })} className="mt-1 w-full px-3 py-2.5 rounded-xl border border-slate/20" /></label><label className="text-sm font-medium text-dark">Heure<input type="time" required value={reservationForm.reservationTime} onChange={(event) => setReservationForm({ ...reservationForm, reservationTime: event.target.value })} className="mt-1 w-full px-3 py-2.5 rounded-xl border border-slate/20" /></label></div>
+              <label className="text-sm font-medium text-dark">Nombre de couverts<input type="number" min="1" max="100" required value={reservationForm.partySize} onChange={(event) => setReservationForm({ ...reservationForm, partySize: Number(event.target.value) })} className="mt-1 w-full px-3 py-2.5 rounded-xl border border-slate/20" /></label>
+              <label className="text-sm font-medium text-dark">Contact (nom, téléphone ou email)<input type="text" minLength={2} maxLength={160} required value={reservationForm.contact} onChange={(event) => setReservationForm({ ...reservationForm, contact: event.target.value })} className="mt-1 w-full px-3 py-2.5 rounded-xl border border-slate/20" /></label>
+              <button type="submit" disabled={reservationSubmitting} className="w-full px-4 py-3 rounded-xl bg-primary text-white font-semibold disabled:opacity-50">{reservationSubmitting ? 'Envoi...' : 'Envoyer la demande'}</button>
+            </form>}
+          </div>
+        </div>
+      )}
     </main>
   );
 };

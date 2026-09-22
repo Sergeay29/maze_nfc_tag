@@ -6,6 +6,7 @@ const enterpriseController = require("../controllers/enterpriseController");
 const { authenticate, requireRole } = require("../middlewares/authMiddleware");
 const restaurantMenuController = require("../controllers/restaurantMenuController");
 const qrCodeController = require("../controllers/qrCodeController");
+const restaurantReservationController = require("../controllers/restaurantReservationController");
 
 // Toutes les routes /api/enterprise/* exigent d'être authentifié
 router.use(authenticate);
@@ -560,5 +561,8 @@ router.delete("/menu/categories/:id", restaurantMenuController.deleteCategory);
 router.post("/menu/categories/:categoryId/items", restaurantMenuController.createItem);
 router.put("/menu/items/:id", restaurantMenuController.updateItem);
 router.delete("/menu/items/:id", restaurantMenuController.deleteItem);
+
+router.get("/reservations", restaurantReservationController.getReservations);
+router.patch("/reservations/:id/status", restaurantReservationController.updateReservationStatus);
 
 module.exports = router;

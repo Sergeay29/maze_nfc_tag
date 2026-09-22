@@ -14,6 +14,7 @@ const AuditLog = require("./auditLog");
 const Menu = require("./restaurantMenu");
 const MenuCategory = require("./restaurantMenuCategory");
 const MenuItem = require("./restaurantMenuItem");
+const Reservation = require("./restaurantReservation");
 
 // CardType -> NFCCard
 CardType.hasMany(NFCCard, { foreignKey: 'cardTypeId' });
@@ -199,6 +200,10 @@ MenuCategory.belongsTo(Menu, { foreignKey: "menuId", as: "menu" });
 MenuCategory.hasMany(MenuItem, { foreignKey: "categoryId", as: "items", onDelete: "CASCADE" });
 MenuItem.belongsTo(MenuCategory, { foreignKey: "categoryId", as: "category" });
 
+// Enterprise -> Restau reservations
+Enterprise.hasMany(Reservation, { foreignKey: "enterpriseId", as: "reservations" });
+Reservation.belongsTo(Enterprise, { foreignKey: "enterpriseId", as: "enterprise" });
+
 module.exports = {
   User,
   Role,
@@ -216,4 +221,5 @@ module.exports = {
   Menu,
   MenuCategory,
   MenuItem,
+  Reservation,
 };
