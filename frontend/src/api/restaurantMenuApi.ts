@@ -142,3 +142,68 @@ export async function createPublicReservation(
     body: JSON.stringify(body),
   });
 }
+
+export interface PublicOrderLinePayload {
+  menuItemId: string;
+  quantity: number;
+}
+
+export interface CreatePublicOrderPayload {
+  items: PublicOrderLinePayload[];
+  tableReference?: string;
+  contact?: string;
+  customerNote?: string;
+}
+
+export interface RestaurantOrderItem {
+  id: string;
+  menuItemId?: string | null;
+  nameSnapshot: string;
+  unitPriceMinor: number;
+  quantity: number;
+  lineTotalMinor: number;
+}
+
+export type RestaurantOrderStatus = 'pending' | 'accepted' | 'preparing' | 'ready' | 'served' | 'cancelled';
+
+export interface RestaurantOrder {
+  id: string;
+  publicOrderToken: string;
+  tableReference?: string | null;
+  contact?: string | null;
+  customerNote?: string | null;
+  status: RestaurantOrderStatus;
+  paymentStatus: 'unpaid' | 'paid' | 'failed';
+  totalMinor: number;
+  createdAt: string;
+  updatedAt: string;
+  items: RestaurantOrderItem[];
+}
+
+export async function createPublicOrder(
+  enterpriseId: string,
+  body: CreatePublicOrderPayload,
+): Promise<RestaurantOrder> {
+  return request<RestaurantOrder>(`/restau/public/menu/${enterpriseId}/orders`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function getPublicOrder(token: string): Promise<RestaurantOrder> {
+  return request<RestaurantOrder>(`/restau/public/orders/${token}`);
+}
+
+export async function getRestaurantOrders(): Promise<RestaurantOrder[]> {
+  return request<RestaurantOrder[]>('/enterprise/orders');
+}
+
+export async function updateRestaurantOrderStatus(
+  id: string,
+  status: RestaurantOrderStatus,
+): Promise<RestaurantOrder> {
+  return request<RestaurantOrder>(`/enterprise/orders/${id}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
+}

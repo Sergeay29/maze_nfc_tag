@@ -34,6 +34,7 @@ import {
   EnterpriseProfilePage,
   ServicesPage,
   MenuPage,
+  OrdersPage,
 } from './pages';
 import RestaurantMenuPage from './pages/RestaurantMenuPage';
 import ScanLandingPage from './pages/ScanLandingPage';
@@ -90,6 +91,7 @@ const App: React.FC = () => {
             <Route path="/enterprise/cards" element={<EnterpriseCardsPage />} />
             <Route path="/enterprise/services" element={<ServicesPage />} />
             <Route path="/enterprise/menu" element={<MenuPage />} />
+            <Route path="/enterprise/orders" element={<OrdersPage />} />
             <Route path="/enterprise/scans" element={<EnterpriseScansPage />} />
             <Route path="/enterprise/rewards" element={<RewardsPage />} />
             <Route path="/enterprise/levels" element={<LevelsPage />} />
