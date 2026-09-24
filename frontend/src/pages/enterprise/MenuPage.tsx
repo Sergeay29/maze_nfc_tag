@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Eye, EyeOff, Pencil, Plus, Trash2, Utensils, X } from 'lucide-react';
 import { Badge, Button, Card, Input, Toast } from '../../components';
 import {
@@ -17,9 +18,18 @@ import type {
   RestaurantMenuCategory,
   RestaurantMenuItem,
 } from '../../api/restaurantMenuApi';
+import { uploadFile } from '../../api/enterpriseApi';
 
 const EMPTY_CATEGORY = { name: '', description: '' };
-const EMPTY_ITEM = { name: '', description: '', priceMinor: 0, imageUrl: '' };
+type ItemFormState = {
+  name: string;
+  description: string;
+  priceMinor: number;
+  imageUrl: string;
+  imageFile: File | null;
+};
+
+const EMPTY_ITEM: ItemFormState = { name: '', description: '', priceMinor: 0, imageUrl: '', imageFile: null };
 
 const formatPrice = (priceMinor: number) =>
   `${new Intl.NumberFormat('fr-FR').format(priceMinor)} FCFA`;
@@ -29,7 +39,7 @@ const MenuPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [categoryForm, setCategoryForm] = useState(EMPTY_CATEGORY);
-  const [itemForm, setItemForm] = useState(EMPTY_ITEM);
+  const [itemForm, setItemForm] = useState<ItemFormState>(EMPTY_ITEM);
   const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
@@ -121,11 +131,18 @@ const MenuPage: React.FC = () => {
 
     try {
       setSaving(true);
+      const imageUrl = itemForm.imageFile ? await uploadFile(itemForm.imageFile) : itemForm.imageUrl || null;
+      const itemPayload = {
+        name: itemForm.name,
+        description: itemForm.description,
+        priceMinor: itemForm.priceMinor,
+        imageUrl,
+      };
       if (editingItemId) {
-        await updateMenuItem(editingItemId, itemForm);
+        await updateMenuItem(editingItemId, itemPayload);
         setToast({ message: 'Plat mis à jour.', variant: 'success' });
       } else {
-        await createMenuItem(itemCategoryId, itemForm);
+        await createMenuItem(itemCategoryId, itemPayload);
         setToast({ message: 'Plat ajouté.', variant: 'success' });
       }
       resetItemForm();
@@ -152,7 +169,27 @@ const MenuPage: React.FC = () => {
       description: item.description || '',
       priceMinor: item.priceMinor,
       imageUrl: item.imageUrl || '',
+      imageFile: null,
     });
+  };
+
+  const handleItemImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] || null;
+    if (!file) return;
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (!allowedTypes.includes(file.type)) {
+      setToast({ message: 'Format accepté : JPG, PNG, WEBP ou GIF.', variant: 'error' });
+      event.target.value = '';
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setToast({ message: 'La photo ne doit pas dépasser 5 Mo.', variant: 'error' });
+      event.target.value = '';
+      return;
+    }
+
+    setItemForm((current) => ({ ...current, imageFile: file }));
   };
 
   const handleDeleteCategory = async (category: RestaurantMenuCategory) => {
@@ -266,24 +303,27 @@ const MenuPage: React.FC = () => {
               ) : (
                 <Card className="border border-dashed border-primary/30 bg-primary/5">
                   <Button type="button" fullWidth onClick={() => setShowCategoryForm(true)} icon={<Plus className="w-5 h-5" />}>Ajouter une catégorie</Button>
-                  <p className="text-xs text-slate text-center mt-3">Le formulaire s’affichera uniquement lorsque vous en aurez besoin.</p>
                 </Card>
               )}
 
-              {itemCategoryId && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="item-modal-title" onMouseDown={(event) => { if (event.target === event.currentTarget) resetItemForm(); }}>
-                <Card className="w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-xl">
+              {itemCategoryId && createPortal(
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="item-modal-title" onMouseDown={(event) => { if (event.target === event.currentTarget) resetItemForm(); }}>
+                <Card className="relative z-10 w-full max-w-lg max-h-[calc(100vh-2rem)] overflow-y-auto shadow-2xl">
                   <div className="flex items-center justify-between mb-4"><h2 id="item-modal-title" className="font-semibold text-dark">{editingItemId ? 'Modifier le plat' : 'Nouveau plat'}</h2><Button size="sm" variant="ghost" onClick={resetItemForm} icon={<X className="w-4 h-4" />} /></div>
                   <form onSubmit={handleItemSubmit} className="space-y-3">
                     <Input value={itemForm.name} onChange={(event) => setItemForm({ ...itemForm, name: event.target.value })} placeholder="Nom du plat" required />
                     <Input as="textarea" rows={2} value={itemForm.description} onChange={(event) => setItemForm({ ...itemForm, description: event.target.value })} placeholder="Description (facultatif)" />
                     <Input type="number" min="0" value={itemForm.priceMinor} onChange={(event) => setItemForm({ ...itemForm, priceMinor: Number(event.target.value) })} placeholder="Prix en FCFA" required />
-                    <Input value={itemForm.imageUrl} onChange={(event) => setItemForm({ ...itemForm, imageUrl: event.target.value })} placeholder="URL de la photo (facultatif)" />
+                    <div className="space-y-2">
+                      <label htmlFor="menu-item-image" className="block text-sm font-medium text-dark">Photo du plat (facultatif)</label>
+                      <input id="menu-item-image" type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={handleItemImageChange} className="block w-full rounded-xl border border-slate/20 bg-white px-3 py-2 text-sm text-slate file:mr-3 file:rounded-lg file:border-0 file:bg-primary/10 file:px-3 file:py-2 file:font-medium file:text-primary hover:file:bg-primary/20" />
+                      {itemForm.imageFile && <p className="text-xs text-slate truncate">Fichier sélectionné : {itemForm.imageFile.name}</p>}
+                      {!itemForm.imageFile && itemForm.imageUrl && <img src={itemForm.imageUrl} alt="Photo actuelle du plat" className="h-20 w-20 rounded-xl object-cover" />}
+                    </div>
                     <Button type="submit" fullWidth disabled={saving}>{editingItemId ? 'Enregistrer' : 'Ajouter le plat'}</Button>
                   </form>
                 </Card>
-                </div>
-              )}
+                </div>, document.body)}
             </div>
           </div>
         </>
