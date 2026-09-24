@@ -1,6 +1,6 @@
 import type { AuthUser, LoginCredentials, LoginResult, RegisterPayload } from '../auth/types';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL;
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -10,15 +10,34 @@ interface ApiResponse<T> {
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const { headers: extraHeaders, ...restOptions } = options;
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...restOptions,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(extraHeaders as Record<string, string> || {}),
-    },
-  });
+  let response: Response;
 
-  const payload = (await response.json()) as ApiResponse<T>;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      ...restOptions,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(extraHeaders as Record<string, string> || {}),
+      },
+    });
+  } catch {
+    throw new Error('Impossible de joindre le serveur API. Vérifiez que le backend est démarré sur le port 3000.');
+  }
+
+  const responseText = await response.text();
+  let payload: ApiResponse<T> | null = null;
+
+  if (responseText.trim()) {
+    try {
+      payload = JSON.parse(responseText) as ApiResponse<T>;
+    } catch {
+      throw new Error('Le serveur API a renvoyé une réponse invalide. Vérifiez son état et ses logs.');
+    }
+  }
+
+  if (!payload) {
+    throw new Error('Le serveur API a renvoyé une réponse vide. Vérifiez que le backend est démarré sur le port 3000.');
+  }
 
   if (!response.ok || !payload.success) {
     throw new Error(payload.message || 'Une erreur est survenue');
