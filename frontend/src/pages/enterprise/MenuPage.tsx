@@ -24,12 +24,12 @@ const EMPTY_CATEGORY = { name: '', description: '' };
 type ItemFormState = {
   name: string;
   description: string;
-  priceMinor: number;
+  priceMinor: number | '';
   imageUrl: string;
   imageFile: File | null;
 };
 
-const EMPTY_ITEM: ItemFormState = { name: '', description: '', priceMinor: 0, imageUrl: '', imageFile: null };
+const EMPTY_ITEM: ItemFormState = { name: '', description: '', priceMinor: '', imageUrl: '', imageFile: null };
 
 const formatPrice = (priceMinor: number) =>
   `${new Intl.NumberFormat('fr-FR').format(priceMinor)} FCFA`;
@@ -44,7 +44,16 @@ const MenuPage: React.FC = () => {
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [itemCategoryId, setItemCategoryId] = useState<string | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; variant: 'success' | 'error' } | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (imagePreview?.startsWith('blob:')) {
+        URL.revokeObjectURL(imagePreview);
+      }
+    };
+  }, [imagePreview]);
 
   const loadMenu = async () => {
     try {
@@ -101,6 +110,7 @@ const MenuPage: React.FC = () => {
     setItemForm(EMPTY_ITEM);
     setEditingItemId(null);
     setItemCategoryId(null);
+    setImagePreview(null);
   };
 
   const handleCategorySubmit = async (event: React.FormEvent) => {
@@ -127,7 +137,7 @@ const MenuPage: React.FC = () => {
 
   const handleItemSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!itemCategoryId || !itemForm.name.trim()) return;
+    if (!itemCategoryId || !itemForm.name.trim() || itemForm.priceMinor === '' || itemForm.priceMinor < 0) return;
 
     try {
       setSaving(true);
@@ -135,7 +145,7 @@ const MenuPage: React.FC = () => {
       const itemPayload = {
         name: itemForm.name,
         description: itemForm.description,
-        priceMinor: itemForm.priceMinor,
+        priceMinor: Number(itemForm.priceMinor),
         imageUrl,
       };
       if (editingItemId) {
@@ -171,6 +181,7 @@ const MenuPage: React.FC = () => {
       imageUrl: item.imageUrl || '',
       imageFile: null,
     });
+    setImagePreview(item.imageUrl || null);
   };
 
   const handleItemImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -190,6 +201,7 @@ const MenuPage: React.FC = () => {
     }
 
     setItemForm((current) => ({ ...current, imageFile: file }));
+    setImagePreview(URL.createObjectURL(file));
   };
 
   const handleDeleteCategory = async (category: RestaurantMenuCategory) => {
@@ -313,12 +325,12 @@ const MenuPage: React.FC = () => {
                   <form onSubmit={handleItemSubmit} className="space-y-3">
                     <Input value={itemForm.name} onChange={(event) => setItemForm({ ...itemForm, name: event.target.value })} placeholder="Nom du plat" required />
                     <Input as="textarea" rows={2} value={itemForm.description} onChange={(event) => setItemForm({ ...itemForm, description: event.target.value })} placeholder="Description (facultatif)" />
-                    <Input type="number" min="0" value={itemForm.priceMinor} onChange={(event) => setItemForm({ ...itemForm, priceMinor: Number(event.target.value) })} placeholder="Prix en FCFA" required />
+                    <Input label="Prix du plat (FCFA)" type="number" min="0" value={itemForm.priceMinor} onChange={(event) => setItemForm({ ...itemForm, priceMinor: event.target.value === '' ? '' : Number(event.target.value) })} placeholder="Ex. 2500" required />
                     <div className="space-y-2">
                       <label htmlFor="menu-item-image" className="block text-sm font-medium text-dark">Photo du plat (facultatif)</label>
                       <input id="menu-item-image" type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={handleItemImageChange} className="block w-full rounded-xl border border-slate/20 bg-white px-3 py-2 text-sm text-slate file:mr-3 file:rounded-lg file:border-0 file:bg-primary/10 file:px-3 file:py-2 file:font-medium file:text-primary hover:file:bg-primary/20" />
                       {itemForm.imageFile && <p className="text-xs text-slate truncate">Fichier sélectionné : {itemForm.imageFile.name}</p>}
-                      {!itemForm.imageFile && itemForm.imageUrl && <img src={itemForm.imageUrl} alt="Photo actuelle du plat" className="h-20 w-20 rounded-xl object-cover" />}
+                      {imagePreview && <div className="space-y-1"><p className="text-xs font-medium text-dark">Aperçu</p><img src={imagePreview} alt="Aperçu de la photo du plat" className="h-32 w-full rounded-xl object-cover" /></div>}
                     </div>
                     <Button type="submit" fullWidth disabled={saving}>{editingItemId ? 'Enregistrer' : 'Ajouter le plat'}</Button>
                   </form>

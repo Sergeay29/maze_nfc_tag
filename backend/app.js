@@ -53,12 +53,22 @@ app.use(
  *
  * FRONTEND_URL=https://exemple.com,https://www.exemple.com
  */
-const allowedOrigins = (
+const configuredOrigins = (
   process.env.FRONTEND_URL || "http://localhost:5173"
 )
   .split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
+
+const allowedOrigins = process.env.NODE_ENV === "production"
+  ? configuredOrigins
+  : [
+      ...new Set([
+        ...configuredOrigins,
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+      ]),
+    ];
 
 app.use(
   cors({
