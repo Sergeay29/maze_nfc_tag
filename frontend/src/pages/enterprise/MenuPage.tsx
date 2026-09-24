@@ -30,6 +30,7 @@ const MenuPage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [categoryForm, setCategoryForm] = useState(EMPTY_CATEGORY);
   const [itemForm, setItemForm] = useState(EMPTY_ITEM);
+  const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [itemCategoryId, setItemCategoryId] = useState<string | null>(null);
@@ -38,7 +39,9 @@ const MenuPage: React.FC = () => {
   const loadMenu = async () => {
     try {
       setLoading(true);
-      setMenu(await getRestaurantMenu());
+      const nextMenu = await getRestaurantMenu();
+      setMenu(nextMenu);
+      setShowCategoryForm((current) => Boolean(nextMenu && (nextMenu.categories.length === 0 || current)));
     } catch (error) {
       setToast({ message: error instanceof Error ? error.message : 'Impossible de charger le menu', variant: 'error' });
     } finally {
@@ -55,6 +58,7 @@ const MenuPage: React.FC = () => {
       setSaving(true);
       const createdMenu = await createRestaurantMenu();
       setMenu({ ...createdMenu, categories: [] });
+      setShowCategoryForm(true);
       setToast({ message: 'Menu créé. Ajoutez maintenant vos catégories.', variant: 'success' });
     } catch (error) {
       setToast({ message: error instanceof Error ? error.message : 'Impossible de créer le menu', variant: 'error' });
@@ -80,6 +84,7 @@ const MenuPage: React.FC = () => {
   const resetCategoryForm = () => {
     setCategoryForm(EMPTY_CATEGORY);
     setEditingCategoryId(null);
+    setShowCategoryForm(false);
   };
 
   const resetItemForm = () => {
@@ -135,6 +140,7 @@ const MenuPage: React.FC = () => {
   const editCategory = (category: RestaurantMenuCategory) => {
     setCategoryForm({ name: category.name, description: category.description || '' });
     setEditingCategoryId(category.id);
+    setShowCategoryForm(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -248,6 +254,7 @@ const MenuPage: React.FC = () => {
             </div>
 
             <div className="space-y-4 xl:sticky xl:top-6">
+              {showCategoryForm || editingCategoryId ? (
               <Card>
                 <div className="flex items-center justify-between mb-4"><h2 className="font-semibold text-dark">{editingCategoryId ? 'Modifier la catégorie' : 'Nouvelle catégorie'}</h2>{editingCategoryId && <Button size="sm" variant="ghost" onClick={resetCategoryForm} icon={<X className="w-4 h-4" />} />}</div>
                 <form onSubmit={handleCategorySubmit} className="space-y-3">
@@ -256,10 +263,17 @@ const MenuPage: React.FC = () => {
                   <Button type="submit" fullWidth disabled={saving}>{editingCategoryId ? 'Enregistrer' : 'Ajouter la catégorie'}</Button>
                 </form>
               </Card>
+              ) : (
+                <Card className="border border-dashed border-primary/30 bg-primary/5">
+                  <Button type="button" fullWidth onClick={() => setShowCategoryForm(true)} icon={<Plus className="w-5 h-5" />}>Ajouter une catégorie</Button>
+                  <p className="text-xs text-slate text-center mt-3">Le formulaire s’affichera uniquement lorsque vous en aurez besoin.</p>
+                </Card>
+              )}
 
               {itemCategoryId && (
-                <Card>
-                  <div className="flex items-center justify-between mb-4"><h2 className="font-semibold text-dark">{editingItemId ? 'Modifier le plat' : 'Nouveau plat'}</h2><Button size="sm" variant="ghost" onClick={resetItemForm} icon={<X className="w-4 h-4" />} /></div>
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="item-modal-title" onMouseDown={(event) => { if (event.target === event.currentTarget) resetItemForm(); }}>
+                <Card className="w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-xl">
+                  <div className="flex items-center justify-between mb-4"><h2 id="item-modal-title" className="font-semibold text-dark">{editingItemId ? 'Modifier le plat' : 'Nouveau plat'}</h2><Button size="sm" variant="ghost" onClick={resetItemForm} icon={<X className="w-4 h-4" />} /></div>
                   <form onSubmit={handleItemSubmit} className="space-y-3">
                     <Input value={itemForm.name} onChange={(event) => setItemForm({ ...itemForm, name: event.target.value })} placeholder="Nom du plat" required />
                     <Input as="textarea" rows={2} value={itemForm.description} onChange={(event) => setItemForm({ ...itemForm, description: event.target.value })} placeholder="Description (facultatif)" />
@@ -268,6 +282,7 @@ const MenuPage: React.FC = () => {
                     <Button type="submit" fullWidth disabled={saving}>{editingItemId ? 'Enregistrer' : 'Ajouter le plat'}</Button>
                   </form>
                 </Card>
+                </div>
               )}
             </div>
           </div>
