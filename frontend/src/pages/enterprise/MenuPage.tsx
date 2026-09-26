@@ -34,6 +34,11 @@ const EMPTY_ITEM: ItemFormState = { name: '', description: '', priceMinor: '', i
 const formatPrice = (priceMinor: number) =>
   `${new Intl.NumberFormat('fr-FR').format(priceMinor)} FCFA`;
 
+const getItemDescription = (description?: string | null) => {
+  const value = description?.trim();
+  return value && value.toLowerCase() !== 'description optionnelle' ? value : null;
+};
+
 const MenuPage: React.FC = () => {
   const [menu, setMenu] = useState<RestaurantMenu | null>(null);
   const [loading, setLoading] = useState(true);
@@ -144,7 +149,7 @@ const MenuPage: React.FC = () => {
       const imageUrl = itemForm.imageFile ? await uploadFile(itemForm.imageFile) : itemForm.imageUrl || null;
       const itemPayload = {
         name: itemForm.name,
-        description: itemForm.description,
+        description: getItemDescription(itemForm.description),
         priceMinor: Number(itemForm.priceMinor),
         imageUrl,
       };
@@ -176,7 +181,7 @@ const MenuPage: React.FC = () => {
     setEditingItemId(item.id);
     setItemForm({
       name: item.name,
-      description: item.description || '',
+      description: getItemDescription(item.description) || '',
       priceMinor: item.priceMinor,
       imageUrl: item.imageUrl || '',
       imageFile: null,
@@ -260,9 +265,12 @@ const MenuPage: React.FC = () => {
               <p className="text-sm text-slate">Menu actif</p>
               <h2 className="text-xl font-semibold text-dark">{menu.name}</h2>
             </div>
-            <Badge variant={menu.status === 'published' ? 'success' : 'warning'}>
-              {menu.status === 'published' ? 'Publié' : 'Brouillon'}
-            </Badge>
+            <div className="flex items-center gap-3">
+              {menu.status === 'published' && <a href={`/restau/menu/${menu.enterpriseId}`} target="_blank" rel="noreferrer" className="text-sm font-medium text-primary hover:underline">Voir le menu public</a>}
+              <Badge variant={menu.status === 'published' ? 'success' : 'warning'}>
+                {menu.status === 'published' ? 'Publié' : 'Brouillon'}
+              </Badge>
+            </div>
           </Card>
 
           <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6 items-start">
@@ -285,7 +293,7 @@ const MenuPage: React.FC = () => {
                         {item.imageUrl ? <img src={item.imageUrl} alt="" className="w-14 h-14 rounded-xl object-cover" /> : <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center"><Utensils className="w-6 h-6 text-primary" /></div>}
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2"><h4 className="font-medium text-dark">{item.name}</h4>{!item.isAvailable && <Badge variant="warning">Indisponible</Badge>}</div>
-                          {item.description && <p className="text-sm text-slate truncate mt-1">{item.description}</p>}
+                          {getItemDescription(item.description) && <p className="text-sm text-slate truncate mt-1">{getItemDescription(item.description)}</p>}
                           <p className="text-sm font-semibold text-primary mt-1">{formatPrice(item.priceMinor)}</p>
                         </div>
                         <div className="flex gap-1">
@@ -323,14 +331,14 @@ const MenuPage: React.FC = () => {
                 <Card className="relative z-10 w-full max-w-lg max-h-[calc(100vh-2rem)] overflow-y-auto shadow-2xl">
                   <div className="flex items-center justify-between mb-4"><h2 id="item-modal-title" className="font-semibold text-dark">{editingItemId ? 'Modifier le plat' : 'Nouveau plat'}</h2><Button size="sm" variant="ghost" onClick={resetItemForm} icon={<X className="w-4 h-4" />} /></div>
                   <form onSubmit={handleItemSubmit} className="space-y-3">
-                    <Input value={itemForm.name} onChange={(event) => setItemForm({ ...itemForm, name: event.target.value })} placeholder="Nom du plat" required />
-                    <Input as="textarea" rows={2} value={itemForm.description} onChange={(event) => setItemForm({ ...itemForm, description: event.target.value })} placeholder="Description (facultatif)" />
+                    <Input label="Nom du plat" value={itemForm.name} onChange={(event) => setItemForm({ ...itemForm, name: event.target.value })} placeholder="Ex: Purée d'igname" required />
+                    <Input label="Description du plat" as="textarea" rows={2} value={itemForm.description} onChange={(event) => setItemForm({ ...itemForm, description: event.target.value })} placeholder="Description (facultatif)" />
                     <Input label="Prix du plat (FCFA)" type="number" min="0" value={itemForm.priceMinor} onChange={(event) => setItemForm({ ...itemForm, priceMinor: event.target.value === '' ? '' : Number(event.target.value) })} placeholder="Ex. 2500" required />
                     <div className="space-y-2">
                       <label htmlFor="menu-item-image" className="block text-sm font-medium text-dark">Photo du plat (facultatif)</label>
                       <input id="menu-item-image" type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={handleItemImageChange} className="block w-full rounded-xl border border-slate/20 bg-white px-3 py-2 text-sm text-slate file:mr-3 file:rounded-lg file:border-0 file:bg-primary/10 file:px-3 file:py-2 file:font-medium file:text-primary hover:file:bg-primary/20" />
                       {itemForm.imageFile && <p className="text-xs text-slate truncate">Fichier sélectionné : {itemForm.imageFile.name}</p>}
-                      {imagePreview && <div className="space-y-1"><p className="text-xs font-medium text-dark">Aperçu</p><img src={imagePreview} alt="Aperçu de la photo du plat" className="h-32 w-full rounded-xl object-cover" /></div>}
+                      {imagePreview && <div className="space-y-1"><p className="text-xs font-medium text-dark">Aperçu</p><img src={imagePreview} alt="Aperçu de la photo du plat" className="h-32 w-full rounded-xl object-contain" /></div>}
                     </div>
                     <Button type="submit" fullWidth disabled={saving}>{editingItemId ? 'Enregistrer' : 'Ajouter le plat'}</Button>
                   </form>

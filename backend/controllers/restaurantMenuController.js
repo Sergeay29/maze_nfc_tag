@@ -126,6 +126,20 @@ exports.updateMenu = async (req, res) => {
       return res.status(400).json({ success: false, message: "Nom ou statut de menu invalide" });
     }
 
+    if (status === "published") {
+      const enterprise = await Enterprise.findByPk(enterpriseId, {
+        attributes: ["id", "status"],
+      });
+
+      if (!enterprise || enterprise.status !== "active") {
+        const statusMessage = enterprise?.status === "suspended"
+          ? "Votre entreprise est suspendue. Le menu ne peut pas être publié tant que votre compte n'est pas réactivé."
+          : "Votre entreprise n'est pas active. Le menu ne peut pas être publié pour le moment.";
+
+        return res.status(403).json({ success: false, message: statusMessage });
+      }
+    }
+
     await menu.update({ name, status });
     return res.json({ success: true, data: menu });
   } catch (error) {
@@ -272,12 +286,22 @@ exports.deleteItem = async (req, res) => {
 exports.getPublicMenu = async (req, res) => {
   try {
     const enterprise = await Enterprise.findOne({
-      where: { id: req.params.enterpriseId, status: "active" },
-      attributes: ["id", "name", "logo", "location", "googleReviewUrl"],
+      where: { id: req.params.enterpriseId },
+      attributes: ["id", "name", "logo", "location", "googleReviewUrl", "status"],
     });
 
-    if (!enterprise) {
-      return res.status(404).json({ success: false, message: "Restaurant introuvable" });
+    if (!enterprise || enterprise.status !== "active") {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn(
+          `[restau public] Menu indisponible pour ${req.params.enterpriseId} : ${
+            enterprise ? `entreprise ${enterprise.status}` : "entreprise introuvable"
+          }`,
+        );
+      }
+      const message = process.env.NODE_ENV === "development" && enterprise
+        ? `Restaurant indisponible (statut : ${enterprise.status})`
+        : "Restaurant introuvable";
+      return res.status(404).json({ success: false, message });
     }
 
     const menu = await Menu.findOne({
@@ -290,10 +314,12 @@ exports.getPublicMenu = async (req, res) => {
       return res.status(404).json({ success: false, message: "Menu publié introuvable" });
     }
 
+    const { status: _status, ...publicEnterprise } = enterprise.toJSON();
+
     return res.json({
       success: true,
       data: {
-        restaurant: enterprise,
+        restaurant: publicEnterprise,
         menu,
       },
     });

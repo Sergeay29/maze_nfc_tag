@@ -87,7 +87,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       <div className="flex flex-col h-full">
         {/* Header sidebar */}
         <div className="flex items-center justify-between p-5 border-b border-slate/10">
-          <div className={`flex items-center gap-3 ${!isExpanded ? 'justify-center w-full' : ''}`}>
+          <div className={`min-w-0 flex items-center gap-3 ${!isExpanded ? 'justify-center w-full' : ''}`}>
             <div className="w-10 h-10 flex-shrink-0 flex items-center justify-center overflow-hidden rounded-xl">
               <img
                 src={displayLogo}
@@ -96,7 +96,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               />
             </div>
             {isExpanded && (
-              <h1 className="font-bold font-poppins text-dark text-lg truncate">{displayName}</h1>
+              <h1 className="min-w-0 flex-1 font-bold font-poppins text-dark text-lg truncate" title={displayName}>{displayName}</h1>
             )}
           </div>
           {/* Bouton fermer mobile */}
