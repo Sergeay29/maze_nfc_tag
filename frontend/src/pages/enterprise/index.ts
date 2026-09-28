@@ -13,3 +13,5 @@ export { default as PointsHistoryPage } from './PointsHistoryPage';
 export { default as EnterpriseProfilePage } from "./EnterpriseProfilePage";
 export { default as MenuPage } from './MenuPage';
 export { default as OrdersPage } from './OrdersPage';
+export { default as ReservationsPage } from './ReservationsPage';
+export { default as TablesPage } from './TablesPage';

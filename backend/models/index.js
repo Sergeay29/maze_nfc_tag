@@ -15,6 +15,7 @@ const Menu = require("./restaurantMenu");
 const MenuCategory = require("./restaurantMenuCategory");
 const MenuItem = require("./restaurantMenuItem");
 const Reservation = require("./restaurantReservation");
+const RestaurantTable = require("./restaurantTable");
 const RestaurantOrder = require("./restaurantOrder");
 const RestaurantOrderItem = require("./restaurantOrderItem");
 
@@ -206,6 +207,11 @@ MenuItem.belongsTo(MenuCategory, { foreignKey: "categoryId", as: "category" });
 Enterprise.hasMany(Reservation, { foreignKey: "enterpriseId", as: "reservations" });
 Reservation.belongsTo(Enterprise, { foreignKey: "enterpriseId", as: "enterprise" });
 
+Enterprise.hasMany(RestaurantTable, { foreignKey: "enterpriseId", as: "restaurantTables" });
+RestaurantTable.belongsTo(Enterprise, { foreignKey: "enterpriseId", as: "enterprise" });
+RestaurantTable.hasMany(Reservation, { foreignKey: "tableId", as: "reservations" });
+Reservation.belongsTo(RestaurantTable, { foreignKey: "tableId", as: "table" });
+
 // Enterprise -> Restau orders
 Enterprise.hasMany(RestaurantOrder, { foreignKey: "enterpriseId", as: "orders" });
 RestaurantOrder.belongsTo(Enterprise, { foreignKey: "enterpriseId", as: "enterprise" });
@@ -231,6 +237,7 @@ module.exports = {
   MenuCategory,
   MenuItem,
   Reservation,
+  RestaurantTable,
   RestaurantOrder,
   RestaurantOrderItem,
 };

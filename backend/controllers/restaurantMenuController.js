@@ -3,6 +3,7 @@ const {
   Menu,
   MenuCategory,
   MenuItem,
+  RestaurantTable,
 } = require("../models");
 
 function getEnterpriseId(req) {
@@ -325,6 +326,34 @@ exports.getPublicMenu = async (req, res) => {
     });
   } catch (error) {
     console.error("Get public restaurant menu error:", error);
+    return res.status(500).json({ success: false, message: "Erreur lors de la récupération du menu public" });
+  }
+};
+
+exports.getPublicTableMenu = async (req, res) => {
+  try {
+    const table = await RestaurantTable.findOne({
+      where: { publicToken: req.params.publicToken, status: "active" },
+      attributes: ["id", "label", "capacity", "enterpriseId"],
+    });
+    if (!table) return res.status(404).json({ success: false, message: "Table introuvable ou inactive" });
+
+    const enterprise = await Enterprise.findOne({
+      where: { id: table.enterpriseId, status: "active" },
+      attributes: ["id", "name", "logo", "location", "googleReviewUrl"],
+    });
+    if (!enterprise) return res.status(404).json({ success: false, message: "Restaurant introuvable" });
+
+    const menu = await Menu.findOne({
+      where: { enterpriseId: enterprise.id, status: "published" },
+      include: menuIncludes({ publicOnly: true }),
+      order: menuOrder,
+    });
+    if (!menu) return res.status(404).json({ success: false, message: "Menu publié introuvable" });
+
+    return res.json({ success: true, data: { restaurant: enterprise, menu, table } });
+  } catch (error) {
+    console.error("Get public table menu error:", error);
     return res.status(500).json({ success: false, message: "Erreur lors de la récupération du menu public" });
   }
 };

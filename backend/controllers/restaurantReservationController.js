@@ -1,4 +1,5 @@
-const { Enterprise, Reservation } = require("../models");
+const { Op } = require("sequelize");
+const { Enterprise, Reservation, RestaurantTable } = require("../models");
 
 function isValidDate(value) {
   return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(`${value}T00:00:00`));
@@ -47,8 +48,30 @@ exports.createPublicReservation = async (req, res) => {
     const validation = validateReservationInput(req.body);
     if (validation.error) return res.status(400).json({ success: false, message: validation.error });
 
+    const tables = await RestaurantTable.findAll({
+      where: { enterpriseId: enterprise.id, status: "active", capacity: { [Op.gte]: validation.data.partySize } },
+      order: [["capacity", "ASC"], ["sortOrder", "ASC"]],
+    });
+    const existingReservations = await Reservation.findAll({
+      where: {
+        enterpriseId: enterprise.id,
+        reservationDate: validation.data.reservationDate,
+        reservationTime: validation.data.reservationTime,
+        status: { [Op.in]: ["pending", "confirmed"] },
+        tableId: { [Op.ne]: null },
+      },
+      attributes: ["tableId"],
+    });
+    const occupiedTableIds = new Set(existingReservations.map((reservation) => reservation.tableId));
+    const availableTable = tables.find((table) => !occupiedTableIds.has(table.id));
+
+    if (!availableTable) {
+      return res.status(409).json({ success: false, message: "Aucune table adaptée n'est disponible pour ce créneau" });
+    }
+
     const reservation = await Reservation.create({
       enterpriseId: enterprise.id,
+      tableId: availableTable.id,
       ...validation.data,
       source: "table",
       status: "pending",
@@ -69,6 +92,7 @@ exports.getReservations = async (req, res) => {
   try {
     const reservations = await Reservation.findAll({
       where: { enterpriseId: req.user.enterpriseId },
+      include: [{ model: RestaurantTable, as: "table", attributes: ["id", "label", "capacity"] }],
       order: [["reservationDate", "ASC"], ["reservationTime", "ASC"], ["createdAt", "DESC"]],
     });
     return res.json({ success: true, data: reservations });

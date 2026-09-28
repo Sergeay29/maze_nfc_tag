@@ -20,6 +20,8 @@ import {
   X,
   Utensils,
   ClipboardList,
+  CalendarDays,
+  Armchair,
 } from 'lucide-react';
 import { Tooltip } from '../components';
 import { useAuth } from '../auth/useAuth';
@@ -51,6 +53,8 @@ const enterpriseItems: SidebarItem[] = [
   { path: '/enterprise/services', icon: <Zap className="w-5 h-5" />, label: 'Services' },
   { path: '/enterprise/menu', icon: <Utensils className="w-5 h-5" />, label: 'Menu digital' },
   { path: '/enterprise/orders', icon: <ClipboardList className="w-5 h-5" />, label: 'Commandes' },
+  { path: '/enterprise/reservations', icon: <CalendarDays className="w-5 h-5" />, label: 'Réservations' },
+  { path: '/enterprise/tables', icon: <Armchair className="w-5 h-5" />, label: 'Tables' },
   { path: '/enterprise/scans', icon: <QrCode className="w-5 h-5" />, label: 'Scans' },
   { path: '/enterprise/rewards', icon: <Gift className="w-5 h-5" />, label: 'Récompenses' },
   { path: '/enterprise/levels', icon: <Crown className="w-5 h-5" />, label: 'Niveaux' },

@@ -260,6 +260,17 @@ export async function getEnterpriseCardQrCode(id: string): Promise<CardQrCodeDat
   return request<CardQrCodeData>(`/enterprise/cards/${id}/qr-code`);
 }
 
+export interface TableQrCodeData {
+  tableId: string;
+  tableLabel: string;
+  targetUrl: string;
+  qrCodeDataUrl: string;
+}
+
+export async function getEnterpriseTableQrCode(id: string): Promise<TableQrCodeData> {
+  return request<TableQrCodeData>(`/enterprise/tables/${id}/qr-code`);
+}
+
 // ─── UPLOAD ────────────────────────────────────────────────
 
 export async function uploadFile(file: File): Promise<string> {

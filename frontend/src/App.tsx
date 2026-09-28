@@ -35,6 +35,8 @@ import {
   ServicesPage,
   MenuPage,
   OrdersPage,
+  ReservationsPage,
+  TablesPage,
 } from './pages';
 import RestaurantMenuPage from './pages/RestaurantMenuPage';
 import ScanLandingPage from './pages/ScanLandingPage';
@@ -56,6 +58,7 @@ const App: React.FC = () => {
         {/* Format: /entreprise/type/token */}
         <Route path="/:enterpriseSlug/:cardType/:token" element={<ScanLandingPage />} />
         <Route path="/restau/menu/:enterpriseId" element={<RestaurantMenuPage />} />
+        <Route path="/restau/table/:publicToken" element={<RestaurantMenuPage />} />
 
         {/* Admin Routes */}
         <Route element={<ProtectedRoute allowedRoles={['SUPER_ADMIN']} />}>
@@ -92,6 +95,8 @@ const App: React.FC = () => {
             <Route path="/enterprise/services" element={<ServicesPage />} />
             <Route path="/enterprise/menu" element={<MenuPage />} />
             <Route path="/enterprise/orders" element={<OrdersPage />} />
+            <Route path="/enterprise/reservations" element={<ReservationsPage />} />
+            <Route path="/enterprise/tables" element={<TablesPage />} />
             <Route path="/enterprise/scans" element={<EnterpriseScansPage />} />
             <Route path="/enterprise/rewards" element={<RewardsPage />} />
             <Route path="/enterprise/levels" element={<LevelsPage />} />

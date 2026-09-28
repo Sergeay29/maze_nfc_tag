@@ -14,6 +14,11 @@ const RestaurantReservation = sequelize.define(
       allowNull: false,
       references: { model: "enterprises", key: "id" },
     },
+    tableId: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      references: { model: "restaurant_tables", key: "id" },
+    },
     reservationDate: {
       type: DataTypes.DATEONLY,
       allowNull: false,

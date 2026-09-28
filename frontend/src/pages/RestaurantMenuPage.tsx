@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { CalendarDays, CheckCircle2, MapPin, Minus, Plus, ShoppingBag, Star, Trash2, Utensils, X } from 'lucide-react';
 import { useParams } from 'react-router-dom';
-import { createPublicOrder, createPublicReservation, getPublicOrder, getPublicRestaurantMenu } from '../api/restaurantMenuApi';
+import { createPublicOrder, createPublicReservation, getPublicOrder, getPublicRestaurantMenu, getPublicTableMenu } from '../api/restaurantMenuApi';
 import type { PublicRestaurantMenu, RestaurantMenuItem, RestaurantOrder } from '../api/restaurantMenuApi';
 
 const formatPrice = (priceMinor: number) => `${new Intl.NumberFormat('fr-FR').format(priceMinor)} FCFA`;
@@ -12,7 +12,8 @@ const getItemDescription = (description?: string | null) => {
 };
 
 const RestaurantMenuPage: React.FC = () => {
-  const { enterpriseId = '' } = useParams<{ enterpriseId: string }>();
+  const { enterpriseId = '', publicToken = '' } = useParams<{ enterpriseId: string; publicToken: string }>();
+  const menuIdentifier = enterpriseId || publicToken;
   const [payload, setPayload] = useState<PublicRestaurantMenu | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -30,12 +31,12 @@ const RestaurantMenuPage: React.FC = () => {
   const [reservationForm, setReservationForm] = useState({ reservationDate: '', reservationTime: '', partySize: 2, contact: '' });
 
   useEffect(() => {
-    if (!enterpriseId) return;
-    getPublicRestaurantMenu(enterpriseId)
+    if (!menuIdentifier) return;
+    (publicToken ? getPublicTableMenu(publicToken) : getPublicRestaurantMenu(enterpriseId))
       .then(setPayload)
       .catch((requestError: unknown) => setError(requestError instanceof Error ? requestError.message : 'Menu indisponible'))
       .finally(() => setLoading(false));
-  }, [enterpriseId]);
+  }, [enterpriseId, menuIdentifier, publicToken]);
 
   useEffect(() => {
     if (!order?.publicOrderToken) return undefined;
@@ -75,7 +76,7 @@ const RestaurantMenuPage: React.FC = () => {
     try {
       setOrderSubmitting(true);
       setOrderError(null);
-      const createdOrder = await createPublicOrder(enterpriseId, {
+      const createdOrder = await createPublicOrder(payload?.restaurant.id || enterpriseId, {
         items: cartLines.map(({ item, quantity }) => ({ menuItemId: item.id, quantity })),
         tableReference: orderForm.tableReference,
         contact: orderForm.contact,
@@ -98,7 +99,7 @@ const RestaurantMenuPage: React.FC = () => {
     try {
       setReservationSubmitting(true);
       setReservationError(null);
-      await createPublicReservation(enterpriseId, reservationForm);
+      await createPublicReservation(payload?.restaurant.id || enterpriseId, reservationForm);
       setReservationSuccess(true);
       setOrderForm((current) => ({ ...current, contact: reservationForm.contact }));
       setReservationForm({ reservationDate: '', reservationTime: '', partySize: 2, contact: '' });
@@ -124,6 +125,7 @@ const RestaurantMenuPage: React.FC = () => {
                 <p className="text-sm font-medium text-white/60">Menu digital</p>
                 <h1 className="mt-1 break-words text-2xl font-bold tracking-tight sm:text-4xl">{payload.restaurant.name}</h1>
                 {payload.restaurant.location && <p className="mt-2 flex items-center gap-1.5 text-sm text-white/70"><MapPin className="h-4 w-4 shrink-0" />{payload.restaurant.location}</p>}
+                {payload.table && <p className="mt-2 text-sm font-semibold text-primary-foreground">Table {payload.table.label}</p>}
               </div>
             </div>
             <div className="flex flex-wrap gap-2 sm:justify-end">

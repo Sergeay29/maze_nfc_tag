@@ -42,6 +42,7 @@ export interface PublicRestaurant {
 export interface PublicRestaurantMenu {
   restaurant: PublicRestaurant;
   menu: RestaurantMenu;
+  table?: { id: string; label: string; capacity: number; enterpriseId: string };
 }
 
 export async function getRestaurantMenu(): Promise<RestaurantMenu | null> {
@@ -121,6 +122,10 @@ export async function getPublicRestaurantMenu(enterpriseId: string): Promise<Pub
   return request<PublicRestaurantMenu>(`/restau/public/menu/${enterpriseId}`);
 }
 
+export async function getPublicTableMenu(publicToken: string): Promise<PublicRestaurantMenu> {
+  return request<PublicRestaurantMenu>(`/restau/public/table/${publicToken}`);
+}
+
 export interface PublicReservationPayload {
   reservationDate: string;
   reservationTime: string;
@@ -133,6 +138,34 @@ export interface PublicReservationResponse {
   status: 'pending' | 'confirmed' | 'cancelled';
 }
 
+export type RestaurantReservationStatus = 'pending' | 'confirmed' | 'cancelled';
+
+export interface RestaurantReservation {
+  id: string;
+  enterpriseId: string;
+  reservationDate: string;
+  reservationTime: string;
+  partySize: number;
+  contact: string;
+  tableId?: string | null;
+  table?: { id: string; label: string; capacity: number } | null;
+  status: RestaurantReservationStatus;
+  source: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type RestaurantTableStatus = 'active' | 'inactive';
+
+export interface RestaurantTable {
+  id: string;
+  enterpriseId: string;
+  label: string;
+  capacity: number;
+  status: RestaurantTableStatus;
+  sortOrder: number;
+}
+
 export async function createPublicReservation(
   enterpriseId: string,
   body: PublicReservationPayload,
@@ -141,6 +174,42 @@ export async function createPublicReservation(
     method: 'POST',
     body: JSON.stringify(body),
   });
+}
+
+export async function getRestaurantReservations(): Promise<RestaurantReservation[]> {
+  return request<RestaurantReservation[]>('/enterprise/reservations');
+}
+
+export async function updateRestaurantReservationStatus(
+  id: string,
+  status: RestaurantReservationStatus,
+): Promise<RestaurantReservation> {
+  return request<RestaurantReservation>(`/enterprise/reservations/${id}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
+}
+
+export async function getRestaurantTables(): Promise<RestaurantTable[]> {
+  return request<RestaurantTable[]>('/enterprise/tables');
+}
+
+export async function createRestaurantTable(body: Pick<RestaurantTable, 'label' | 'capacity'>): Promise<RestaurantTable> {
+  return request<RestaurantTable>('/enterprise/tables', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function updateRestaurantTable(id: string, body: Partial<Pick<RestaurantTable, 'label' | 'capacity' | 'status'>>): Promise<RestaurantTable> {
+  return request<RestaurantTable>(`/enterprise/tables/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function deactivateRestaurantTable(id: string): Promise<RestaurantTable> {
+  return request<RestaurantTable>(`/enterprise/tables/${id}`, { method: 'DELETE' });
 }
 
 export interface PublicOrderLinePayload {
