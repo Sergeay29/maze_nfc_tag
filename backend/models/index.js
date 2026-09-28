@@ -14,8 +14,11 @@ const AuditLog = require("./auditLog");
 const Menu = require("./restaurantMenu");
 const MenuCategory = require("./restaurantMenuCategory");
 const MenuItem = require("./restaurantMenuItem");
+const MenuItemOptionGroup = require("./restaurantMenuItemOptionGroup");
+const MenuItemOption = require("./restaurantMenuItemOption");
 const Reservation = require("./restaurantReservation");
 const RestaurantTable = require("./restaurantTable");
+const RestaurantReservationSettings = require("./restaurantReservationSettings");
 const RestaurantOrder = require("./restaurantOrder");
 const RestaurantOrderItem = require("./restaurantOrderItem");
 
@@ -202,10 +205,16 @@ Menu.hasMany(MenuCategory, { foreignKey: "menuId", as: "categories", onDelete: "
 MenuCategory.belongsTo(Menu, { foreignKey: "menuId", as: "menu" });
 MenuCategory.hasMany(MenuItem, { foreignKey: "categoryId", as: "items", onDelete: "CASCADE" });
 MenuItem.belongsTo(MenuCategory, { foreignKey: "categoryId", as: "category" });
+MenuItem.hasMany(MenuItemOptionGroup, { foreignKey: "menuItemId", as: "optionGroups", onDelete: "CASCADE" });
+MenuItemOptionGroup.belongsTo(MenuItem, { foreignKey: "menuItemId", as: "menuItem" });
+MenuItemOptionGroup.hasMany(MenuItemOption, { foreignKey: "optionGroupId", as: "options", onDelete: "CASCADE" });
+MenuItemOption.belongsTo(MenuItemOptionGroup, { foreignKey: "optionGroupId", as: "optionGroup" });
 
 // Enterprise -> Restau reservations
 Enterprise.hasMany(Reservation, { foreignKey: "enterpriseId", as: "reservations" });
 Reservation.belongsTo(Enterprise, { foreignKey: "enterpriseId", as: "enterprise" });
+Enterprise.hasOne(RestaurantReservationSettings, { foreignKey: "enterpriseId", as: "reservationSettings" });
+RestaurantReservationSettings.belongsTo(Enterprise, { foreignKey: "enterpriseId", as: "enterprise" });
 
 Enterprise.hasMany(RestaurantTable, { foreignKey: "enterpriseId", as: "restaurantTables" });
 RestaurantTable.belongsTo(Enterprise, { foreignKey: "enterpriseId", as: "enterprise" });
@@ -236,8 +245,11 @@ module.exports = {
   Menu,
   MenuCategory,
   MenuItem,
+  MenuItemOptionGroup,
+  MenuItemOption,
   Reservation,
   RestaurantTable,
+  RestaurantReservationSettings,
   RestaurantOrder,
   RestaurantOrderItem,
 };

@@ -3,6 +3,8 @@ const {
   Menu,
   MenuCategory,
   MenuItem,
+  MenuItemOptionGroup,
+  MenuItemOption,
   RestaurantTable,
 } = require("../models");
 
@@ -40,6 +42,22 @@ async function findOwnedItem(itemId, enterpriseId) {
   );
 }
 
+async function findOwnedOptionGroup(groupId, enterpriseId) {
+  const optionGroup = await MenuItemOptionGroup.findByPk(groupId);
+  if (!optionGroup) return null;
+
+  const owner = await findOwnedItem(optionGroup.menuItemId, enterpriseId);
+  return owner ? { optionGroup, ...owner } : null;
+}
+
+async function findOwnedOption(optionId, enterpriseId) {
+  const option = await MenuItemOption.findByPk(optionId);
+  if (!option) return null;
+
+  const owner = await findOwnedOptionGroup(option.optionGroupId, enterpriseId);
+  return owner ? { option, ...owner } : null;
+}
+
 function menuIncludes({ publicOnly = false } = {}) {
   return [
     {
@@ -53,6 +71,22 @@ function menuIncludes({ publicOnly = false } = {}) {
           as: "items",
           where: publicOnly ? { isAvailable: true } : undefined,
           required: false,
+          include: [
+            {
+              model: MenuItemOptionGroup,
+              as: "optionGroups",
+              where: publicOnly ? { isActive: true } : undefined,
+              required: false,
+              include: [
+                {
+                  model: MenuItemOption,
+                  as: "options",
+                  where: publicOnly ? { isAvailable: true } : undefined,
+                  required: false,
+                },
+              ],
+            },
+          ],
         },
       ],
     },
@@ -62,6 +96,8 @@ function menuIncludes({ publicOnly = false } = {}) {
 const menuOrder = [
   [{ model: MenuCategory, as: "categories" }, "sortOrder", "ASC"],
   [{ model: MenuCategory, as: "categories" }, { model: MenuItem, as: "items" }, "sortOrder", "ASC"],
+  [{ model: MenuCategory, as: "categories" }, { model: MenuItem, as: "items" }, { model: MenuItemOptionGroup, as: "optionGroups" }, "sortOrder", "ASC"],
+  [{ model: MenuCategory, as: "categories" }, { model: MenuItem, as: "items" }, { model: MenuItemOptionGroup, as: "optionGroups" }, { model: MenuItemOption, as: "options" }, "sortOrder", "ASC"],
 ];
 
 exports.getMenu = async (req, res) => {
@@ -281,6 +317,145 @@ exports.deleteItem = async (req, res) => {
   } catch (error) {
     console.error("Delete menu item error:", error);
     return res.status(500).json({ success: false, message: "Erreur lors de la suppression du plat" });
+  }
+};
+
+exports.createItemOptionGroup = async (req, res) => {
+  try {
+    const owner = await findOwnedItem(req.params.itemId, getEnterpriseId(req));
+    const name = normalizeText(req.body.name);
+    const selectionType = req.body.selectionType === "multiple" ? "multiple" : "single";
+    const minSelections = parseNonNegativeInteger(req.body.minSelections) ?? 0;
+    const requestedMax = parseNonNegativeInteger(req.body.maxSelections);
+    const maxSelections = selectionType === "single" ? 1 : (requestedMax ?? 1);
+
+    if (!owner) return res.status(404).json({ success: false, message: "Plat introuvable" });
+    if (!name || maxSelections < 1 || minSelections > maxSelections) {
+      return res.status(400).json({ success: false, message: "Paramètres du groupe d'options invalides" });
+    }
+
+    const optionGroup = await MenuItemOptionGroup.create({
+      menuItemId: owner.item.id,
+      name,
+      selectionType,
+      minSelections,
+      maxSelections,
+      isActive: req.body.isActive !== false,
+      sortOrder: parseNonNegativeInteger(req.body.sortOrder) ?? 0,
+    });
+    return res.status(201).json({ success: true, data: optionGroup });
+  } catch (error) {
+    console.error("Create menu item option group error:", error);
+    return res.status(500).json({ success: false, message: "Erreur lors de la création du groupe d'options" });
+  }
+};
+
+exports.updateItemOptionGroup = async (req, res) => {
+  try {
+    const owner = await findOwnedOptionGroup(req.params.id, getEnterpriseId(req));
+    if (!owner) return res.status(404).json({ success: false, message: "Groupe d'options introuvable" });
+
+    const name = req.body.name === undefined ? owner.optionGroup.name : normalizeText(req.body.name);
+    const selectionType = req.body.selectionType === undefined
+      ? owner.optionGroup.selectionType
+      : (req.body.selectionType === "multiple" ? "multiple" : "single");
+    const minSelections = req.body.minSelections === undefined
+      ? owner.optionGroup.minSelections
+      : (parseNonNegativeInteger(req.body.minSelections) ?? 0);
+    const requestedMax = req.body.maxSelections === undefined
+      ? owner.optionGroup.maxSelections
+      : parseNonNegativeInteger(req.body.maxSelections);
+    const maxSelections = selectionType === "single" ? 1 : (requestedMax ?? 1);
+
+    if (!name || maxSelections < 1 || minSelections > maxSelections) {
+      return res.status(400).json({ success: false, message: "Paramètres du groupe d'options invalides" });
+    }
+
+    await owner.optionGroup.update({
+      name,
+      selectionType,
+      minSelections,
+      maxSelections,
+      ...(req.body.isActive !== undefined && { isActive: req.body.isActive }),
+      ...(req.body.sortOrder !== undefined && { sortOrder: parseNonNegativeInteger(req.body.sortOrder) ?? 0 }),
+    });
+    return res.json({ success: true, data: owner.optionGroup });
+  } catch (error) {
+    console.error("Update menu item option group error:", error);
+    return res.status(500).json({ success: false, message: "Erreur lors de la mise à jour du groupe d'options" });
+  }
+};
+
+exports.deleteItemOptionGroup = async (req, res) => {
+  try {
+    const owner = await findOwnedOptionGroup(req.params.id, getEnterpriseId(req));
+    if (!owner) return res.status(404).json({ success: false, message: "Groupe d'options introuvable" });
+    await owner.optionGroup.destroy();
+    return res.json({ success: true, message: "Groupe d'options supprimé avec succès" });
+  } catch (error) {
+    console.error("Delete menu item option group error:", error);
+    return res.status(500).json({ success: false, message: "Erreur lors de la suppression du groupe d'options" });
+  }
+};
+
+exports.createItemOption = async (req, res) => {
+  try {
+    const owner = await findOwnedOptionGroup(req.params.groupId, getEnterpriseId(req));
+    const name = normalizeText(req.body.name);
+    const priceModifierMinor = parseNonNegativeInteger(req.body.priceModifierMinor);
+    if (!owner) return res.status(404).json({ success: false, message: "Groupe d'options introuvable" });
+    if (!name || priceModifierMinor === null) {
+      return res.status(400).json({ success: false, message: "Nom et supplément valide sont obligatoires" });
+    }
+
+    const option = await MenuItemOption.create({
+      optionGroupId: owner.optionGroup.id,
+      name,
+      priceModifierMinor,
+      isAvailable: req.body.isAvailable !== false,
+      sortOrder: parseNonNegativeInteger(req.body.sortOrder) ?? 0,
+    });
+    return res.status(201).json({ success: true, data: option });
+  } catch (error) {
+    console.error("Create menu item option error:", error);
+    return res.status(500).json({ success: false, message: "Erreur lors de la création de l'option" });
+  }
+};
+
+exports.updateItemOption = async (req, res) => {
+  try {
+    const owner = await findOwnedOption(req.params.id, getEnterpriseId(req));
+    if (!owner) return res.status(404).json({ success: false, message: "Option introuvable" });
+    const name = req.body.name === undefined ? owner.option.name : normalizeText(req.body.name);
+    const priceModifierMinor = req.body.priceModifierMinor === undefined
+      ? owner.option.priceModifierMinor
+      : parseNonNegativeInteger(req.body.priceModifierMinor);
+    if (!name || priceModifierMinor === null) {
+      return res.status(400).json({ success: false, message: "Nom et supplément valide sont obligatoires" });
+    }
+
+    await owner.option.update({
+      name,
+      priceModifierMinor,
+      ...(req.body.isAvailable !== undefined && { isAvailable: req.body.isAvailable }),
+      ...(req.body.sortOrder !== undefined && { sortOrder: parseNonNegativeInteger(req.body.sortOrder) ?? 0 }),
+    });
+    return res.json({ success: true, data: owner.option });
+  } catch (error) {
+    console.error("Update menu item option error:", error);
+    return res.status(500).json({ success: false, message: "Erreur lors de la mise à jour de l'option" });
+  }
+};
+
+exports.deleteItemOption = async (req, res) => {
+  try {
+    const owner = await findOwnedOption(req.params.id, getEnterpriseId(req));
+    if (!owner) return res.status(404).json({ success: false, message: "Option introuvable" });
+    await owner.option.destroy();
+    return res.json({ success: true, message: "Option supprimée avec succès" });
+  } catch (error) {
+    console.error("Delete menu item option error:", error);
+    return res.status(500).json({ success: false, message: "Erreur lors de la suppression de l'option" });
   }
 };
 

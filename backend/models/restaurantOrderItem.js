@@ -19,6 +19,7 @@ const RestaurantOrderItem = sequelize.define(
     unitPriceMinor: { type: DataTypes.INTEGER, allowNull: false, validate: { min: 0 } },
     quantity: { type: DataTypes.INTEGER, allowNull: false, validate: { min: 1, max: 20 } },
     lineTotalMinor: { type: DataTypes.INTEGER, allowNull: false, validate: { min: 0 } },
+    selectedOptionsSnapshot: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
   },
   { tableName: "restaurant_order_items", timestamps: true }
 );

@@ -27,6 +27,18 @@ const RestaurantReservation = sequelize.define(
       type: DataTypes.STRING(5),
       allowNull: false,
     },
+    durationMinutes: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 90,
+      validate: { min: 15, max: 720 },
+    },
+    turnoverBufferMinutes: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 15,
+      validate: { min: 0, max: 180 },
+    },
     partySize: {
       type: DataTypes.INTEGER,
       allowNull: false,

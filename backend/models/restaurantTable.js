@@ -12,6 +12,7 @@ const RestaurantTable = sequelize.define(
     },
     publicToken: { type: DataTypes.STRING(48), allowNull: false, unique: true, defaultValue: DataTypes.UUIDV4 },
     label: { type: DataTypes.STRING(80), allowNull: false },
+    zone: { type: DataTypes.STRING(80), allowNull: true },
     capacity: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 2, validate: { min: 1, max: 100 } },
     status: { type: DataTypes.ENUM("active", "inactive"), allowNull: false, defaultValue: "active" },
     sortOrder: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },

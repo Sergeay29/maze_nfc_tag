@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Check, ChefHat, Clock3, ClipboardList, Loader2, RefreshCw, Utensils, X } from 'lucide-react';
-import { getRestaurantOrders, updateRestaurantOrderStatus } from '../../api/restaurantMenuApi';
+import { Check, ChefHat, Clock3, ClipboardList, Download, Loader2, RefreshCw, Utensils, X } from 'lucide-react';
+import { downloadRestaurantOrderTicket, getRestaurantOrders, updateRestaurantOrderStatus } from '../../api/restaurantMenuApi';
 import type { RestaurantOrder, RestaurantOrderStatus } from '../../api/restaurantMenuApi';
 
 const statusLabels: Record<RestaurantOrderStatus, string> = {
@@ -56,6 +56,7 @@ const OrdersPage: React.FC = () => {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [filter, setFilter] = useState<OrderFilter>('all');
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   const loadOrders = useCallback(async () => {
     try {
@@ -84,6 +85,23 @@ const OrdersPage: React.FC = () => {
       setError(requestError instanceof Error ? requestError.message : 'Impossible de mettre à jour la commande');
     } finally {
       setUpdatingId(null);
+    }
+  };
+
+  const downloadTicket = async (order: RestaurantOrder) => {
+    try {
+      setDownloadingId(order.id);
+      const blob = await downloadRestaurantOrderTicket(order.id);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `ticket-${order.publicOrderToken.slice(0, 8).toUpperCase()}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Impossible de télécharger le ticket');
+    } finally {
+      setDownloadingId(null);
     }
   };
 
@@ -177,6 +195,7 @@ const OrdersPage: React.FC = () => {
                 <div className="mt-4 flex items-center justify-between gap-3">
                   <span className="font-bold text-dark">{formatPrice(order.totalMinor)}</span>
                   <div className="flex items-center gap-2">
+                    <button type="button" disabled={downloadingId === order.id} onClick={() => void downloadTicket(order)} className="rounded-xl p-2 text-slate transition-colors hover:bg-cloud hover:text-primary disabled:opacity-50" title="Télécharger le ticket PDF" aria-label="Télécharger le ticket PDF">{downloadingId === order.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}</button>
                     {order.status !== 'cancelled' && order.status !== 'served' && <button type="button" disabled={isUpdating} onClick={() => void changeStatus(order, 'cancelled')} className="rounded-xl p-2 text-red-600 transition-colors hover:bg-red-50" title="Annuler" aria-label="Annuler la commande"><X className="h-4 w-4" /></button>}
                     {next && <button type="button" disabled={isUpdating} onClick={() => void changeStatus(order, next)} className="inline-flex items-center gap-2 rounded-xl bg-primary px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary/90 disabled:opacity-50">{isUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : next === 'ready' ? <Check className="h-4 w-4" /> : <Clock3 className="h-4 w-4" />}{statusLabels[next]}</button>}
                   </div>

@@ -4,8 +4,8 @@ import { createRestaurantTable, deactivateRestaurantTable, getRestaurantTables, 
 import type { RestaurantTable } from '../../api/restaurantMenuApi';
 import { getEnterpriseTableQrCode } from '../../api/enterpriseApi';
 
-type TableForm = { label: string; capacity: number };
-const emptyForm: TableForm = { label: '', capacity: 2 };
+type TableForm = { label: string; zone: string; capacity: number };
+const emptyForm: TableForm = { label: '', zone: '', capacity: 2 };
 
 const TablesPage: React.FC = () => {
   const [tables, setTables] = useState<RestaurantTable[]>([]);
@@ -51,7 +51,7 @@ const TablesPage: React.FC = () => {
 
   const editTable = (table: RestaurantTable) => {
     setEditingId(table.id);
-    setForm({ label: table.label, capacity: table.capacity });
+    setForm({ label: table.label, zone: table.zone || '', capacity: table.capacity });
   };
 
   const deactivateTable = async (table: RestaurantTable) => {

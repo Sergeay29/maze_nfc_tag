@@ -11,6 +11,30 @@ export interface RestaurantMenuItem {
   imageUrl?: string | null;
   sortOrder: number;
   isAvailable: boolean;
+  optionGroups?: RestaurantMenuItemOptionGroup[];
+}
+
+export type RestaurantMenuOptionSelectionType = 'single' | 'multiple';
+
+export interface RestaurantMenuItemOption {
+  id: string;
+  optionGroupId: string;
+  name: string;
+  priceModifierMinor: number;
+  isAvailable: boolean;
+  sortOrder: number;
+}
+
+export interface RestaurantMenuItemOptionGroup {
+  id: string;
+  menuItemId: string;
+  name: string;
+  selectionType: RestaurantMenuOptionSelectionType;
+  minSelections: number;
+  maxSelections: number;
+  isActive: boolean;
+  sortOrder: number;
+  options: RestaurantMenuItemOption[];
 }
 
 export interface RestaurantMenuCategory {
@@ -118,6 +142,56 @@ export async function deleteMenuItem(id: string): Promise<void> {
   return request<void>(`/enterprise/menu/items/${id}`, { method: 'DELETE' });
 }
 
+export async function importRestaurantMenuCsv(file: File): Promise<{ menuId: string; categories: number; items: number; optionGroups: number; options: number }> {
+  const token = localStorage.getItem('maze_nfc_auth_token');
+  const body = new FormData();
+  body.append('file', file);
+  const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/enterprise/menu/import-csv`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    body,
+  });
+  const payload = await response.json() as { success?: boolean; data?: { menuId: string; categories: number; items: number; optionGroups: number; options: number }; message?: string };
+  if (!response.ok || !payload.success || !payload.data) throw new Error(payload.message || 'Impossible d’importer le menu CSV');
+  return payload.data;
+}
+
+export async function createMenuItemOptionGroup(
+  itemId: string,
+  body: Partial<Pick<RestaurantMenuItemOptionGroup, 'name' | 'selectionType' | 'minSelections' | 'maxSelections' | 'isActive' | 'sortOrder'>>,
+): Promise<RestaurantMenuItemOptionGroup> {
+  return request<RestaurantMenuItemOptionGroup>(`/enterprise/menu/items/${itemId}/option-groups`, { method: 'POST', body: JSON.stringify(body) });
+}
+
+export async function updateMenuItemOptionGroup(
+  id: string,
+  body: Partial<Pick<RestaurantMenuItemOptionGroup, 'name' | 'selectionType' | 'minSelections' | 'maxSelections' | 'isActive' | 'sortOrder'>>,
+): Promise<RestaurantMenuItemOptionGroup> {
+  return request<RestaurantMenuItemOptionGroup>(`/enterprise/menu/option-groups/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+}
+
+export async function deleteMenuItemOptionGroup(id: string): Promise<void> {
+  return request<void>(`/enterprise/menu/option-groups/${id}`, { method: 'DELETE' });
+}
+
+export async function createMenuItemOption(
+  groupId: string,
+  body: Partial<Pick<RestaurantMenuItemOption, 'name' | 'priceModifierMinor' | 'isAvailable' | 'sortOrder'>>,
+): Promise<RestaurantMenuItemOption> {
+  return request<RestaurantMenuItemOption>(`/enterprise/menu/option-groups/${groupId}/options`, { method: 'POST', body: JSON.stringify(body) });
+}
+
+export async function updateMenuItemOption(
+  id: string,
+  body: Partial<Pick<RestaurantMenuItemOption, 'name' | 'priceModifierMinor' | 'isAvailable' | 'sortOrder'>>,
+): Promise<RestaurantMenuItemOption> {
+  return request<RestaurantMenuItemOption>(`/enterprise/menu/options/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+}
+
+export async function deleteMenuItemOption(id: string): Promise<void> {
+  return request<void>(`/enterprise/menu/options/${id}`, { method: 'DELETE' });
+}
+
 export async function getPublicRestaurantMenu(enterpriseId: string): Promise<PublicRestaurantMenu> {
   return request<PublicRestaurantMenu>(`/restau/public/menu/${enterpriseId}`);
 }
@@ -161,9 +235,22 @@ export interface RestaurantTable {
   id: string;
   enterpriseId: string;
   label: string;
+  zone?: string | null;
   capacity: number;
   status: RestaurantTableStatus;
   sortOrder: number;
+}
+
+export interface RestaurantReservationSettings {
+  enterpriseId: string;
+  defaultDurationMinutes: number;
+  turnoverBufferMinutes: number;
+  allowPublicBookings: boolean;
+}
+
+export interface PublicReservationAvailability {
+  available: boolean;
+  availableTables: number;
 }
 
 export async function createPublicReservation(
@@ -174,6 +261,14 @@ export async function createPublicReservation(
     method: 'POST',
     body: JSON.stringify(body),
   });
+}
+
+export async function getPublicReservationAvailability(
+  enterpriseId: string,
+  body: Omit<PublicReservationPayload, 'contact'>,
+): Promise<PublicReservationAvailability> {
+  const search = new URLSearchParams({ reservationDate: body.reservationDate, reservationTime: body.reservationTime, partySize: String(body.partySize) });
+  return request<PublicReservationAvailability>(`/restau/public/menu/${enterpriseId}/availability?${search.toString()}`);
 }
 
 export async function getRestaurantReservations(): Promise<RestaurantReservation[]> {
@@ -194,18 +289,26 @@ export async function getRestaurantTables(): Promise<RestaurantTable[]> {
   return request<RestaurantTable[]>('/enterprise/tables');
 }
 
-export async function createRestaurantTable(body: Pick<RestaurantTable, 'label' | 'capacity'>): Promise<RestaurantTable> {
+export async function createRestaurantTable(body: Pick<RestaurantTable, 'label' | 'capacity'> & Partial<Pick<RestaurantTable, 'zone'>>): Promise<RestaurantTable> {
   return request<RestaurantTable>('/enterprise/tables', {
     method: 'POST',
     body: JSON.stringify(body),
   });
 }
 
-export async function updateRestaurantTable(id: string, body: Partial<Pick<RestaurantTable, 'label' | 'capacity' | 'status'>>): Promise<RestaurantTable> {
+export async function updateRestaurantTable(id: string, body: Partial<Pick<RestaurantTable, 'label' | 'zone' | 'capacity' | 'status'>>): Promise<RestaurantTable> {
   return request<RestaurantTable>(`/enterprise/tables/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(body),
   });
+}
+
+export async function getRestaurantReservationSettings(): Promise<RestaurantReservationSettings> {
+  return request<RestaurantReservationSettings>('/enterprise/reservation-settings');
+}
+
+export async function updateRestaurantReservationSettings(body: Omit<RestaurantReservationSettings, 'enterpriseId'>): Promise<RestaurantReservationSettings> {
+  return request<RestaurantReservationSettings>('/enterprise/reservation-settings', { method: 'PUT', body: JSON.stringify(body) });
 }
 
 export async function deactivateRestaurantTable(id: string): Promise<RestaurantTable> {
@@ -215,6 +318,7 @@ export async function deactivateRestaurantTable(id: string): Promise<RestaurantT
 export interface PublicOrderLinePayload {
   menuItemId: string;
   quantity: number;
+  optionIds?: string[];
 }
 
 export interface CreatePublicOrderPayload {
@@ -231,6 +335,13 @@ export interface RestaurantOrderItem {
   unitPriceMinor: number;
   quantity: number;
   lineTotalMinor: number;
+  selectedOptionsSnapshot: Array<{
+    groupId: string;
+    groupName: string;
+    optionId: string;
+    name: string;
+    priceModifierMinor: number;
+  }>;
 }
 
 export type RestaurantOrderStatus = 'pending' | 'accepted' | 'preparing' | 'ready' | 'served' | 'cancelled';
@@ -275,4 +386,22 @@ export async function updateRestaurantOrderStatus(
     method: 'PATCH',
     body: JSON.stringify({ status }),
   });
+}
+
+export async function downloadRestaurantOrderTicket(id: string): Promise<Blob> {
+  const token = localStorage.getItem('maze_nfc_auth_token');
+  const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/enterprise/orders/${id}/ticket.pdf`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
+  if (!response.ok) {
+    let message = 'Impossible de télécharger le ticket PDF';
+    try {
+      const payload = await response.json() as { message?: string };
+      message = payload.message || message;
+    } catch {
+      // The backend may return a non-JSON error page.
+    }
+    throw new Error(message);
+  }
+  return response.blob();
 }

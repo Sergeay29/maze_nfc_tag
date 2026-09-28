@@ -7,6 +7,7 @@ const router = express.Router();
 
 router.get("/menu/:enterpriseId", restaurantMenuController.getPublicMenu);
 router.get("/table/:publicToken", restaurantMenuController.getPublicTableMenu);
+router.get("/menu/:enterpriseId/availability", restaurantReservationController.getPublicAvailability);
 router.post("/menu/:enterpriseId/reservations", restaurantReservationController.createPublicReservation);
 router.post("/menu/:enterpriseId/orders", restaurantOrderController.createPublicOrder);
 router.get("/orders/:token", restaurantOrderController.getPublicOrder);

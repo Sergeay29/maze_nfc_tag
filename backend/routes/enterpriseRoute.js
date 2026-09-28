@@ -9,6 +9,8 @@ const qrCodeController = require("../controllers/qrCodeController");
 const restaurantReservationController = require("../controllers/restaurantReservationController");
 const restaurantTableController = require("../controllers/restaurantTableController");
 const restaurantOrderController = require("../controllers/restaurantOrderController");
+const restaurantMenuImportController = require("../controllers/restaurantMenuImportController");
+const { csvUpload } = require("../config/upload");
 
 // Toutes les routes /api/enterprise/* exigent d'être authentifié
 router.use(authenticate);
@@ -563,15 +565,25 @@ router.delete("/menu/categories/:id", restaurantMenuController.deleteCategory);
 router.post("/menu/categories/:categoryId/items", restaurantMenuController.createItem);
 router.put("/menu/items/:id", restaurantMenuController.updateItem);
 router.delete("/menu/items/:id", restaurantMenuController.deleteItem);
+router.post("/menu/import-csv", csvUpload.single("file"), restaurantMenuImportController.importMenuCsv);
+router.post("/menu/items/:itemId/option-groups", restaurantMenuController.createItemOptionGroup);
+router.put("/menu/option-groups/:id", restaurantMenuController.updateItemOptionGroup);
+router.delete("/menu/option-groups/:id", restaurantMenuController.deleteItemOptionGroup);
+router.post("/menu/option-groups/:groupId/options", restaurantMenuController.createItemOption);
+router.put("/menu/options/:id", restaurantMenuController.updateItemOption);
+router.delete("/menu/options/:id", restaurantMenuController.deleteItemOption);
 
 router.get("/reservations", restaurantReservationController.getReservations);
 router.patch("/reservations/:id/status", restaurantReservationController.updateReservationStatus);
+router.get("/reservation-settings", restaurantReservationController.getReservationSettings);
+router.put("/reservation-settings", restaurantReservationController.updateReservationSettings);
 router.get("/tables", restaurantTableController.getTables);
 router.post("/tables", restaurantTableController.createTable);
 router.patch("/tables/:id", restaurantTableController.updateTable);
 router.delete("/tables/:id", restaurantTableController.deleteTable);
 router.get("/tables/:id/qr-code", qrCodeController.getEnterpriseTableQrCode);
 router.get("/orders", restaurantOrderController.getOrders);
+router.get("/orders/:id/ticket.pdf", restaurantOrderController.downloadOrderTicket);
 router.patch("/orders/:id/status", restaurantOrderController.updateOrderStatus);
 
 module.exports = router;

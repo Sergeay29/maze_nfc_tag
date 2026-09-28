@@ -11,13 +11,21 @@ const getItemDescription = (description?: string | null) => {
   return value && value.toLowerCase() !== 'description optionnelle' ? value : null;
 };
 
+type CartEntry = { menuItemId: string; optionIds: string[]; quantity: number };
+type CartLine = { key: string; item: RestaurantMenuItem; optionIds: string[]; quantity: number };
+
+const getCartKey = (menuItemId: string, optionIds: string[]) => `${menuItemId}:${[...optionIds].sort().join(',')}`;
+
 const RestaurantMenuPage: React.FC = () => {
   const { enterpriseId = '', publicToken = '' } = useParams<{ enterpriseId: string; publicToken: string }>();
   const menuIdentifier = enterpriseId || publicToken;
   const [payload, setPayload] = useState<PublicRestaurantMenu | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [cart, setCart] = useState<Record<string, number>>({});
+  const [cart, setCart] = useState<Record<string, CartEntry>>({});
+  const [configuringItem, setConfiguringItem] = useState<RestaurantMenuItem | null>(null);
+  const [selectedOptionIds, setSelectedOptionIds] = useState<Record<string, string[]>>({});
+  const [selectionError, setSelectionError] = useState<string | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
   const [orderDetailsOpen, setOrderDetailsOpen] = useState(false);
   const [orderSubmitting, setOrderSubmitting] = useState(false);
@@ -53,21 +61,66 @@ const RestaurantMenuPage: React.FC = () => {
     () => availableCategories.flatMap((category) => category.items),
     [availableCategories],
   );
-  const cartLines = useMemo(
-    () => menuItems.filter((item) => cart[item.id]).map((item) => ({ item, quantity: cart[item.id] })),
+  const cartLines = useMemo<CartLine[]>(
+    () => Object.entries(cart).flatMap(([key, entry]) => {
+      const item = menuItems.find((menuItem) => menuItem.id === entry.menuItemId);
+      return item ? [{ key, item, optionIds: entry.optionIds, quantity: entry.quantity }] : [];
+    }),
     [cart, menuItems],
   );
   const cartCount = cartLines.reduce((sum, line) => sum + line.quantity, 0);
-  const cartTotal = cartLines.reduce((sum, line) => sum + line.item.priceMinor * line.quantity, 0);
+  const getLineUnitPrice = (item: RestaurantMenuItem, optionIds: string[]) => item.priceMinor + (item.optionGroups || []).flatMap((group) => group.options).filter((option) => optionIds.includes(option.id)).reduce((sum, option) => sum + option.priceModifierMinor, 0);
+  const cartTotal = cartLines.reduce((sum, line) => sum + getLineUnitPrice(line.item, line.optionIds) * line.quantity, 0);
   const today = new Date().toISOString().slice(0, 10);
 
-  const updateQuantity = (itemId: string, quantity: number) => {
+  const updateQuantity = (key: string, quantity: number, item?: RestaurantMenuItem, optionIds?: string[]) => {
     setCart((current) => {
       const next = { ...current };
-      if (quantity <= 0) delete next[itemId];
-      else next[itemId] = Math.min(quantity, 20);
+      const resolvedKey = next[key] ? key : Object.keys(next).find((entryKey) => next[entryKey].menuItemId === key);
+      if (quantity <= 0 && resolvedKey) delete next[resolvedKey];
+      else if (resolvedKey) next[resolvedKey] = { ...next[resolvedKey], quantity: Math.min(quantity, 20) };
+      else if (item && optionIds) next[key] = { menuItemId: item.id, optionIds, quantity: Math.min(quantity, 20) };
       return next;
     });
+  };
+
+  const openItemConfiguration = (item: RestaurantMenuItem) => {
+    const activeGroups = (item.optionGroups || []).filter((group) => group.isActive);
+    if (!activeGroups.length) {
+      const key = getCartKey(item.id, []);
+      updateQuantity(key, (cart[key]?.quantity || 0) + 1, item, []);
+      return;
+    }
+    setConfiguringItem(item);
+    setSelectedOptionIds({});
+    setSelectionError(null);
+  };
+
+  const toggleOption = (groupId: string, optionId: string, selectionType: 'single' | 'multiple', maxSelections: number) => {
+    setSelectedOptionIds((current) => {
+      const selected = current[groupId] || [];
+      if (selected.includes(optionId)) return { ...current, [groupId]: selected.filter((id) => id !== optionId) };
+      if (selectionType === 'single') return { ...current, [groupId]: [optionId] };
+      if (selected.length >= maxSelections) return current;
+      return { ...current, [groupId]: [...selected, optionId] };
+    });
+  };
+
+  const addConfiguredItem = () => {
+    if (!configuringItem) return;
+    const activeGroups = (configuringItem.optionGroups || []).filter((group) => group.isActive);
+    const invalidGroup = activeGroups.find((group) => {
+      const count = (selectedOptionIds[group.id] || []).length;
+      return count < group.minSelections || count > group.maxSelections;
+    });
+    if (invalidGroup) {
+      setSelectionError(`Complétez le choix « ${invalidGroup.name} » avant d’ajouter ce plat.`);
+      return;
+    }
+    const optionIds = activeGroups.flatMap((group) => selectedOptionIds[group.id] || []);
+    const key = getCartKey(configuringItem.id, optionIds);
+    updateQuantity(key, (cart[key]?.quantity || 0) + 1, configuringItem, optionIds);
+    setConfiguringItem(null);
   };
 
   const handleOrderSubmit = async (event: React.FormEvent) => {
@@ -77,7 +130,7 @@ const RestaurantMenuPage: React.FC = () => {
       setOrderSubmitting(true);
       setOrderError(null);
       const createdOrder = await createPublicOrder(payload?.restaurant.id || enterpriseId, {
-        items: cartLines.map(({ item, quantity }) => ({ menuItemId: item.id, quantity })),
+        items: cartLines.map(({ item, optionIds, quantity }) => ({ menuItemId: item.id, optionIds, quantity })),
         tableReference: orderForm.tableReference,
         contact: orderForm.contact,
         customerNote: orderForm.customerNote,
@@ -125,7 +178,7 @@ const RestaurantMenuPage: React.FC = () => {
                 <p className="text-sm font-medium text-white/60">Menu digital</p>
                 <h1 className="mt-1 break-words text-2xl font-bold tracking-tight sm:text-4xl">{payload.restaurant.name}</h1>
                 {payload.restaurant.location && <p className="mt-2 flex items-center gap-1.5 text-sm text-white/70"><MapPin className="h-4 w-4 shrink-0" />{payload.restaurant.location}</p>}
-                {payload.table && <p className="mt-2 text-sm font-semibold text-primary-foreground">Table {payload.table.label}</p>}
+                {payload.table && <p className="mt-2 text-sm font-semibold text-white/80">Table {payload.table.label}</p>}
               </div>
             </div>
             <div className="flex flex-wrap gap-2 sm:justify-end">
@@ -155,7 +208,7 @@ const RestaurantMenuPage: React.FC = () => {
                       <div className="flex min-w-0 flex-1 flex-col">
                         <div className="flex items-start justify-between gap-3"><h3 className="min-w-0 break-words text-base font-bold sm:text-lg">{item.name}</h3><span className="shrink-0 text-sm font-bold text-primary sm:text-base">{formatPrice(item.priceMinor)}</span></div>
                         {getItemDescription(item.description) && <p className="mt-1 line-clamp-2 text-sm leading-5 text-slate">{getItemDescription(item.description)}</p>}
-                        <button type="button" onClick={() => updateQuantity(item.id, (cart[item.id] || 0) + 1)} className="mt-auto inline-flex w-fit items-center gap-1.5 rounded-xl bg-primary/10 px-3 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary hover:text-white"><Plus className="h-4 w-4" />Ajouter{cart[item.id] ? ` · ${cart[item.id]}` : ''}</button>
+                        <button type="button" onClick={() => openItemConfiguration(item)} className="mt-auto inline-flex w-fit items-center gap-1.5 rounded-xl bg-primary/10 px-3 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary hover:text-white"><Plus className="h-4 w-4" />Ajouter</button>
                       </div>
                     </article>
                   ))}
@@ -168,7 +221,9 @@ const RestaurantMenuPage: React.FC = () => {
 
       {cartCount > 0 && <button type="button" onClick={() => { setCartOpen(true); setOrderError(null); setOrderDetailsOpen(false); }} className="fixed bottom-5 left-1/2 z-40 flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 items-center justify-between rounded-2xl bg-dark px-5 py-4 text-white shadow-xl"><span className="inline-flex items-center gap-3 font-semibold"><ShoppingBag className="h-5 w-5" />Voir le panier <span className="rounded-full bg-primary px-2 py-0.5 text-sm">{cartCount}</span></span><span className="font-bold">{formatPrice(cartTotal)}</span></button>}
 
-      {cartOpen && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"><div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-white p-6 shadow-xl"><div className="mb-5 flex items-start justify-between gap-4"><div><p className="text-sm font-medium text-primary">Votre sélection</p><h2 className="text-2xl font-bold">Votre panier</h2><p className="mt-1 text-sm text-slate">Vérifiez votre commande avant envoi.</p></div><button type="button" onClick={() => setCartOpen(false)} className="rounded-xl p-2 hover:bg-cloud" aria-label="Fermer"><X className="h-5 w-5" /></button></div>{orderError && <div className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{orderError}</div>}<div className="mb-5 space-y-3">{cartLines.map(({ item, quantity }) => <div key={item.id} className="flex items-center gap-3 rounded-2xl bg-cloud p-3"><div className="min-w-0 flex-1"><p className="truncate font-semibold">{item.name}</p><p className="text-sm text-slate">{quantity} × {formatPrice(item.priceMinor)}</p></div><div className="flex items-center gap-1.5"><button type="button" onClick={() => updateQuantity(item.id, quantity - 1)} className="rounded-lg bg-white p-1.5"><Minus className="h-4 w-4" /></button><span className="w-5 text-center text-sm font-semibold">{quantity}</span><button type="button" onClick={() => updateQuantity(item.id, quantity + 1)} className="rounded-lg bg-white p-1.5"><Plus className="h-4 w-4" /></button><button type="button" onClick={() => updateQuantity(item.id, 0)} className="rounded-lg p-1.5 text-red-600 hover:bg-red-50" aria-label={`Supprimer ${item.name}`}><Trash2 className="h-4 w-4" /></button></div></div>)}</div><form onSubmit={handleOrderSubmit} className="space-y-4"><button type="button" onClick={() => setOrderDetailsOpen((current) => !current)} className="w-full rounded-xl border border-slate/20 px-4 py-3 text-sm font-semibold text-dark hover:bg-cloud">{orderDetailsOpen ? 'Masquer les informations facultatives' : 'Ajouter des informations facultatives'}</button>{orderDetailsOpen && <div className="space-y-4"><label className="block text-sm font-medium">Table (facultatif)<input value={orderForm.tableReference} onChange={(event) => setOrderForm({ ...orderForm, tableReference: event.target.value })} maxLength={80} placeholder="Ex. Table 12" className="mt-1 w-full rounded-xl border border-slate/20 px-3 py-2.5" /></label><label className="block text-sm font-medium">Contact (facultatif)<input value={orderForm.contact} onChange={(event) => setOrderForm({ ...orderForm, contact: event.target.value })} maxLength={160} placeholder="Nom ou téléphone" className="mt-1 w-full rounded-xl border border-slate/20 px-3 py-2.5" /></label><label className="block text-sm font-medium">Note pour la cuisine (facultatif)<textarea value={orderForm.customerNote} onChange={(event) => setOrderForm({ ...orderForm, customerNote: event.target.value })} maxLength={1000} rows={2} className="mt-1 w-full rounded-xl border border-slate/20 px-3 py-2.5" /></label></div>}<div className="flex items-center justify-between border-t border-slate/10 pt-4"><span className="font-semibold">Total</span><span className="text-xl font-bold text-primary">{formatPrice(cartTotal)}</span></div><button type="submit" disabled={orderSubmitting} className="w-full rounded-xl bg-primary px-4 py-3 font-semibold text-white disabled:opacity-50">{orderSubmitting ? 'Envoi…' : 'Envoyer la commande'}</button></form></div></div>}
+      {configuringItem && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"><div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-white p-6 shadow-xl"><div className="mb-5 flex items-start justify-between gap-4"><div><p className="text-sm font-medium text-primary">Personnalisez votre plat</p><h2 className="text-2xl font-bold">{configuringItem.name}</h2></div><button type="button" onClick={() => setConfiguringItem(null)} className="rounded-xl p-2 hover:bg-cloud" aria-label="Fermer"><X className="h-5 w-5" /></button></div>{selectionError && <div className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{selectionError}</div>}<div className="space-y-4">{(configuringItem.optionGroups || []).filter((group) => group.isActive).map((group) => <section key={group.id} className="rounded-2xl bg-cloud p-4"><div className="mb-3"><h3 className="font-semibold">{group.name}</h3><p className="mt-1 text-xs text-slate">{group.minSelections > 0 ? `${group.minSelections} choix requis` : 'Facultatif'} · {group.selectionType === 'single' ? 'un choix' : `${group.maxSelections} choix maximum`}</p></div><div className="space-y-2">{group.options.map((option) => { const selected = (selectedOptionIds[group.id] || []).includes(option.id); return <button key={option.id} type="button" onClick={() => toggleOption(group.id, option.id, group.selectionType, group.maxSelections)} className={`flex w-full items-center justify-between rounded-xl border px-3 py-3 text-left text-sm ${selected ? 'border-primary bg-primary/10 text-primary' : 'border-slate/15 bg-white text-dark'}`}><span className="font-medium">{option.name}</span><span>{option.priceModifierMinor ? `+ ${formatPrice(option.priceModifierMinor)}` : 'Inclus'}</span></button>; })}</div></section>)}</div><div className="mt-5 flex items-center justify-between border-t border-slate/10 pt-4"><span className="font-semibold">Prix</span><span className="text-xl font-bold text-primary">{formatPrice(getLineUnitPrice(configuringItem, Object.values(selectedOptionIds).flat()))}</span></div><button type="button" onClick={addConfiguredItem} className="mt-4 w-full rounded-xl bg-primary px-4 py-3 font-semibold text-white">Ajouter au panier</button></div></div>}
+
+      {cartOpen && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"><div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-white p-6 shadow-xl"><div className="mb-5 flex items-start justify-between gap-4"><div><p className="text-sm font-medium text-primary">Votre sélection</p><h2 className="text-2xl font-bold">Votre panier</h2><p className="mt-1 text-sm text-slate">Vérifiez votre commande avant envoi.</p></div><button type="button" onClick={() => setCartOpen(false)} className="rounded-xl p-2 hover:bg-cloud" aria-label="Fermer"><X className="h-5 w-5" /></button></div>{orderError && <div className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{orderError}</div>}<div className="mb-5 space-y-3">{cartLines.map(({ key, item, optionIds, quantity }) => <div key={key} className="flex items-center gap-3 rounded-2xl bg-cloud p-3"><div className="min-w-0 flex-1"><p className="truncate font-semibold">{item.name}</p>{optionIds.length > 0 && <p className="truncate text-xs text-slate">{(item.optionGroups || []).flatMap((group) => group.options).filter((option) => optionIds.includes(option.id)).map((option) => option.name).join(' · ')}</p>}<p className="text-sm text-slate">{quantity} × {formatPrice(getLineUnitPrice(item, optionIds))}</p></div><div className="flex items-center gap-1.5"><button type="button" onClick={() => updateQuantity(key, quantity - 1)} className="rounded-lg bg-white p-1.5"><Minus className="h-4 w-4" /></button><span className="w-5 text-center text-sm font-semibold">{quantity}</span><button type="button" onClick={() => updateQuantity(key, quantity + 1)} className="rounded-lg bg-white p-1.5"><Plus className="h-4 w-4" /></button><button type="button" onClick={() => updateQuantity(key, 0)} className="rounded-lg p-1.5 text-red-600 hover:bg-red-50" aria-label={`Supprimer ${item.name}`}><Trash2 className="h-4 w-4" /></button></div></div>)}</div><form onSubmit={handleOrderSubmit} className="space-y-4"><button type="button" onClick={() => setOrderDetailsOpen((current) => !current)} className="w-full rounded-xl border border-slate/20 px-4 py-3 text-sm font-semibold text-dark hover:bg-cloud">{orderDetailsOpen ? 'Masquer les informations facultatives' : 'Ajouter des informations facultatives'}</button>{orderDetailsOpen && <div className="space-y-4"><label className="block text-sm font-medium">Table (facultatif)<input value={orderForm.tableReference} onChange={(event) => setOrderForm({ ...orderForm, tableReference: event.target.value })} maxLength={80} placeholder="Ex. Table 12" className="mt-1 w-full rounded-xl border border-slate/20 px-3 py-2.5" /></label><label className="block text-sm font-medium">Contact (facultatif)<input value={orderForm.contact} onChange={(event) => setOrderForm({ ...orderForm, contact: event.target.value })} maxLength={160} placeholder="Nom ou téléphone" className="mt-1 w-full rounded-xl border border-slate/20 px-3 py-2.5" /></label><label className="block text-sm font-medium">Note pour la cuisine (facultatif)<textarea value={orderForm.customerNote} onChange={(event) => setOrderForm({ ...orderForm, customerNote: event.target.value })} maxLength={1000} rows={2} className="mt-1 w-full rounded-xl border border-slate/20 px-3 py-2.5" /></label></div>}<div className="flex items-center justify-between border-t border-slate/10 pt-4"><span className="font-semibold">Total</span><span className="text-xl font-bold text-primary">{formatPrice(cartTotal)}</span></div><button type="submit" disabled={orderSubmitting} className="w-full rounded-xl bg-primary px-4 py-3 font-semibold text-white disabled:opacity-50">{orderSubmitting ? 'Envoi…' : 'Envoyer la commande'}</button></form></div></div>}
 
       {order && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"><div className="w-full max-w-md rounded-3xl bg-white p-6 text-center shadow-xl"><CheckCircle2 className="mx-auto mb-3 h-12 w-12 text-green-600" /><h2 className="text-xl font-bold">Commande envoyée</h2><p className="mt-2 text-slate">Référence : <strong>{order.publicOrderToken.slice(0, 8).toUpperCase()}</strong></p><p className="mt-1 text-slate">Statut : <strong>{order.status === 'pending' ? 'En attente de prise en charge' : order.status}</strong></p><p className="mt-4 text-2xl font-bold text-primary">{formatPrice(order.totalMinor)}</p><p className="mt-3 text-xs text-slate">Le statut se met à jour automatiquement.</p><button type="button" onClick={() => setOrder(null)} className="mt-5 rounded-xl bg-dark px-5 py-2.5 font-semibold text-white">Fermer</button></div></div>}
 

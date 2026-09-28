@@ -9,6 +9,10 @@ function normalizeLabel(value) {
   return typeof value === "string" ? value.trim().slice(0, 80) : "";
 }
 
+function normalizeZone(value) {
+  return typeof value === "string" ? value.trim().slice(0, 80) || null : null;
+}
+
 function parseCapacity(value) {
   const capacity = Number(value);
   return Number.isInteger(capacity) && capacity >= 1 && capacity <= 100 ? capacity : null;
@@ -37,7 +41,7 @@ exports.createTable = async (req, res) => {
     const duplicate = await RestaurantTable.findOne({ where: { enterpriseId, label } });
     if (duplicate) return res.status(409).json({ success: false, message: "Une table porte déjà ce nom" });
 
-    const table = await RestaurantTable.create({ enterpriseId, label, capacity, status: "active", sortOrder: Number(req.body.sortOrder) || 0 });
+    const table = await RestaurantTable.create({ enterpriseId, label, zone: normalizeZone(req.body.zone), capacity, status: "active", sortOrder: Number(req.body.sortOrder) || 0 });
     return res.status(201).json({ success: true, data: table });
   } catch (error) {
     console.error("Create restaurant table error:", error);
@@ -53,13 +57,14 @@ exports.updateTable = async (req, res) => {
 
     const label = req.body.label === undefined ? table.label : normalizeLabel(req.body.label);
     const capacity = req.body.capacity === undefined ? table.capacity : parseCapacity(req.body.capacity);
+    const zone = req.body.zone === undefined ? table.zone : normalizeZone(req.body.zone);
     const status = req.body.status === undefined ? table.status : req.body.status;
     if (!label || !capacity || !["active", "inactive"].includes(status)) return res.status(400).json({ success: false, message: "Données de table invalides" });
 
     const duplicate = await RestaurantTable.findOne({ where: { enterpriseId, label, id: { [Op.ne]: table.id } } });
     if (duplicate) return res.status(409).json({ success: false, message: "Une table porte déjà ce nom" });
 
-    await table.update({ label, capacity, status, sortOrder: req.body.sortOrder === undefined ? table.sortOrder : Number(req.body.sortOrder) || 0 });
+    await table.update({ label, zone, capacity, status, sortOrder: req.body.sortOrder === undefined ? table.sortOrder : Number(req.body.sortOrder) || 0 });
     return res.json({ success: true, data: table });
   } catch (error) {
     console.error("Update restaurant table error:", error);
