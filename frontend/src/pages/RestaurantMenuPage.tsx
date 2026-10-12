@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { CalendarDays, CheckCircle2, MapPin, Minus, Plus, ShoppingBag, Star, Trash2, Utensils, X } from 'lucide-react';
 import { useParams } from 'react-router-dom';
-import { createPublicOrder, createPublicReservation, getPublicOrder, getPublicRestaurantMenu, getPublicTableMenu } from '../api/restaurantMenuApi';
-import type { PublicRestaurantMenu, RestaurantMenuItem, RestaurantOrder } from '../api/restaurantMenuApi';
+import { createPublicOrder, createPublicReservation, getPublicOrder, getPublicOrderQrCode, getPublicRestaurantMenu, getPublicTableMenu } from '../api/restaurantMenuApi';
+import type { PublicOrderQrCode, PublicRestaurantMenu, RestaurantMenuItem, RestaurantOrder } from '../api/restaurantMenuApi';
 
 const formatPrice = (priceMinor: number) => `${new Intl.NumberFormat('fr-FR').format(priceMinor)} FCFA`;
 
@@ -31,12 +31,16 @@ const RestaurantMenuPage: React.FC = () => {
   const [orderSubmitting, setOrderSubmitting] = useState(false);
   const [orderError, setOrderError] = useState<string | null>(null);
   const [order, setOrder] = useState<RestaurantOrder | null>(null);
+  const [orderQr, setOrderQr] = useState<PublicOrderQrCode | null>(null);
+  const [orderQrLoading, setOrderQrLoading] = useState(false);
+  const [orderQrError, setOrderQrError] = useState<string | null>(null);
   const [orderForm, setOrderForm] = useState({ tableReference: '', contact: '', customerNote: '' });
   const [reservationOpen, setReservationOpen] = useState(false);
   const [reservationSubmitting, setReservationSubmitting] = useState(false);
   const [reservationSuccess, setReservationSuccess] = useState(false);
   const [reservationError, setReservationError] = useState<string | null>(null);
   const [reservationForm, setReservationForm] = useState({ reservationDate: '', reservationTime: '', partySize: 2, contact: '' });
+  const [categoryPages, setCategoryPages] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (!menuIdentifier) return;
@@ -92,7 +96,13 @@ const RestaurantMenuPage: React.FC = () => {
       return;
     }
     setConfiguringItem(item);
-    setSelectedOptionIds({});
+    setSelectedOptionIds(Object.fromEntries(activeGroups.map((group) => {
+      const includedOptions = group.options
+        .filter((option) => option.isAvailable && option.priceModifierMinor === 0)
+        .slice(0, group.selectionType === 'single' ? 1 : group.maxSelections)
+        .map((option) => option.id);
+      return [group.id, includedOptions];
+    })));
     setSelectionError(null);
   };
 
@@ -123,6 +133,13 @@ const RestaurantMenuPage: React.FC = () => {
     setConfiguringItem(null);
   };
 
+  const isConfigurationValid = !configuringItem || (configuringItem.optionGroups || [])
+    .filter((group) => group.isActive)
+    .every((group) => {
+      const count = (selectedOptionIds[group.id] || []).length;
+      return count >= group.minSelections && count <= group.maxSelections;
+    });
+
   const handleOrderSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!cartLines.length) return;
@@ -136,6 +153,13 @@ const RestaurantMenuPage: React.FC = () => {
         customerNote: orderForm.customerNote,
       });
       setOrder(createdOrder);
+      setOrderQr(null);
+      setOrderQrError(null);
+      setOrderQrLoading(true);
+      void getPublicOrderQrCode(createdOrder.publicOrderToken)
+        .then(setOrderQr)
+        .catch((requestError: unknown) => setOrderQrError(requestError instanceof Error ? requestError.message : 'Impossible d’afficher le QR code de suivi.'))
+        .finally(() => setOrderQrLoading(false));
       setCart({});
       setCartOpen(false);
       setOrderDetailsOpen(false);
@@ -198,11 +222,16 @@ const RestaurantMenuPage: React.FC = () => {
           <section className="mt-6 rounded-3xl bg-white p-10 text-center shadow-soft"><h2 className="text-xl font-bold">Menu en préparation</h2><p className="mt-2 text-slate">Aucun plat n’est disponible pour le moment.</p></section>
         ) : (
           <div className="mt-6 space-y-6">
-            {availableCategories.map((category) => (
+            {availableCategories.map((category) => {
+              const pageSize = 6;
+              const totalPages = Math.ceil(category.items.length / pageSize);
+              const currentPage = Math.min(categoryPages[category.id] || 1, totalPages);
+              const pageItems = category.items.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+              return (
               <section key={category.id} id={`category-${category.id}`} className="scroll-mt-24 rounded-3xl bg-white p-4 shadow-soft sm:p-6">
                 <div className="mb-5 flex items-end justify-between gap-3 border-b border-slate/10 pb-4"><div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Catégorie</p><h2 className="mt-1 text-2xl font-bold">{category.name}</h2>{category.description && <p className="mt-1 text-sm text-slate">{category.description}</p>}</div><span className="rounded-full bg-cloud px-3 py-1 text-xs font-semibold text-slate">{category.items.length} {category.items.length > 1 ? 'plats' : 'plat'}</span></div>
                 <div className="grid gap-4 lg:grid-cols-2">
-                  {category.items.map((item) => (
+                  {pageItems.map((item) => (
                     <article key={item.id} className="flex min-w-0 gap-4 rounded-2xl border border-slate/10 bg-[#fcfbfe] p-3 transition-shadow hover:shadow-soft sm:p-4">
                       {item.imageUrl ? <img src={item.imageUrl} alt={item.name} loading="lazy" decoding="async" className="h-24 w-24 shrink-0 rounded-2xl object-cover sm:h-28 sm:w-28" /> : <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-2xl bg-primary/10 sm:h-28 sm:w-28"><Utensils className="h-8 w-8 text-primary" /></div>}
                       <div className="flex min-w-0 flex-1 flex-col">
@@ -213,19 +242,29 @@ const RestaurantMenuPage: React.FC = () => {
                     </article>
                   ))}
                 </div>
+                {totalPages > 1 && (
+                  <div className="mt-5 flex flex-wrap items-center justify-center gap-2 border-t border-slate/10 pt-4">
+                    <button type="button" onClick={() => setCategoryPages((current) => ({ ...current, [category.id]: Math.max(1, currentPage - 1) }))} disabled={currentPage === 1} className="rounded-xl border border-slate/15 px-3 py-2 text-sm font-semibold text-slate transition-colors hover:bg-cloud disabled:cursor-not-allowed disabled:opacity-40">Précédent</button>
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => <button key={page} type="button" onClick={() => setCategoryPages((current) => ({ ...current, [category.id]: page }))} aria-current={page === currentPage ? 'page' : undefined} className={'h-9 min-w-9 rounded-xl px-2 text-sm font-semibold transition-colors ' + (page === currentPage ? 'bg-primary text-white' : 'text-slate hover:bg-primary/10 hover:text-primary')}>{page}</button>)}
+                    </div>
+                    <button type="button" onClick={() => setCategoryPages((current) => ({ ...current, [category.id]: Math.min(totalPages, currentPage + 1) }))} disabled={currentPage === totalPages} className="rounded-xl border border-slate/15 px-3 py-2 text-sm font-semibold text-slate transition-colors hover:bg-cloud disabled:cursor-not-allowed disabled:opacity-40">Suivant</button>
+                  </div>
+                )}
               </section>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
 
       {cartCount > 0 && <button type="button" onClick={() => { setCartOpen(true); setOrderError(null); setOrderDetailsOpen(false); }} className="fixed bottom-5 left-1/2 z-40 flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 items-center justify-between rounded-2xl bg-dark px-5 py-4 text-white shadow-xl"><span className="inline-flex items-center gap-3 font-semibold"><ShoppingBag className="h-5 w-5" />Voir le panier <span className="rounded-full bg-primary px-2 py-0.5 text-sm">{cartCount}</span></span><span className="font-bold">{formatPrice(cartTotal)}</span></button>}
 
-      {configuringItem && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"><div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-white p-6 shadow-xl"><div className="mb-5 flex items-start justify-between gap-4"><div><p className="text-sm font-medium text-primary">Personnalisez votre plat</p><h2 className="text-2xl font-bold">{configuringItem.name}</h2></div><button type="button" onClick={() => setConfiguringItem(null)} className="rounded-xl p-2 hover:bg-cloud" aria-label="Fermer"><X className="h-5 w-5" /></button></div>{selectionError && <div className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{selectionError}</div>}<div className="space-y-4">{(configuringItem.optionGroups || []).filter((group) => group.isActive).map((group) => <section key={group.id} className="rounded-2xl bg-cloud p-4"><div className="mb-3"><h3 className="font-semibold">{group.name}</h3><p className="mt-1 text-xs text-slate">{group.minSelections > 0 ? `${group.minSelections} choix requis` : 'Facultatif'} · {group.selectionType === 'single' ? 'un choix' : `${group.maxSelections} choix maximum`}</p></div><div className="space-y-2">{group.options.map((option) => { const selected = (selectedOptionIds[group.id] || []).includes(option.id); return <button key={option.id} type="button" onClick={() => toggleOption(group.id, option.id, group.selectionType, group.maxSelections)} className={`flex w-full items-center justify-between rounded-xl border px-3 py-3 text-left text-sm ${selected ? 'border-primary bg-primary/10 text-primary' : 'border-slate/15 bg-white text-dark'}`}><span className="font-medium">{option.name}</span><span>{option.priceModifierMinor ? `+ ${formatPrice(option.priceModifierMinor)}` : 'Inclus'}</span></button>; })}</div></section>)}</div><div className="mt-5 flex items-center justify-between border-t border-slate/10 pt-4"><span className="font-semibold">Prix</span><span className="text-xl font-bold text-primary">{formatPrice(getLineUnitPrice(configuringItem, Object.values(selectedOptionIds).flat()))}</span></div><button type="button" onClick={addConfiguredItem} className="mt-4 w-full rounded-xl bg-primary px-4 py-3 font-semibold text-white">Ajouter au panier</button></div></div>}
+      {configuringItem && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"><div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-white p-6 shadow-xl"><div className="mb-5 flex items-start justify-between gap-4"><div><p className="text-sm font-medium text-primary">Personnalisez votre plat</p><h2 className="text-2xl font-bold">{configuringItem.name}</h2></div><button type="button" onClick={() => setConfiguringItem(null)} className="rounded-xl p-2 hover:bg-cloud" aria-label="Fermer"><X className="h-5 w-5" /></button></div>{selectionError && <div className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{selectionError}</div>}<div className="space-y-4">{(configuringItem.optionGroups || []).filter((group) => group.isActive).map((group) => <section key={group.id} className="rounded-2xl bg-cloud p-4"><div className="mb-3"><h3 className="font-semibold">{group.name}</h3><p className="mt-1 text-xs text-slate">{group.minSelections > 0 ? `${group.minSelections} choix requis` : 'Facultatif'} · {group.selectionType === 'single' ? 'un choix' : `${group.maxSelections} choix maximum`}</p></div><div className="space-y-2">{group.options.map((option) => { const selected = (selectedOptionIds[group.id] || []).includes(option.id); return <button key={option.id} type="button" onClick={() => toggleOption(group.id, option.id, group.selectionType, group.maxSelections)} className={`flex w-full items-center justify-between rounded-xl border px-3 py-3 text-left text-sm ${selected ? 'border-primary bg-primary/10 text-primary' : 'border-slate/15 bg-white text-dark'}`}><span className="font-medium">{option.name}</span><span>{option.priceModifierMinor ? `+ ${formatPrice(option.priceModifierMinor)}` : 'Inclus'}</span></button>; })}</div></section>)}</div><div className="mt-5 flex items-center justify-between border-t border-slate/10 pt-4"><span className="font-semibold">Prix</span><span className="text-xl font-bold text-primary">{formatPrice(getLineUnitPrice(configuringItem, Object.values(selectedOptionIds).flat()))}</span></div>{!isConfigurationValid && <p className="mt-3 text-center text-sm text-slate">Sélectionnez le nombre de choix requis pour continuer.</p>}<button type="button" onClick={addConfiguredItem} disabled={!isConfigurationValid} className={`mt-4 w-full rounded-xl px-4 py-3 font-semibold transition-colors ${isConfigurationValid ? 'bg-primary text-white hover:bg-primary/90' : 'cursor-not-allowed bg-slate/15 text-slate'}`}>Ajouter au panier</button></div></div>}
 
       {cartOpen && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"><div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-white p-6 shadow-xl"><div className="mb-5 flex items-start justify-between gap-4"><div><p className="text-sm font-medium text-primary">Votre sélection</p><h2 className="text-2xl font-bold">Votre panier</h2><p className="mt-1 text-sm text-slate">Vérifiez votre commande avant envoi.</p></div><button type="button" onClick={() => setCartOpen(false)} className="rounded-xl p-2 hover:bg-cloud" aria-label="Fermer"><X className="h-5 w-5" /></button></div>{orderError && <div className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{orderError}</div>}<div className="mb-5 space-y-3">{cartLines.map(({ key, item, optionIds, quantity }) => <div key={key} className="flex items-center gap-3 rounded-2xl bg-cloud p-3"><div className="min-w-0 flex-1"><p className="truncate font-semibold">{item.name}</p>{optionIds.length > 0 && <p className="truncate text-xs text-slate">{(item.optionGroups || []).flatMap((group) => group.options).filter((option) => optionIds.includes(option.id)).map((option) => option.name).join(' · ')}</p>}<p className="text-sm text-slate">{quantity} × {formatPrice(getLineUnitPrice(item, optionIds))}</p></div><div className="flex items-center gap-1.5"><button type="button" onClick={() => updateQuantity(key, quantity - 1)} className="rounded-lg bg-white p-1.5"><Minus className="h-4 w-4" /></button><span className="w-5 text-center text-sm font-semibold">{quantity}</span><button type="button" onClick={() => updateQuantity(key, quantity + 1)} className="rounded-lg bg-white p-1.5"><Plus className="h-4 w-4" /></button><button type="button" onClick={() => updateQuantity(key, 0)} className="rounded-lg p-1.5 text-red-600 hover:bg-red-50" aria-label={`Supprimer ${item.name}`}><Trash2 className="h-4 w-4" /></button></div></div>)}</div><form onSubmit={handleOrderSubmit} className="space-y-4"><button type="button" onClick={() => setOrderDetailsOpen((current) => !current)} className="w-full rounded-xl border border-slate/20 px-4 py-3 text-sm font-semibold text-dark hover:bg-cloud">{orderDetailsOpen ? 'Masquer les informations facultatives' : 'Ajouter des informations facultatives'}</button>{orderDetailsOpen && <div className="space-y-4"><label className="block text-sm font-medium">Table (facultatif)<input value={orderForm.tableReference} onChange={(event) => setOrderForm({ ...orderForm, tableReference: event.target.value })} maxLength={80} placeholder="Ex. Table 12" className="mt-1 w-full rounded-xl border border-slate/20 px-3 py-2.5" /></label><label className="block text-sm font-medium">Contact (facultatif)<input value={orderForm.contact} onChange={(event) => setOrderForm({ ...orderForm, contact: event.target.value })} maxLength={160} placeholder="Nom ou téléphone" className="mt-1 w-full rounded-xl border border-slate/20 px-3 py-2.5" /></label><label className="block text-sm font-medium">Note pour la cuisine (facultatif)<textarea value={orderForm.customerNote} onChange={(event) => setOrderForm({ ...orderForm, customerNote: event.target.value })} maxLength={1000} rows={2} className="mt-1 w-full rounded-xl border border-slate/20 px-3 py-2.5" /></label></div>}<div className="flex items-center justify-between border-t border-slate/10 pt-4"><span className="font-semibold">Total</span><span className="text-xl font-bold text-primary">{formatPrice(cartTotal)}</span></div><button type="submit" disabled={orderSubmitting} className="w-full rounded-xl bg-primary px-4 py-3 font-semibold text-white disabled:opacity-50">{orderSubmitting ? 'Envoi…' : 'Envoyer la commande'}</button></form></div></div>}
 
-      {order && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"><div className="w-full max-w-md rounded-3xl bg-white p-6 text-center shadow-xl"><CheckCircle2 className="mx-auto mb-3 h-12 w-12 text-green-600" /><h2 className="text-xl font-bold">Commande envoyée</h2><p className="mt-2 text-slate">Référence : <strong>{order.publicOrderToken.slice(0, 8).toUpperCase()}</strong></p><p className="mt-1 text-slate">Statut : <strong>{order.status === 'pending' ? 'En attente de prise en charge' : order.status}</strong></p><p className="mt-4 text-2xl font-bold text-primary">{formatPrice(order.totalMinor)}</p><p className="mt-3 text-xs text-slate">Le statut se met à jour automatiquement.</p><button type="button" onClick={() => setOrder(null)} className="mt-5 rounded-xl bg-dark px-5 py-2.5 font-semibold text-white">Fermer</button></div></div>}
+      {order && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"><div className="relative w-full max-w-sm overflow-hidden rounded-3xl bg-white text-center shadow-xl"><div className="bg-dark px-6 pb-6 pt-7 text-white"><CheckCircle2 className="mx-auto mb-3 h-11 w-11 text-green-400" /><p className="text-sm font-medium text-white/70">Commande envoyée</p><h2 className="mt-1 text-xl font-bold">Merci pour votre commande</h2></div><div className="p-6"><div className="flex items-center justify-between rounded-2xl bg-cloud px-4 py-3 text-left"><div><p className="text-xs text-slate">Référence</p><p className="font-bold text-dark">{order.publicOrderToken.slice(0, 8).toUpperCase()}</p></div><p className="text-right text-lg font-bold text-primary">{formatPrice(order.totalMinor)}</p></div><div className="mt-5"><p className="font-semibold text-dark">Conservez votre QR de suivi</p><p className="mt-1 text-sm text-slate">Scannez-le à tout moment pour suivre la préparation de votre commande.</p>{orderQrLoading && <div className="mx-auto mt-4 h-28 w-28 animate-spin rounded-full border-4 border-slate/15 border-t-primary" />}{orderQr && <img src={orderQr.qrCodeDataUrl} alt="QR code de suivi de votre commande" className="mx-auto mt-4 h-44 w-44 rounded-2xl border border-slate/10 p-2" />}{orderQrError && <p className="mt-3 text-sm text-red-600">{orderQrError}</p>}</div><button type="button" onClick={() => { setOrder(null); setOrderQr(null); }} className="mt-6 w-full rounded-xl bg-dark px-5 py-3 font-semibold text-white transition-colors hover:bg-dark/90">Fermer</button></div></div></div>}
 
       {reservationOpen && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"><div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-xl"><div className="mb-5 flex items-start justify-between gap-4"><div><p className="text-sm font-medium text-primary">Réservation</p><h2 className="text-xl font-bold">Réserver une table</h2><p className="mt-1 text-sm text-slate">Votre demande sera transmise à {payload.restaurant.name}.</p></div><button type="button" onClick={() => setReservationOpen(false)} className="rounded-xl p-2 hover:bg-cloud" aria-label="Fermer"><X className="h-5 w-5" /></button></div>{reservationSuccess ? <div className="rounded-2xl bg-green-50 p-5 text-center text-green-800"><CalendarDays className="mx-auto mb-2 h-8 w-8" /><p className="font-semibold">Demande envoyée</p><p className="mt-1 text-sm">Le restaurant vous recontactera pour confirmer la réservation.</p><button type="button" onClick={() => setReservationOpen(false)} className="mt-4 rounded-xl bg-green-700 px-4 py-2 font-medium text-white">Fermer</button></div> : <form onSubmit={handleReservationSubmit} className="space-y-4">{reservationError && <div className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{reservationError}</div>}<div className="grid grid-cols-2 gap-3"><label className="block text-sm font-medium">Date<input type="date" min={today} required value={reservationForm.reservationDate} onChange={(event) => setReservationForm({ ...reservationForm, reservationDate: event.target.value })} className="mt-1 w-full rounded-xl border border-slate/20 px-3 py-2.5" /></label><label className="block text-sm font-medium">Heure<input type="time" required value={reservationForm.reservationTime} onChange={(event) => setReservationForm({ ...reservationForm, reservationTime: event.target.value })} className="mt-1 w-full rounded-xl border border-slate/20 px-3 py-2.5" /></label></div><label className="block text-sm font-medium">Nombre de couverts<input type="number" min="1" max="100" required value={reservationForm.partySize} onChange={(event) => setReservationForm({ ...reservationForm, partySize: Number(event.target.value) })} className="mt-1 w-full rounded-xl border border-slate/20 px-3 py-2.5" /></label><label className="block text-sm font-medium">Contact (nom, téléphone ou email)<input type="text" minLength={2} maxLength={160} required value={reservationForm.contact} onChange={(event) => setReservationForm({ ...reservationForm, contact: event.target.value })} className="mt-1 w-full rounded-xl border border-slate/20 px-3 py-2.5" /></label><button type="submit" disabled={reservationSubmitting} className="w-full rounded-xl bg-primary px-4 py-3 font-semibold text-white disabled:opacity-50">{reservationSubmitting ? 'Envoi…' : 'Envoyer la demande'}</button></form>}</div></div>}
     </main>

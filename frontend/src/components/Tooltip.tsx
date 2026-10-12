@@ -5,12 +5,14 @@ interface TooltipProps {
   content: string;
   position?: 'top' | 'bottom' | 'left' | 'right';
   children: React.ReactElement;
+  className?: string;
 }
 
 const Tooltip: React.FC<TooltipProps> = ({
   content,
   position = 'right',
   children,
+  className = '',
 }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [coords, setCoords] = useState({ top: 0, left: 0 });
@@ -80,7 +82,7 @@ const Tooltip: React.FC<TooltipProps> = ({
     <>
       <div
         ref={childRef}
-        className="inline-flex"
+        className={'inline-flex ' + className}
         onMouseEnter={() => setIsVisible(true)}
         onMouseLeave={() => setIsVisible(false)}
         onFocus={() => setIsVisible(true)}

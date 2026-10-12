@@ -100,7 +100,11 @@ const Sidebar: React.FC<SidebarProps> = ({
               />
             </div>
             {isExpanded && (
-              <h1 className="min-w-0 flex-1 font-bold font-poppins text-dark text-lg truncate" title={displayName}>{displayName}</h1>
+              <Tooltip content={displayName} position="bottom" className="min-w-0 flex-1">
+                <div className="min-w-0 flex-1">
+                  <h1 className="w-full whitespace-normal break-words leading-tight font-bold font-poppins text-dark text-lg">{displayName}</h1>
+                </div>
+              </Tooltip>
             )}
           </div>
           {/* Bouton fermer mobile */}

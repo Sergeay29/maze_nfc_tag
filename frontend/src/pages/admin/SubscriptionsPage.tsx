@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { TrendingUp, Filter, RefreshCw } from 'lucide-react';
-import { Badge, Table, SearchInput, Card, StatCard, Select, Avatar, Toast } from '../../components';
+import { Badge, Table, SearchInput, Card, StatCard, Select, Avatar, Toast, Tooltip } from '../../components';
 import { getSubscriptions, updateSubscription } from '../../api/adminApi';
 import type { SubscriptionRecord } from '../../api/adminApi';
 import { SUBSCRIPTION_PLAN_CONFIG, formatSubscriptionPrice, getSubscriptionPlanLabel } from '../../config/subscriptions';
@@ -189,14 +189,14 @@ const SubscriptionsPage: React.FC = () => {
           <Badge variant={sub.status === 'active' ? 'active' : sub.status === 'paused' ? 'warning' : 'inactive'}>
             {sub.status === 'active' ? 'Actif' : sub.status === 'paused' ? 'Pausé' : 'Annulé'}
           </Badge>
-          <button
+          <Tooltip content={sub.status === 'active' ? 'Pausser' : 'Réactiver'} position="top"><button
             onClick={(e) => { e.stopPropagation(); handleToggleStatus(sub); }}
             disabled={updatingId === sub.id || sub.status === 'cancelled'}
             className="p-1 rounded-lg hover:bg-cloud transition-colors disabled:opacity-40"
-            title={sub.status === 'active' ? 'Pausser' : 'Réactiver'}
+            aria-label={sub.status === 'active' ? 'Pausser l’abonnement' : 'Réactiver l’abonnement'}
           >
             <RefreshCw className={`w-4 h-4 text-slate ${updatingId === sub.id ? 'animate-spin' : ''}`} />
-          </button>
+          </button></Tooltip>
         </div>
       ),
     },

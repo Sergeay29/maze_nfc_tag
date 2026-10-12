@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Edit2, Plus, User, Power, Trash2 } from 'lucide-react';
-import { Button, Badge, Table, SearchInput, Card, Pagination, Avatar, Modal, Input, PhoneInput, Toast } from '../../components';
+import { Button, Badge, Table, SearchInput, Card, Pagination, Avatar, Modal, Input, PhoneInput, Toast, Tooltip } from '../../components';
 import { useNavigate } from 'react-router-dom';
 import { getClients, createClient, updateClient } from '../../api/enterpriseApi';
 import type { ClientData } from '../../api/enterpriseApi';
@@ -205,33 +205,33 @@ const ClientsPage: React.FC = () => {
       header: 'Actions',
       render: (client: ClientData) => (
         <div className="flex items-center gap-2">
-          <button
+          <Tooltip content="Modifier" position="top"><button
             onClick={(e) => { e.stopPropagation(); handleEdit(client); }}
             disabled={actionLoading === client.id}
             className="p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors disabled:opacity-50"
-            title="Modifier"
+            aria-label="Modifier le client"
           >
             <Edit2 className="w-4 h-4" />
-          </button>
-          <button
+          </button></Tooltip>
+          <Tooltip content={client.status ? 'Désactiver' : 'Activer'} position="top"><button
             onClick={(e) => { e.stopPropagation(); handleToggleStatus(client); }}
             disabled={actionLoading === client.id}
             className={`p-2 rounded-lg transition-colors disabled:opacity-50 ${client.status
               ? 'text-warning hover:bg-warning/10'
               : 'text-green-600 hover:bg-green-50'
               }`}
-            title={client.status ? 'Désactiver' : 'Activer'}
+            aria-label={client.status ? 'Désactiver le client' : 'Activer le client'}
           >
             <Power className="w-4 h-4" />
-          </button>
-          <button
+          </button></Tooltip>
+          <Tooltip content="Supprimer" position="top"><button
             onClick={(e) => { e.stopPropagation(); handleDelete(client); }}
             disabled={actionLoading === client.id}
             className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-            title="Supprimer"
+            aria-label="Supprimer le client"
           >
             <Trash2 className="w-4 h-4" />
-          </button>
+          </button></Tooltip>
 
         </div>
       ),

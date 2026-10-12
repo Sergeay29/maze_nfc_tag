@@ -39,6 +39,7 @@ import {
   TablesPage,
 } from './pages';
 import RestaurantMenuPage from './pages/RestaurantMenuPage';
+import RestaurantOrderTrackingPage from './pages/RestaurantOrderTrackingPage';
 import ScanLandingPage from './pages/ScanLandingPage';
 import GenerateStockPage from './pages/admin/GenerateStockPage';
 import AssignStockPage from './pages/admin/AssignStockPage';
@@ -59,6 +60,7 @@ const App: React.FC = () => {
         <Route path="/:enterpriseSlug/:cardType/:token" element={<ScanLandingPage />} />
         <Route path="/restau/menu/:enterpriseId" element={<RestaurantMenuPage />} />
         <Route path="/restau/table/:publicToken" element={<RestaurantMenuPage />} />
+        <Route path="/restau/order/:token" element={<RestaurantOrderTrackingPage />} />
 
         {/* Admin Routes */}
         <Route element={<ProtectedRoute allowedRoles={['SUPER_ADMIN']} />}>

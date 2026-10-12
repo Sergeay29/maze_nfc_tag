@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Upload, X } from 'lucide-react';
+import Tooltip from './Tooltip';
 
 interface LogoUploadProps {
   value: string;                    // URL actuelle (logo déjà enregistré)
@@ -88,14 +89,14 @@ const LogoUpload: React.FC<LogoUploadProps> = ({
 
         <div className="flex items-center gap-2 flex-shrink-0">
           {displaySrc && (
-            <button
+            <Tooltip content="Supprimer" position="top"><button
               type="button"
               onClick={handleClear}
               className="p-1.5 rounded-lg hover:bg-red-50 text-slate hover:text-red-500 transition-colors"
-              title="Supprimer"
+              aria-label="Supprimer le logo"
             >
               <X className="w-4 h-4" />
-            </button>
+            </button></Tooltip>
           )}
           <button
             type="button"

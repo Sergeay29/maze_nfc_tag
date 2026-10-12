@@ -9,7 +9,7 @@ import {
   ToggleRight,
 } from 'lucide-react';
 import { copyToClipboard } from '../../utils/clipboard';
-import { Button, Badge, Table, SearchInput, Card } from '../../components';
+import { Button, Badge, Table, SearchInput, Card, Tooltip } from '../../components';
 import { useNavigate } from 'react-router-dom';
 import { getCards, updateCardStatus, getCardTypes } from '../../api/adminApi';
 import type { NFCCard } from '../../data/mockData';
@@ -197,21 +197,15 @@ const NFCCardsPage: React.FC = () => {
       render: (card: NFCCard) => (
         card.scanUrl ? (
           <div className="flex items-center gap-2 max-w-[420px]">
-            <span
+            <Tooltip content={card.scanUrl} position="top"><span
               className="flex-1 truncate rounded-lg bg-slate-50 px-3 py-2 text-sm font-mono text-slate-700 border"
-              title={card.scanUrl}
             >
               {card.scanUrl}
-            </span>
+            </span></Tooltip>
 
-            <button
+            <Tooltip content={copiedCardId === card.id ? 'Lien copié' : 'Copier le lien'} position="top"><button
               type="button"
               onClick={() => void handleCopyScanUrl(card)}
-              title={
-                copiedCardId === card.id
-                  ? 'Lien copié'
-                  : 'Copier le lien'
-              }
               aria-label={
                 copiedCardId === card.id
                   ? 'Lien copié'
@@ -224,7 +218,7 @@ const NFCCardsPage: React.FC = () => {
               ) : (
                 <Copy className="w-4 h-4" />
               )}
-            </button>
+            </button></Tooltip>
           </div>
         ) : (
             <span className="text-slate text-xs italic">
@@ -253,10 +247,10 @@ const NFCCardsPage: React.FC = () => {
         const isActive = card.status === 'active';
         const isToggling = togglingId === card.id;
         return (
-          <button
+          <Tooltip content={isActive ? 'Cliquer pour désactiver' : 'Cliquer pour activer'} position="top"><button
             onClick={() => handleToggleStatus(card)}
             disabled={isToggling}
-            title={isActive ? 'Cliquer pour désactiver' : 'Cliquer pour activer'}
+            aria-label={isActive ? 'Désactiver la carte' : 'Activer la carte'}
             className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-colors ${isToggling ? 'opacity-50 cursor-wait' :
               isActive
                 ? 'text-green-700 bg-green-50 hover:bg-red-50 hover:text-red-600'
@@ -267,7 +261,7 @@ const NFCCardsPage: React.FC = () => {
               ? <><ToggleRight className="w-4 h-4" /> ON</>
               : <><ToggleLeft className="w-4 h-4" /> OFF</>
             }
-          </button>
+          </button></Tooltip>
         );
       },
     },

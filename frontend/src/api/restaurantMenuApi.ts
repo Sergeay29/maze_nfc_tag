@@ -374,6 +374,16 @@ export async function getPublicOrder(token: string): Promise<RestaurantOrder> {
   return request<RestaurantOrder>(`/restau/public/orders/${token}`);
 }
 
+export interface PublicOrderQrCode {
+  orderId: string;
+  targetUrl: string;
+  qrCodeDataUrl: string;
+}
+
+export async function getPublicOrderQrCode(token: string): Promise<PublicOrderQrCode> {
+  return request<PublicOrderQrCode>(`/restau/public/orders/${token}/qr-code`);
+}
+
 export async function getRestaurantOrders(): Promise<RestaurantOrder[]> {
   return request<RestaurantOrder[]>('/enterprise/orders');
 }
@@ -404,4 +414,15 @@ export async function downloadRestaurantOrderTicket(id: string): Promise<Blob> {
     throw new Error(message);
   }
   return response.blob();
+}
+
+export interface RestaurantOrderQrCode {
+  orderId: string;
+  publicOrderToken: string;
+  targetUrl: string;
+  qrCodeDataUrl: string;
+}
+
+export async function getRestaurantOrderQrCode(id: string): Promise<RestaurantOrderQrCode> {
+  return request<RestaurantOrderQrCode>(`/enterprise/orders/${id}/qr-code`);
 }

@@ -1,5 +1,5 @@
 const QRCode = require("qrcode");
-const { NFCCard, RestaurantTable } = require("../models");
+const { NFCCard, RestaurantTable, RestaurantOrder } = require("../models");
 
 const qrOptions = {
   errorCorrectionLevel: "M",
@@ -86,5 +86,30 @@ exports.getEnterpriseTableQrCode = async (req, res) => {
   } catch (error) {
     console.error("Generate enterprise table QR code error:", error);
     return res.status(500).json({ success: false, message: "Erreur lors de la génération du QR code de table" });
+  }
+};
+
+exports.getEnterpriseOrderQrCode = async (req, res) => {
+  try {
+    const order = await RestaurantOrder.findOne({
+      where: { id: req.params.id, enterpriseId: req.user.enterpriseId },
+      attributes: ["id", "publicOrderToken"],
+    });
+    if (!order) return res.status(404).json({ success: false, message: "Commande introuvable" });
+
+    const frontendUrl = (process.env.FRONTEND_URL || "http://localhost:5173").split(",")[0].trim().replace(/\/$/, "");
+    const targetUrl = `${frontendUrl}/restau/order/${order.publicOrderToken}`;
+    return res.json({
+      success: true,
+      data: {
+        orderId: order.id,
+        publicOrderToken: order.publicOrderToken,
+        targetUrl,
+        qrCodeDataUrl: await QRCode.toDataURL(targetUrl, qrOptions),
+      },
+    });
+  } catch (error) {
+    console.error("Generate enterprise order QR code error:", error);
+    return res.status(500).json({ success: false, message: "Erreur lors de la génération du QR code de commande" });
   }
 };

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Check, ChefHat, Clock3, ClipboardList, Download, Loader2, RefreshCw, Utensils, X } from 'lucide-react';
-import { downloadRestaurantOrderTicket, getRestaurantOrders, updateRestaurantOrderStatus } from '../../api/restaurantMenuApi';
+import { Check, ChefHat, Clock3, ClipboardList, Download, Loader2, QrCode, RefreshCw, Utensils, X } from 'lucide-react';
+import { Tooltip } from '../../components';
+import { downloadRestaurantOrderTicket, getRestaurantOrderQrCode, getRestaurantOrders, updateRestaurantOrderStatus } from '../../api/restaurantMenuApi';
 import type { RestaurantOrder, RestaurantOrderStatus } from '../../api/restaurantMenuApi';
 
 const statusLabels: Record<RestaurantOrderStatus, string> = {
@@ -57,6 +58,8 @@ const OrdersPage: React.FC = () => {
   const [filter, setFilter] = useState<OrderFilter>('all');
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [qrLoadingId, setQrLoadingId] = useState<string | null>(null);
+  const [qrModal, setQrModal] = useState<{ publicOrderToken: string; targetUrl: string; qrCodeDataUrl: string } | null>(null);
 
   const loadOrders = useCallback(async () => {
     try {
@@ -102,6 +105,17 @@ const OrdersPage: React.FC = () => {
       setError(requestError instanceof Error ? requestError.message : 'Impossible de télécharger le ticket');
     } finally {
       setDownloadingId(null);
+    }
+  };
+
+  const showOrderQr = async (order: RestaurantOrder) => {
+    try {
+      setQrLoadingId(order.id);
+      setQrModal(await getRestaurantOrderQrCode(order.id));
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Impossible de générer le QR code');
+    } finally {
+      setQrLoadingId(null);
     }
   };
 
@@ -185,7 +199,10 @@ const OrdersPage: React.FC = () => {
                 <div className="mt-4 flex-1 space-y-2 border-y border-slate/10 py-4">
                   {order.items.map((item) => (
                     <div key={item.id} className="flex justify-between gap-3 text-sm">
-                      <span className="min-w-0 truncate text-dark">{item.quantity} × {item.nameSnapshot}</span>
+                      <div className="min-w-0">
+                        <p className="truncate text-dark">{item.quantity} × {item.nameSnapshot}</p>
+                        {item.selectedOptionsSnapshot.length > 0 && <p className="mt-0.5 truncate text-xs text-slate">{item.selectedOptionsSnapshot.map((option) => option.name).join(' · ')}</p>}
+                      </div>
                       <span className="whitespace-nowrap font-medium text-slate">{formatPrice(item.lineTotalMinor)}</span>
                     </div>
                   ))}
@@ -195,8 +212,9 @@ const OrdersPage: React.FC = () => {
                 <div className="mt-4 flex items-center justify-between gap-3">
                   <span className="font-bold text-dark">{formatPrice(order.totalMinor)}</span>
                   <div className="flex items-center gap-2">
-                    <button type="button" disabled={downloadingId === order.id} onClick={() => void downloadTicket(order)} className="rounded-xl p-2 text-slate transition-colors hover:bg-cloud hover:text-primary disabled:opacity-50" title="Télécharger le ticket PDF" aria-label="Télécharger le ticket PDF">{downloadingId === order.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}</button>
-                    {order.status !== 'cancelled' && order.status !== 'served' && <button type="button" disabled={isUpdating} onClick={() => void changeStatus(order, 'cancelled')} className="rounded-xl p-2 text-red-600 transition-colors hover:bg-red-50" title="Annuler" aria-label="Annuler la commande"><X className="h-4 w-4" /></button>}
+                    <Tooltip content="Afficher le QR de suivi" position="top"><button type="button" disabled={qrLoadingId === order.id} onClick={() => void showOrderQr(order)} className="rounded-xl p-2 text-slate transition-colors hover:bg-cloud hover:text-primary disabled:opacity-50" aria-label="Afficher le QR de suivi">{qrLoadingId === order.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <QrCode className="h-4 w-4" />}</button></Tooltip>
+                    <Tooltip content="Télécharger le ticket PDF" position="top"><button type="button" disabled={downloadingId === order.id} onClick={() => void downloadTicket(order)} className="rounded-xl p-2 text-slate transition-colors hover:bg-cloud hover:text-primary disabled:opacity-50" aria-label="Télécharger le ticket PDF">{downloadingId === order.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}</button></Tooltip>
+                    {order.status !== 'cancelled' && order.status !== 'served' && <Tooltip content="Annuler la commande" position="top"><button type="button" disabled={isUpdating} onClick={() => void changeStatus(order, 'cancelled')} className="rounded-xl p-2 text-red-600 transition-colors hover:bg-red-50" aria-label="Annuler la commande"><X className="h-4 w-4" /></button></Tooltip>}
                     {next && <button type="button" disabled={isUpdating} onClick={() => void changeStatus(order, next)} className="inline-flex items-center gap-2 rounded-xl bg-primary px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary/90 disabled:opacity-50">{isUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : next === 'ready' ? <Check className="h-4 w-4" /> : <Clock3 className="h-4 w-4" />}{statusLabels[next]}</button>}
                   </div>
                 </div>
@@ -205,6 +223,8 @@ const OrdersPage: React.FC = () => {
           })}
         </div>
       )}
+
+      {qrModal && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"><div className="w-full max-w-md rounded-3xl bg-white p-6 text-center shadow-xl"><div className="mb-4 flex items-center justify-between gap-3 text-left"><div><h3 className="font-semibold text-dark">QR code de suivi</h3><p className="mt-1 text-xs text-slate">Commande #{qrModal.publicOrderToken.slice(0, 8).toUpperCase()}</p></div><button type="button" onClick={() => setQrModal(null)} className="rounded-xl p-2 hover:bg-cloud" aria-label="Fermer"><X className="h-5 w-5" /></button></div><img src={qrModal.qrCodeDataUrl} alt={`QR code de la commande ${qrModal.publicOrderToken.slice(0, 8).toUpperCase()}`} className="mx-auto h-64 w-64 rounded-xl border border-slate/10" /><p className="mt-4 text-sm text-slate">Le client peut scanner ce code pour suivre sa commande.</p><p className="mt-2 break-all text-xs text-slate">{qrModal.targetUrl}</p><a href={qrModal.qrCodeDataUrl} download={`suivi-commande-${qrModal.publicOrderToken.slice(0, 8).toUpperCase()}.png`} className="mt-5 inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 font-medium text-white hover:bg-primary/90"><Download className="h-4 w-4" />Télécharger le QR</a></div></div>}
     </div>
   );
 };

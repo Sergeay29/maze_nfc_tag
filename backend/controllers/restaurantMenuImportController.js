@@ -1,4 +1,5 @@
 const sequelize = require("../config/database");
+const XLSX = require("xlsx");
 const { Menu, MenuCategory, MenuItem, MenuItemOptionGroup, MenuItemOption } = require("../models");
 
 function normalize(value) {
@@ -44,6 +45,23 @@ function parseCsv(text) {
     .filter((row) => Object.values(row).some(Boolean));
 }
 
+function parseXlsx(buffer) {
+  const workbook = XLSX.read(buffer, { type: "buffer" });
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  const rows = sheet ? XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false, defval: "" }) : [];
+  if (rows.length < 2) return [];
+
+  const headers = rows.shift().map(normalizedHeader);
+  return rows.map((values) => Object.fromEntries(headers.map((header, index) => [header, normalize(values[index])])))
+    .filter((row) => Object.values(row).some(Boolean));
+}
+
+function parseMenuFile(file) {
+  const isExcel = /\.(xlsx|xls)$/i.test(file.originalname || "") ||
+    ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.ms-excel"].includes(file.mimetype);
+  return isExcel ? parseXlsx(file.buffer) : parseCsv(file.buffer.toString("utf8"));
+}
+
 function valueFrom(row, aliases) {
   for (const alias of aliases) {
     const value = row[normalizedHeader(alias)];
@@ -72,9 +90,9 @@ function parseBoolean(value, fallback = true) {
 
 exports.importMenuCsv = async (req, res) => {
   try {
-    if (!req.file?.buffer) return res.status(400).json({ success: false, message: "Sélectionnez un fichier CSV" });
-    const rows = parseCsv(req.file.buffer.toString("utf8"));
-    if (!rows.length) return res.status(400).json({ success: false, message: "Le fichier CSV est vide ou invalide" });
+    if (!req.file?.buffer) return res.status(400).json({ success: false, message: "Sélectionnez un fichier CSV ou Excel" });
+    const rows = parseMenuFile(req.file);
+    if (!rows.length) return res.status(400).json({ success: false, message: "Le fichier est vide ou invalide" });
 
     const errors = [];
     const normalizedRows = rows.map((row, index) => {
@@ -101,8 +119,8 @@ exports.importMenuCsv = async (req, res) => {
         optionGroupMin: parseInteger(valueFrom(row, ["optiongroupmin", "choix minimum"]), 0),
         optionGroupMax: parseInteger(valueFrom(row, ["optiongroupmax", "choix maximum"]), 1),
         optionName,
-        optionPriceMinor: parsePrice(valueFrom(row, ["optionprice", "prix option", "supplement prix"])) ?? 0,
-        optionOrder: parseInteger(valueFrom(row, ["optionorder", "ordre option"]), 0),
+        optionPriceMinor: parsePrice(valueFrom(row, ["optionprice", "prix option", "supplement prix", "supplément", "supplément (fcfa)"])) ?? 0,
+        optionOrder: parseInteger(valueFrom(row, ["optionorder", "ordre option", "ordre du choix"]), 0),
         optionAvailable: parseBoolean(valueFrom(row, ["optionavailable", "option disponible"])),
       };
     });

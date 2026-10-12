@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Plus, Filter, Copy, Check, Sparkles, Trash2, Edit2, Power } from 'lucide-react';
-import { Button, Badge, Table, SearchInput, Card, Modal, Input, Select, PhoneInput, Avatar, LogoUpload, Toast } from '../../components';
+import { Button, Badge, Table, SearchInput, Card, Modal, Input, Select, PhoneInput, Avatar, LogoUpload, Toast, Tooltip } from '../../components';
 import { useNavigate } from 'react-router-dom';
 import { getEnterprises, createEnterprise, updateEnterprise, deleteEnterprise, uploadLogo } from '../../api/adminApi';
 import { isValidPhoneNumber } from 'react-phone-number-input';
@@ -356,33 +356,33 @@ const EnterprisesPage: React.FC = () => {
       header: 'Actions',
       render: (entreprise: Enterprise) => (
         <div className="flex items-center gap-2">
-          <button
+          <Tooltip content="Modifier" position="top"><button
             onClick={(e) => { e.stopPropagation(); handleEdit(entreprise); }}
             disabled={actionLoading === entreprise.id}
             className="p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors disabled:opacity-50"
-            title="Modifier"
+            aria-label="Modifier l’entreprise"
           >
             <Edit2 className="w-4 h-4" />
-          </button>
-          <button
+          </button></Tooltip>
+          <Tooltip content={entreprise.status ? 'Désactiver' : 'Activer'} position="top"><button
             onClick={(e) => { e.stopPropagation(); handleToggleStatus(entreprise); }}
             disabled={actionLoading === entreprise.id}
             className={`p-2 rounded-lg transition-colors disabled:opacity-50 ${entreprise.status
               ? 'text-warning hover:bg-warning/10'
               : 'text-green-600 hover:bg-green-50'
               }`}
-            title={entreprise.status ? 'Désactiver' : 'Activer'}
+            aria-label={entreprise.status ? 'Désactiver l’entreprise' : 'Activer l’entreprise'}
           >
             <Power className="w-4 h-4" />
-          </button>
-          <button
+          </button></Tooltip>
+          <Tooltip content="Supprimer" position="top"><button
             onClick={(e) => { e.stopPropagation(); handleDelete(entreprise); }}
             disabled={actionLoading === entreprise.id}
             className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-            title="Supprimer"
+            aria-label="Supprimer l’entreprise"
           >
             <Trash2 className="w-4 h-4" />
-          </button>
+          </button></Tooltip>
 
         </div>
       ),
@@ -638,14 +638,14 @@ const EnterprisesPage: React.FC = () => {
             <code className="flex-1 text-sm font-mono text-dark tracking-widest select-all">
               {generatedPassword}
             </code>
-            <button
+            <Tooltip content="Copier" position="top"><button
               type="button"
               onClick={handleCopyPassword}
               className="p-2 rounded-lg hover:bg-primary/10 text-slate hover:text-primary transition-colors flex-shrink-0"
-              title="Copier"
+              aria-label="Copier le mot de passe"
             >
               {passwordCopied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
-            </button>
+            </button></Tooltip>
           </div>
           <p className="text-xs text-slate">
             L'entreprise devra changer ce mot de passe à sa première connexion.

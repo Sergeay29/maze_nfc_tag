@@ -1,5 +1,6 @@
 const crypto = require("crypto");
 const { Op } = require("sequelize");
+const QRCode = require("qrcode");
 const sequelize = require("../config/database");
 const {
   Enterprise,
@@ -191,6 +192,30 @@ exports.getPublicOrder = async (req, res) => {
   }
 };
 
+exports.getPublicOrderQrCode = async (req, res) => {
+  try {
+    const order = await RestaurantOrder.findOne({
+      where: { publicOrderToken: req.params.token },
+      attributes: ["id", "publicOrderToken"],
+    });
+    if (!order) return res.status(404).json({ success: false, message: "Commande introuvable" });
+
+    const frontendUrl = (process.env.FRONTEND_URL || "http://localhost:5173").split(",")[0].trim().replace(/\/$/, "");
+    const targetUrl = `${frontendUrl}/restau/order/${order.publicOrderToken}`;
+    return res.json({
+      success: true,
+      data: {
+        orderId: order.id,
+        targetUrl,
+        qrCodeDataUrl: await QRCode.toDataURL(targetUrl, { errorCorrectionLevel: "M", margin: 1, width: 320 }),
+      },
+    });
+  } catch (error) {
+    console.error("Generate public restaurant order QR code error:", error);
+    return res.status(500).json({ success: false, message: "Erreur lors de la génération du QR code" });
+  }
+};
+
 exports.getOrders = async (req, res) => {
   try {
     const orders = await RestaurantOrder.findAll({
@@ -229,10 +254,16 @@ exports.downloadOrderTicket = async (req, res) => {
   try {
     const order = await RestaurantOrder.findOne({
       where: { id: req.params.id, enterpriseId: req.user.enterpriseId },
-      include: [{ model: RestaurantOrderItem, as: "items" }, { model: Enterprise, as: "enterprise", attributes: ["name"] }],
+      include: [{ model: RestaurantOrderItem, as: "items" }, { model: Enterprise, as: "enterprise", attributes: ["name", "logo"] }],
     });
     if (!order) return res.status(404).json({ success: false, message: "Commande introuvable" });
-    const pdf = buildRestaurantOrderTicketPdf({ order, restaurantName: order.enterprise?.name });
+    const frontendUrl = (process.env.FRONTEND_URL || "http://localhost:5173").split(",")[0].trim().replace(/\/$/, "");
+    const pdf = await buildRestaurantOrderTicketPdf({
+      order,
+      restaurantName: order.enterprise?.name,
+      restaurantLogo: order.enterprise?.logo,
+      trackingUrl: `${frontendUrl}/restau/order/${order.publicOrderToken}`,
+    });
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="ticket-${order.publicOrderToken.slice(0, 8)}.pdf"`);
     return res.send(pdf);

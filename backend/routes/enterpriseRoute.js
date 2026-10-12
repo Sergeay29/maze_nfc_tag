@@ -583,6 +583,7 @@ router.patch("/tables/:id", restaurantTableController.updateTable);
 router.delete("/tables/:id", restaurantTableController.deleteTable);
 router.get("/tables/:id/qr-code", qrCodeController.getEnterpriseTableQrCode);
 router.get("/orders", restaurantOrderController.getOrders);
+router.get("/orders/:id/qr-code", qrCodeController.getEnterpriseOrderQrCode);
 router.get("/orders/:id/ticket.pdf", restaurantOrderController.downloadOrderTicket);
 router.patch("/orders/:id/status", restaurantOrderController.updateOrderStatus);
 

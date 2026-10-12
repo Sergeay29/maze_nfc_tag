@@ -10,6 +10,7 @@ router.get("/table/:publicToken", restaurantMenuController.getPublicTableMenu);
 router.get("/menu/:enterpriseId/availability", restaurantReservationController.getPublicAvailability);
 router.post("/menu/:enterpriseId/reservations", restaurantReservationController.createPublicReservation);
 router.post("/menu/:enterpriseId/orders", restaurantOrderController.createPublicOrder);
+router.get("/orders/:token/qr-code", restaurantOrderController.getPublicOrderQrCode);
 router.get("/orders/:token", restaurantOrderController.getPublicOrder);
 
 module.exports = router;

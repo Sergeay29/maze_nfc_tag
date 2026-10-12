@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CreditCard, Download, QrCode, User, UserPlus, X, ToggleLeft, ToggleRight } from 'lucide-react';
-import { Card, Badge, Pagination,  Input, Toast } from '../../components';
+import { Card, Badge, Pagination, Input, Toast, Tooltip } from '../../components';
 import { getEnterpriseCards, assignCard, getClients, getEnterpriseCardQrCode, updateEnterpriseCardStatus } from '../../api/enterpriseApi';
 import type { NFCCardData, ClientData } from '../../api/enterpriseApi';
 
@@ -163,20 +163,20 @@ const EnterpriseCardsPage: React.FC = () => {
                     <span className="truncate">{card.assignedClient ? card.assignedClient.name : 'Non attribuée'}</span>
                   </div>
                    <div className="flex items-center gap-1">
-                    <button
+                    <Tooltip content={card.scanUrl ? 'Afficher le QR code de secours' : 'Aucune URL cible pour cette carte'} position="top"><button
                       onClick={() => void handleShowQr(card)}
                       disabled={qrLoadingId === card.id || !card.scanUrl}
                       className="p-1.5 rounded-lg hover:bg-primary/10 transition-colors text-slate hover:text-primary disabled:opacity-40 disabled:cursor-not-allowed"
-                      title={card.scanUrl ? 'Afficher le QR code de secours' : 'Aucune URL cible pour cette carte'}
+                      aria-label={card.scanUrl ? 'Afficher le QR code de secours' : 'Aucune URL cible pour cette carte'}
                     >
                       <QrCode className="w-4 h-4" />
-                    </button>
+                    </button></Tooltip>
                     {/* Toggle activation uniquement si attribuée à un client */}
                     {card.assignedClient && (
-                      <button
+                      <Tooltip content={card.status === 'active' ? 'Désactiver la carte' : 'Activer la carte'} position="top"><button
                         onClick={() => handleToggleStatus(card)}
                         disabled={togglingId === card.id}
-                        title={card.status === 'active' ? 'Désactiver la carte' : 'Activer la carte'}
+                        aria-label={card.status === 'active' ? 'Désactiver la carte' : 'Activer la carte'}
                         className={`p-1.5 rounded-lg transition-colors ${togglingId === card.id ? 'opacity-50 cursor-wait' :
                           card.status === 'active'
                             ? 'text-green-600 hover:bg-red-50 hover:text-red-600'
@@ -187,15 +187,15 @@ const EnterpriseCardsPage: React.FC = () => {
                           ? <ToggleRight className="w-4 h-4" />
                           : <ToggleLeft className="w-4 h-4" />
                         }
-                      </button>
+                      </button></Tooltip>
                     )}
-                    <button
+                    <Tooltip content="Attribuer / modifier" position="top"><button
                       onClick={() => openAssignModal(card)}
                       className="p-1.5 rounded-lg hover:bg-cloud transition-colors text-slate hover:text-primary"
-                      title="Attribuer / modifier"
+                      aria-label="Attribuer ou modifier la carte"
                     >
                       <UserPlus className="w-4 h-4" />
-                    </button>
+                    </button></Tooltip>
                   </div>
                 </div>
               </Card>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { UserPlus, Edit2, Trash2, Power, Key } from 'lucide-react';
-import { Card, Badge, SearchInput, Table, Avatar, Modal, Button, Toast } from '../../components';
+import { Card, Badge, SearchInput, Table, Avatar, Modal, Button, Toast, Tooltip } from '../../components';
 import { getUsers, deleteUser, toggleUserStatus, resetUserPassword, type AdminUser } from '../../api/adminApi';
 import CreateUserModal from '../../components/modals/CreateUserModal';
 import EditUserModal from '../../components/modals/EditUserModal';
@@ -232,41 +232,41 @@ const UsersPage: React.FC = () => {
       header: 'Actions',
       render: (user: AdminUser) => (
         <div className="flex items-center gap-2">
-          <button
+          <Tooltip content="Modifier" position="top"><button
             onClick={() => handleEdit(user)}
             disabled={actionLoading === user.id}
             className="p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors disabled:opacity-50"
-            title="Modifier"
+            aria-label="Modifier l’utilisateur"
           >
             <Edit2 className="w-4 h-4" />
-          </button>
-          <button
+          </button></Tooltip>
+          <Tooltip content={user.isActive ? 'Désactiver' : 'Activer'} position="top"><button
             onClick={() => handleToggleStatus(user)}
             disabled={actionLoading === user.id}
             className={`p-2 rounded-lg transition-colors disabled:opacity-50 ${user.isActive
               ? 'text-warning hover:bg-warning/10'
               : 'text-green-600 hover:bg-green-50'
               }`}
-            title={user.isActive ? 'Désactiver' : 'Activer'}
+            aria-label={user.isActive ? 'Désactiver l’utilisateur' : 'Activer l’utilisateur'}
           >
             <Power className="w-4 h-4" />
-          </button>
-          <button
+          </button></Tooltip>
+          <Tooltip content="Réinitialiser le mot de passe" position="top"><button
             onClick={() => handleResetPassword(user)}
             disabled={actionLoading === user.id}
             className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
-            title="Réinitialiser le mot de passe"
+            aria-label="Réinitialiser le mot de passe"
           >
             <Key className="w-4 h-4" />
-          </button>
-          <button
+          </button></Tooltip>
+          <Tooltip content="Supprimer" position="top"><button
             onClick={() => handleDelete(user)}
             disabled={actionLoading === user.id}
             className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-            title="Supprimer"
+            aria-label="Supprimer l’utilisateur"
           >
             <Trash2 className="w-4 h-4" />
-          </button>
+          </button></Tooltip>
         </div>
       ),
     },
@@ -400,7 +400,7 @@ const UsersPage: React.FC = () => {
               <code className="flex-1 text-sm font-mono text-dark tracking-widest select-all">
                 {newPasswordModal.password}
               </code>
-              <button
+              <Tooltip content="Copier" position="top"><button
                 type="button"
                 onClick={() => {
                   navigator.clipboard.writeText(newPasswordModal.password);
@@ -408,10 +408,10 @@ const UsersPage: React.FC = () => {
                   setTimeout(() => setPasswordCopied(false), 2000);
                 }}
                 className="p-2 rounded-lg hover:bg-primary/10 text-slate hover:text-primary transition-colors"
-                title="Copier"
+                aria-label="Copier le mot de passe"
               >
                 {passwordCopied ? '✓' : '⎘'}
-              </button>
+              </button></Tooltip>
             </div>
             <Button fullWidth onClick={() => setNewPasswordModal(null)}>J'ai copié le mot de passe</Button>
           </div>
