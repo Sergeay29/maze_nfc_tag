@@ -290,3 +290,57 @@ export async function uploadFile(file: File): Promise<string> {
   if (!response.ok || !payload.success) throw new Error(payload.message || 'Erreur upload');
   return payload.data.url as string;
 }
+
+export type EnterpriseTeamRoleName = 'OWNER' | 'RESTAURANT_MANAGER' | 'RESTAURANT_STAFF';
+
+export interface EnterpriseTeamRole {
+  id: string;
+  name: EnterpriseTeamRoleName;
+  description?: string | null;
+}
+
+export interface EnterpriseTeamMember {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  isActive: boolean;
+  mustChangePassword: boolean;
+  roleId: string;
+  createdBy?: string | null;
+  createdByUser?: { id: string; firstName: string; lastName: string; email: string } | null;
+  role?: EnterpriseTeamRole | null;
+  createdAt: string;
+}
+
+export interface EnterpriseTeamData {
+  members: EnterpriseTeamMember[];
+  roles: EnterpriseTeamRole[];
+}
+
+export async function getEnterpriseTeam(): Promise<EnterpriseTeamData> {
+  return request<EnterpriseTeamData>('/enterprise/team');
+}
+
+export async function createEnterpriseTeamMember(body: {
+  firstName: string;
+  lastName: string;
+  email: string;
+  roleId: string;
+  password?: string;
+}): Promise<{ member: EnterpriseTeamMember; generatedPassword?: string }> {
+  return request<{ member: EnterpriseTeamMember; generatedPassword?: string }>('/enterprise/team', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function updateEnterpriseTeamMember(
+  id: string,
+  body: Partial<Pick<EnterpriseTeamMember, 'firstName' | 'lastName' | 'email' | 'roleId' | 'isActive'>>,
+): Promise<EnterpriseTeamMember> {
+  return request<EnterpriseTeamMember>('/enterprise/team/' + id, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  });
+}

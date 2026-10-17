@@ -66,4 +66,31 @@ function requireRole(...allowedRoles) {
   };
 }
 
-module.exports = { authenticate, requireRole };
+const RESTAURANT_PERMISSIONS = {
+  "menu.read": ["OWNER", "RESTAURANT_MANAGER"],
+  "menu.manage": ["OWNER", "RESTAURANT_MANAGER"],
+  "orders.read": ["OWNER", "RESTAURANT_MANAGER", "RESTAURANT_STAFF"],
+  "orders.manage": ["OWNER", "RESTAURANT_MANAGER", "RESTAURANT_STAFF"],
+  "reservations.read": ["OWNER", "RESTAURANT_MANAGER", "RESTAURANT_STAFF"],
+  "reservations.manage": ["OWNER", "RESTAURANT_MANAGER", "RESTAURANT_STAFF"],
+  "tables.manage": ["OWNER", "RESTAURANT_MANAGER"],
+  "team.manage": ["OWNER"],
+};
+
+function requireRestaurantPermission(permission) {
+  return (req, res, next) => {
+    const userRole = req.user?.Role?.name;
+    const allowedRoles = RESTAURANT_PERMISSIONS[permission] || [];
+
+    if (!allowedRoles.includes(userRole)) {
+      return res.status(403).json({
+        success: false,
+        message: "Accès refusé : permissions Restaurant insuffisantes",
+      });
+    }
+
+    next();
+  };
+}
+
+module.exports = { authenticate, requireRole, requireRestaurantPermission, RESTAURANT_PERMISSIONS };

@@ -95,6 +95,7 @@ function menuIncludes({ publicOnly = false } = {}) {
 
 const menuOrder = [
   [{ model: MenuCategory, as: "categories" }, "sortOrder", "ASC"],
+  [{ model: MenuCategory, as: "categories" }, "createdAt", "DESC"],
   [{ model: MenuCategory, as: "categories" }, { model: MenuItem, as: "items" }, "sortOrder", "ASC"],
   [{ model: MenuCategory, as: "categories" }, { model: MenuItem, as: "items" }, { model: MenuItemOptionGroup, as: "optionGroups" }, "sortOrder", "ASC"],
   [{ model: MenuCategory, as: "categories" }, { model: MenuItem, as: "items" }, { model: MenuItemOptionGroup, as: "optionGroups" }, { model: MenuItemOption, as: "options" }, "sortOrder", "ASC"],
@@ -509,7 +510,7 @@ exports.getPublicTableMenu = async (req, res) => {
   try {
     const table = await RestaurantTable.findOne({
       where: { publicToken: req.params.publicToken, status: "active" },
-      attributes: ["id", "label", "capacity", "enterpriseId"],
+      attributes: ["id", "label", "capacity", "enterpriseId", "publicToken"],
     });
     if (!table) return res.status(404).json({ success: false, message: "Table introuvable ou inactive" });
 

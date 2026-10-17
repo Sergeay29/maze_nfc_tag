@@ -66,7 +66,7 @@ export interface PublicRestaurant {
 export interface PublicRestaurantMenu {
   restaurant: PublicRestaurant;
   menu: RestaurantMenu;
-  table?: { id: string; label: string; capacity: number; enterpriseId: string };
+  table?: { id: string; label: string; capacity: number; enterpriseId: string; publicToken: string };
 }
 
 export async function getRestaurantMenu(): Promise<RestaurantMenu | null> {
@@ -323,6 +323,7 @@ export interface PublicOrderLinePayload {
 
 export interface CreatePublicOrderPayload {
   items: PublicOrderLinePayload[];
+  tablePublicToken?: string;
   tableReference?: string;
   contact?: string;
   customerNote?: string;
@@ -349,7 +350,9 @@ export type RestaurantOrderStatus = 'pending' | 'accepted' | 'preparing' | 'read
 export interface RestaurantOrder {
   id: string;
   publicOrderToken: string;
+  tableId?: string | null;
   tableReference?: string | null;
+  table?: { id: string; label: string } | null;
   contact?: string | null;
   customerNote?: string | null;
   status: RestaurantOrderStatus;

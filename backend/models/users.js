@@ -88,6 +88,15 @@ const User = sequelize.define(
         key: "id",
       },
     },
+
+    createdBy: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      references: {
+        model: "users",
+        key: "id",
+      },
+    },
   },
   {
     tableName: "users",

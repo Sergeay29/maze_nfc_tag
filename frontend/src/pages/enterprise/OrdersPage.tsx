@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Check, ChefHat, Clock3, ClipboardList, Download, Loader2, QrCode, RefreshCw, Utensils, X } from 'lucide-react';
+import { Check, CheckCircle2, ChefHat, Clock3, ClipboardList, Download, Loader2, QrCode, RefreshCw, Utensils, X } from 'lucide-react';
 import { Tooltip } from '../../components';
 import { downloadRestaurantOrderTicket, getRestaurantOrderQrCode, getRestaurantOrders, updateRestaurantOrderStatus } from '../../api/restaurantMenuApi';
 import type { RestaurantOrder, RestaurantOrderStatus } from '../../api/restaurantMenuApi';
@@ -123,6 +123,7 @@ const OrdersPage: React.FC = () => {
     new: orders.filter((order) => order.status === 'pending' || order.status === 'accepted').length,
     preparing: orders.filter((order) => order.status === 'preparing').length,
     ready: orders.filter((order) => order.status === 'ready').length,
+    served: orders.filter((order) => order.status === 'served').length,
     total: orders.length,
   }), [orders]);
 
@@ -147,11 +148,12 @@ const OrdersPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {[
           { label: 'Nouvelles', value: counts.new, icon: ClipboardList, tone: 'text-amber-600 bg-amber-50' },
           { label: 'En préparation', value: counts.preparing, icon: ChefHat, tone: 'text-indigo-600 bg-indigo-50' },
           { label: 'Prêtes', value: counts.ready, icon: Check, tone: 'text-green-600 bg-green-50' },
+          { label: 'Servies', value: counts.served, icon: CheckCircle2, tone: 'text-slate bg-slate/10' },
           { label: 'Total', value: counts.total, icon: Utensils, tone: 'text-primary bg-primary/10' },
         ].map(({ label, value, icon: Icon, tone }) => (
           <div key={label} className="rounded-2xl bg-white p-4 shadow-soft">

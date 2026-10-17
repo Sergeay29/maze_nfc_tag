@@ -9,6 +9,7 @@ const {
   MenuItem,
   MenuItemOptionGroup,
   MenuItemOption,
+  RestaurantTable,
   RestaurantOrder,
   RestaurantOrderItem,
 } = require("../models");
@@ -26,7 +27,9 @@ function serializeOrder(order) {
   return {
     id: order.id,
     publicOrderToken: order.publicOrderToken,
+    tableId: order.tableId,
     tableReference: order.tableReference,
+    table: order.table ? { id: order.table.id, label: order.table.label } : null,
     contact: order.contact,
     customerNote: order.customerNote,
     status: order.status,
@@ -46,7 +49,10 @@ function serializeOrder(order) {
   };
 }
 
-const orderInclude = [{ model: RestaurantOrderItem, as: "items" }];
+const orderInclude = [
+  { model: RestaurantOrderItem, as: "items" },
+  { model: RestaurantTable, as: "table", attributes: ["id", "label"] },
+];
 
 exports.createPublicOrder = async (req, res) => {
   try {
@@ -59,6 +65,14 @@ exports.createPublicOrder = async (req, res) => {
 
     const menu = await Menu.findOne({ where: { enterpriseId: enterprise.id, status: "published" }, attributes: ["id"] });
     if (!menu) return res.status(404).json({ success: false, message: "Menu publié introuvable" });
+    let table = null;
+    if (body.tablePublicToken) {
+      table = await RestaurantTable.findOne({
+        where: { publicToken: body.tablePublicToken, enterpriseId: enterprise.id, status: "active" },
+        attributes: ["id", "label"],
+      });
+      if (!table) return res.status(400).json({ success: false, message: "La table associée au QR code est invalide" });
+    }
     if (!Array.isArray(body.items) || body.items.length === 0 || body.items.length > 50) {
       return res.status(400).json({ success: false, message: "Le panier doit contenir entre 1 et 50 lignes" });
     }
@@ -163,7 +177,8 @@ exports.createPublicOrder = async (req, res) => {
       const createdOrder = await RestaurantOrder.create({
         enterpriseId: enterprise.id,
         publicOrderToken: crypto.randomBytes(20).toString("hex"),
-        tableReference: cleanOptionalText(body.tableReference, 80),
+        tableId: table?.id || null,
+        tableReference: table?.label || cleanOptionalText(body.tableReference, 80),
         contact: cleanOptionalText(body.contact, 160),
         customerNote: cleanOptionalText(body.customerNote, 1000),
         status: "pending",

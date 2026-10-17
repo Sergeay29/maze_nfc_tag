@@ -46,6 +46,17 @@ User.belongsTo(Enterprise, {
   as: "enterprise",
 });
 
+// User -> User (créateur du compte membre)
+User.hasMany(User, {
+  foreignKey: "createdBy",
+  as: "createdTeamMembers",
+});
+
+User.belongsTo(User, {
+  foreignKey: "createdBy",
+  as: "createdByUser",
+});
+
 // User -> Enterprise (créateur — conservé pour traçabilité)
 User.hasMany(Enterprise, {
   foreignKey: "createdBy",
@@ -224,6 +235,7 @@ Reservation.belongsTo(RestaurantTable, { foreignKey: "tableId", as: "table" });
 // Enterprise -> Restau orders
 Enterprise.hasMany(RestaurantOrder, { foreignKey: "enterpriseId", as: "orders" });
 RestaurantOrder.belongsTo(Enterprise, { foreignKey: "enterpriseId", as: "enterprise" });
+RestaurantOrder.belongsTo(RestaurantTable, { foreignKey: "tableId", as: "table" });
 RestaurantOrder.hasMany(RestaurantOrderItem, { foreignKey: "orderId", as: "items", onDelete: "CASCADE" });
 RestaurantOrderItem.belongsTo(RestaurantOrder, { foreignKey: "orderId", as: "order" });
 RestaurantOrderItem.belongsTo(MenuItem, { foreignKey: "menuItemId", as: "menuItem" });

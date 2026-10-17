@@ -3,7 +3,8 @@
 const express = require("express");
 const router = express.Router();
 const enterpriseController = require("../controllers/enterpriseController");
-const { authenticate, requireRole } = require("../middlewares/authMiddleware");
+const { authenticate, requireRole, requireRestaurantPermission } = require("../middlewares/authMiddleware");
+const enterpriseTeamController = require("../controllers/enterpriseTeamController");
 const restaurantMenuController = require("../controllers/restaurantMenuController");
 const qrCodeController = require("../controllers/qrCodeController");
 const restaurantReservationController = require("../controllers/restaurantReservationController");
@@ -14,7 +15,11 @@ const { csvUpload } = require("../config/upload");
 
 // Toutes les routes /api/enterprise/* exigent d'être authentifié
 router.use(authenticate);
-router.use(requireRole("OWNER", "MANAGER", "EMPLOYEE"));
+router.use(requireRole("OWNER", "MANAGER", "EMPLOYEE", "RESTAURANT_MANAGER", "RESTAURANT_STAFF"));
+
+router.get("/team", requireRestaurantPermission("team.manage"), enterpriseTeamController.getTeam);
+router.post("/team", requireRestaurantPermission("team.manage"), enterpriseTeamController.createMember);
+router.patch("/team/:id", requireRestaurantPermission("team.manage"), enterpriseTeamController.updateMember);
 
 /**
  * @swagger
@@ -553,38 +558,38 @@ router.post("/points/adjust", enterpriseController.adjustPoints);
 // ─────────────────────────────────────────────────────────────
 // RESTAU — MENU
 // ─────────────────────────────────────────────────────────────
-router.get("/menu", restaurantMenuController.getMenu);
-router.post("/menu", restaurantMenuController.createMenu);
-router.put("/menu/:id", restaurantMenuController.updateMenu);
-router.delete("/menu/:id", restaurantMenuController.deleteMenu);
+router.get("/menu", requireRestaurantPermission("menu.read"), restaurantMenuController.getMenu);
+router.post("/menu", requireRestaurantPermission("menu.manage"), restaurantMenuController.createMenu);
+router.put("/menu/:id", requireRestaurantPermission("menu.manage"), restaurantMenuController.updateMenu);
+router.delete("/menu/:id", requireRestaurantPermission("menu.manage"), restaurantMenuController.deleteMenu);
 
-router.post("/menu/:menuId/categories", restaurantMenuController.createCategory);
-router.put("/menu/categories/:id", restaurantMenuController.updateCategory);
-router.delete("/menu/categories/:id", restaurantMenuController.deleteCategory);
+router.post("/menu/:menuId/categories", requireRestaurantPermission("menu.manage"), restaurantMenuController.createCategory);
+router.put("/menu/categories/:id", requireRestaurantPermission("menu.manage"), restaurantMenuController.updateCategory);
+router.delete("/menu/categories/:id", requireRestaurantPermission("menu.manage"), restaurantMenuController.deleteCategory);
 
-router.post("/menu/categories/:categoryId/items", restaurantMenuController.createItem);
-router.put("/menu/items/:id", restaurantMenuController.updateItem);
-router.delete("/menu/items/:id", restaurantMenuController.deleteItem);
-router.post("/menu/import-csv", csvUpload.single("file"), restaurantMenuImportController.importMenuCsv);
-router.post("/menu/items/:itemId/option-groups", restaurantMenuController.createItemOptionGroup);
-router.put("/menu/option-groups/:id", restaurantMenuController.updateItemOptionGroup);
-router.delete("/menu/option-groups/:id", restaurantMenuController.deleteItemOptionGroup);
-router.post("/menu/option-groups/:groupId/options", restaurantMenuController.createItemOption);
-router.put("/menu/options/:id", restaurantMenuController.updateItemOption);
-router.delete("/menu/options/:id", restaurantMenuController.deleteItemOption);
+router.post("/menu/categories/:categoryId/items", requireRestaurantPermission("menu.manage"), restaurantMenuController.createItem);
+router.put("/menu/items/:id", requireRestaurantPermission("menu.manage"), restaurantMenuController.updateItem);
+router.delete("/menu/items/:id", requireRestaurantPermission("menu.manage"), restaurantMenuController.deleteItem);
+router.post("/menu/import-csv", requireRestaurantPermission("menu.manage"), csvUpload.single("file"), restaurantMenuImportController.importMenuCsv);
+router.post("/menu/items/:itemId/option-groups", requireRestaurantPermission("menu.manage"), restaurantMenuController.createItemOptionGroup);
+router.put("/menu/option-groups/:id", requireRestaurantPermission("menu.manage"), restaurantMenuController.updateItemOptionGroup);
+router.delete("/menu/option-groups/:id", requireRestaurantPermission("menu.manage"), restaurantMenuController.deleteItemOptionGroup);
+router.post("/menu/option-groups/:groupId/options", requireRestaurantPermission("menu.manage"), restaurantMenuController.createItemOption);
+router.put("/menu/options/:id", requireRestaurantPermission("menu.manage"), restaurantMenuController.updateItemOption);
+router.delete("/menu/options/:id", requireRestaurantPermission("menu.manage"), restaurantMenuController.deleteItemOption);
 
-router.get("/reservations", restaurantReservationController.getReservations);
-router.patch("/reservations/:id/status", restaurantReservationController.updateReservationStatus);
-router.get("/reservation-settings", restaurantReservationController.getReservationSettings);
-router.put("/reservation-settings", restaurantReservationController.updateReservationSettings);
-router.get("/tables", restaurantTableController.getTables);
-router.post("/tables", restaurantTableController.createTable);
-router.patch("/tables/:id", restaurantTableController.updateTable);
-router.delete("/tables/:id", restaurantTableController.deleteTable);
-router.get("/tables/:id/qr-code", qrCodeController.getEnterpriseTableQrCode);
-router.get("/orders", restaurantOrderController.getOrders);
-router.get("/orders/:id/qr-code", qrCodeController.getEnterpriseOrderQrCode);
-router.get("/orders/:id/ticket.pdf", restaurantOrderController.downloadOrderTicket);
-router.patch("/orders/:id/status", restaurantOrderController.updateOrderStatus);
+router.get("/reservations", requireRestaurantPermission("reservations.read"), restaurantReservationController.getReservations);
+router.patch("/reservations/:id/status", requireRestaurantPermission("reservations.manage"), restaurantReservationController.updateReservationStatus);
+router.get("/reservation-settings", requireRestaurantPermission("reservations.manage"), restaurantReservationController.getReservationSettings);
+router.put("/reservation-settings", requireRestaurantPermission("reservations.manage"), restaurantReservationController.updateReservationSettings);
+router.get("/tables", requireRestaurantPermission("tables.manage"), restaurantTableController.getTables);
+router.post("/tables", requireRestaurantPermission("tables.manage"), restaurantTableController.createTable);
+router.patch("/tables/:id", requireRestaurantPermission("tables.manage"), restaurantTableController.updateTable);
+router.delete("/tables/:id", requireRestaurantPermission("tables.manage"), restaurantTableController.deleteTable);
+router.get("/tables/:id/qr-code", requireRestaurantPermission("tables.manage"), qrCodeController.getEnterpriseTableQrCode);
+router.get("/orders", requireRestaurantPermission("orders.read"), restaurantOrderController.getOrders);
+router.get("/orders/:id/qr-code", requireRestaurantPermission("orders.read"), qrCodeController.getEnterpriseOrderQrCode);
+router.get("/orders/:id/ticket.pdf", requireRestaurantPermission("orders.read"), restaurantOrderController.downloadOrderTicket);
+router.patch("/orders/:id/status", requireRestaurantPermission("orders.manage"), restaurantOrderController.updateOrderStatus);
 
 module.exports = router;

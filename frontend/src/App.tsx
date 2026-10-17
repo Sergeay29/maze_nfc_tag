@@ -37,6 +37,7 @@ import {
   OrdersPage,
   ReservationsPage,
   TablesPage,
+  TeamPage,
 } from './pages';
 import RestaurantMenuPage from './pages/RestaurantMenuPage';
 import RestaurantOrderTrackingPage from './pages/RestaurantOrderTrackingPage';
@@ -85,7 +86,7 @@ const App: React.FC = () => {
         </Route>
 
         {/* Enterprise Routes */}
-        <Route element={<ProtectedRoute allowedRoles={['OWNER', 'MANAGER', 'EMPLOYEE']} />}>
+        <Route element={<ProtectedRoute allowedRoles={['OWNER', 'MANAGER', 'EMPLOYEE', 'RESTAURANT_MANAGER', 'RESTAURANT_STAFF']} />}>
           <Route element={<MainLayout type="enterprise" />}>
             <Route path="/enterprise/dashboard" element={<EnterpriseDashboard />} />
             <Route path="/enterprise/profile" element={<EnterpriseProfilePage />} />
@@ -99,6 +100,7 @@ const App: React.FC = () => {
             <Route path="/enterprise/orders" element={<OrdersPage />} />
             <Route path="/enterprise/reservations" element={<ReservationsPage />} />
             <Route path="/enterprise/tables" element={<TablesPage />} />
+            <Route path="/enterprise/team" element={<TeamPage />} />
             <Route path="/enterprise/scans" element={<EnterpriseScansPage />} />
             <Route path="/enterprise/rewards" element={<RewardsPage />} />
             <Route path="/enterprise/levels" element={<LevelsPage />} />

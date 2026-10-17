@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { X } from 'lucide-react';
+import { createPortal } from 'react-dom';
 
 interface ModalProps {
   isOpen: boolean;
@@ -40,7 +41,8 @@ const Modal: React.FC<ModalProps> = ({
     lg: 'max-w-2xl',
   }[size];
 
-  return (
+  return createPortal(
+    (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       role="dialog"
@@ -79,6 +81,8 @@ const Modal: React.FC<ModalProps> = ({
         <div className="p-4 sm:p-6">{children}</div>
       </div>
     </div>
+    ),
+    document.body,
   );
 };
 

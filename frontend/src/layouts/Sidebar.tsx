@@ -22,6 +22,8 @@ import {
   ClipboardList,
   CalendarDays,
   Armchair,
+  UserCog,
+  ChevronDown,
 } from 'lucide-react';
 import { Tooltip } from '../components';
 import { useAuth } from '../auth/useAuth';
@@ -30,6 +32,7 @@ interface SidebarItem {
   path: string;
   icon: React.ReactNode;
   label: string;
+  roles?: Array<'OWNER' | 'MANAGER' | 'EMPLOYEE' | 'RESTAURANT_MANAGER' | 'RESTAURANT_STAFF'>;
 }
 
 const adminItems: SidebarItem[] = [
@@ -48,18 +51,19 @@ const adminItems: SidebarItem[] = [
 const enterpriseItems: SidebarItem[] = [
   { path: '/enterprise/dashboard', icon: <LayoutDashboard className="w-5 h-5" />, label: 'Dashboard' },
   { path: '/enterprise/profile', icon: <Building2 className="w-5 h-5" />, label: 'Mon entreprise' },
-  { path: '/enterprise/clients', icon: <Users className="w-5 h-5" />, label: 'Clients' },
-  { path: '/enterprise/cards', icon: <CreditCard className="w-5 h-5" />, label: 'Cartes NFC' },
-  { path: '/enterprise/services', icon: <Zap className="w-5 h-5" />, label: 'Services' },
-  { path: '/enterprise/menu', icon: <Utensils className="w-5 h-5" />, label: 'Menu digital' },
-  { path: '/enterprise/orders', icon: <ClipboardList className="w-5 h-5" />, label: 'Commandes' },
-  { path: '/enterprise/reservations', icon: <CalendarDays className="w-5 h-5" />, label: 'Réservations' },
-  { path: '/enterprise/tables', icon: <Armchair className="w-5 h-5" />, label: 'Tables' },
-  { path: '/enterprise/scans', icon: <QrCode className="w-5 h-5" />, label: 'Scans' },
-  { path: '/enterprise/rewards', icon: <Gift className="w-5 h-5" />, label: 'Récompenses' },
-  { path: '/enterprise/levels', icon: <Crown className="w-5 h-5" />, label: 'Niveaux' },
-  { path: '/enterprise/notifications', icon: <Bell className="w-5 h-5" />, label: 'Notifications' },
-  { path: '/enterprise/settings', icon: <Settings className="w-5 h-5" />, label: 'Paramètres' },
+  { path: '/enterprise/clients', icon: <Users className="w-5 h-5" />, label: 'Clients', roles: ['OWNER', 'MANAGER', 'EMPLOYEE'] },
+  { path: '/enterprise/cards', icon: <CreditCard className="w-5 h-5" />, label: 'Cartes NFC', roles: ['OWNER', 'MANAGER', 'EMPLOYEE'] },
+  { path: '/enterprise/services', icon: <Zap className="w-5 h-5" />, label: 'Services', roles: ['OWNER', 'MANAGER', 'EMPLOYEE'] },
+  { path: '/enterprise/menu', icon: <Utensils className="w-5 h-5" />, label: 'Menu digital', roles: ['OWNER', 'RESTAURANT_MANAGER'] },
+  { path: '/enterprise/orders', icon: <ClipboardList className="w-5 h-5" />, label: 'Commandes', roles: ['OWNER', 'RESTAURANT_MANAGER', 'RESTAURANT_STAFF'] },
+  { path: '/enterprise/reservations', icon: <CalendarDays className="w-5 h-5" />, label: 'Réservations', roles: ['OWNER', 'RESTAURANT_MANAGER', 'RESTAURANT_STAFF'] },
+  { path: '/enterprise/tables', icon: <Armchair className="w-5 h-5" />, label: 'Tables', roles: ['OWNER', 'RESTAURANT_MANAGER'] },
+  { path: '/enterprise/team', icon: <UserCog className="w-5 h-5" />, label: 'Équipe Restaurant', roles: ['OWNER'] },
+  { path: '/enterprise/scans', icon: <QrCode className="w-5 h-5" />, label: 'Scans', roles: ['OWNER', 'MANAGER', 'EMPLOYEE'] },
+  { path: '/enterprise/rewards', icon: <Gift className="w-5 h-5" />, label: 'Récompenses', roles: ['OWNER', 'MANAGER', 'EMPLOYEE'] },
+  { path: '/enterprise/levels', icon: <Crown className="w-5 h-5" />, label: 'Niveaux', roles: ['OWNER', 'MANAGER', 'EMPLOYEE'] },
+  { path: '/enterprise/notifications', icon: <Bell className="w-5 h-5" />, label: 'Notifications', roles: ['OWNER', 'MANAGER', 'EMPLOYEE'] },
+  { path: '/enterprise/settings', icon: <Settings className="w-5 h-5" />, label: 'Paramètres', roles: ['OWNER', 'MANAGER', 'EMPLOYEE', 'RESTAURANT_MANAGER', 'RESTAURANT_STAFF'] },
 ];
 
 interface SidebarProps {
@@ -70,6 +74,14 @@ interface SidebarProps {
   setMobileOpen: (open: boolean) => void;
 }
 
+const restaurantPaths = new Set([
+  '/enterprise/menu',
+  '/enterprise/orders',
+  '/enterprise/reservations',
+  '/enterprise/tables',
+  '/enterprise/team',
+]);
+
 const Sidebar: React.FC<SidebarProps> = ({
   type,
   collapsed,
@@ -77,9 +89,14 @@ const Sidebar: React.FC<SidebarProps> = ({
   mobileOpen,
   setMobileOpen,
 }) => {
-  const items = type === 'admin' ? adminItems : enterpriseItems;
   const { user } = useAuth();
+  const [restaurantOpen, setRestaurantOpen] = React.useState(true);
+  const items = (type === 'admin' ? adminItems : enterpriseItems).filter(
+    (item) => !item.roles || item.roles.includes(user?.Role?.name as NonNullable<typeof item.roles>[number]),
+  );
   const isEnterprise = type === 'enterprise';
+  const generalItems = isEnterprise ? items.filter((item) => !restaurantPaths.has(item.path)) : items;
+  const visibleRestaurantItems = isEnterprise ? items.filter((item) => restaurantPaths.has(item.path)) : [];
   const displayName = isEnterprise && user?.enterprise?.name ? user.enterprise.name : 'Maze NFC';
   const displayLogo = isEnterprise && user?.enterprise?.logo
     ? user.enterprise.logo
@@ -121,7 +138,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         {/* Navigation */}
         <nav className="flex-1 p-3 overflow-y-auto">
           <ul className="space-y-1">
-            {items.map((item) => (
+            {generalItems.map((item) => (
               <li key={item.path}>
                 {!isExpanded ? (
                   <Tooltip content={item.label} position="right">
@@ -154,6 +171,56 @@ const Sidebar: React.FC<SidebarProps> = ({
                 )}
               </li>
             ))}
+            {visibleRestaurantItems.length > 0 && (
+              <>
+                {isExpanded && (
+                  <li className="pt-5">
+                    <button
+                      type="button"
+                      onClick={() => setRestaurantOpen((current) => !current)}
+                      aria-expanded={restaurantOpen}
+                      className="flex w-full items-center justify-between rounded-xl px-4 pb-2 text-left text-[11px] font-semibold uppercase tracking-[0.16em] text-slate/60 transition-colors hover:bg-cloud hover:text-slate"
+                    >
+                      <span>Restaurant</span>
+                      <ChevronDown className={`h-4 w-4 transition-transform ${restaurantOpen ? 'rotate-0' : '-rotate-90'}`} />
+                    </button>
+                  </li>
+                )}
+                {(!isExpanded || restaurantOpen) && visibleRestaurantItems.map((item) => (
+                  <li key={item.path}>
+                    {!isExpanded ? (
+                      <Tooltip content={item.label} position="right">
+                        <NavLink
+                          to={item.path}
+                          className={({ isActive }) =>
+                            `flex items-center justify-center p-3 rounded-xl font-medium transition-all duration-200 ${isActive
+                              ? 'bg-gradient text-white shadow-soft'
+                              : 'text-slate hover:bg-primary/10 hover:text-primary'
+                            }`
+                          }
+                        >
+                          <span className="w-5 h-5 flex-shrink-0">{item.icon}</span>
+                        </NavLink>
+                      </Tooltip>
+                    ) : (
+                      <NavLink
+                        to={item.path}
+                        onClick={() => setMobileOpen(false)}
+                        className={({ isActive }) =>
+                          `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${isActive
+                            ? 'bg-gradient text-white shadow-soft'
+                            : 'text-slate hover:bg-primary/10 hover:text-primary'
+                          }`
+                        }
+                      >
+                        <span className="w-5 h-5 flex-shrink-0">{item.icon}</span>
+                        <span>{item.label}</span>
+                      </NavLink>
+                    )}
+                  </li>
+                ))}
+              </>
+            )}
           </ul>
         </nav>
       </div>

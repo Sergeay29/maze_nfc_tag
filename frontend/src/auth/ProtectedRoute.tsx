@@ -7,7 +7,7 @@ interface ProtectedRouteProps {
   allowedRoles?: RoleName[];
 }
 
-const ENTERPRISE_2FA_ROLES: RoleName[] = ['OWNER', 'MANAGER'];
+const ENTERPRISE_2FA_ROLES: RoleName[] = ['OWNER', 'MANAGER', 'RESTAURANT_MANAGER'];
 
 function getTwoFactorSetupPath(role?: RoleName): string | null {
   if (role === 'SUPER_ADMIN') return '/admin/settings';

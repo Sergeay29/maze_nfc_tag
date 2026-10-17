@@ -35,7 +35,7 @@ const ICON_OPTIONS = [
   { value: 'shopping-cart', label: 'Panier', icon: ShoppingCart },
   { value: 'credit-card', label: 'Carte bancaire', icon: CreditCard },
   { value: 'map-pin', label: 'Localisation', icon: MapPin },
-  { value: 'building', label: 'Bâtiment', icon: Building },
+  { value: 'building', label: 'B�timent', icon: Building },
   { value: 'briefcase', label: 'Travail', icon: Briefcase },
   { value: 'file-text', label: 'Document', icon: FileText },
   { value: 'check', label: 'Validation', icon: Check },

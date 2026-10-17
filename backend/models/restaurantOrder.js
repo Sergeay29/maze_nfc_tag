@@ -11,6 +11,11 @@ const RestaurantOrder = sequelize.define(
       references: { model: "enterprises", key: "id" },
     },
     publicOrderToken: { type: DataTypes.STRING(40), allowNull: false, unique: true },
+    tableId: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      references: { model: "restaurant_tables", key: "id" },
+    },
     tableReference: { type: DataTypes.STRING(80), allowNull: true },
     contact: { type: DataTypes.STRING(160), allowNull: true },
     customerNote: { type: DataTypes.TEXT, allowNull: true },
