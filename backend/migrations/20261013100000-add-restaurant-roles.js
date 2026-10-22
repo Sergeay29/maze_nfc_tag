@@ -1,16 +1,22 @@
 "use strict";
 
 module.exports = {
-  async up(queryInterface, Sequelize) {
-    const options = { transaction: null };
+  async up(queryInterface, Sequelize, transaction) {
+    const options = { transaction };
+
     const existing = await queryInterface.sequelize.query(
       'SELECT "name" FROM "roles" WHERE "name" IN (:names);',
       {
-        replacements: { names: ["RESTAURANT_MANAGER", "RESTAURANT_STAFF"] },
+        replacements: {
+          names: ["RESTAURANT_MANAGER", "RESTAURANT_STAFF"],
+        },
         type: Sequelize.QueryTypes.SELECT,
+        transaction,
       },
     );
+
     const existingNames = new Set(existing.map((role) => role.name));
+
     const roles = [
       {
         name: "RESTAURANT_MANAGER",
@@ -27,9 +33,13 @@ module.exports = {
     }
   },
 
-  async down(queryInterface) {
-    await queryInterface.bulkDelete("roles", {
-      name: ["RESTAURANT_MANAGER", "RESTAURANT_STAFF"],
-    });
+  async down(queryInterface, _Sequelize, transaction) {
+    await queryInterface.bulkDelete(
+      "roles",
+      {
+        name: ["RESTAURANT_MANAGER", "RESTAURANT_STAFF"],
+      },
+      { transaction },
+    );
   },
 };
