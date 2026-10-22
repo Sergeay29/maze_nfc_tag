@@ -1,7 +1,7 @@
 "use strict";
 
 module.exports = {
-  async up(queryInterface, Sequelize) {
+  async up(queryInterface, Sequelize, transaction) {
     await queryInterface.createTable("restaurant_tables", {
       id: {
         type: Sequelize.UUID,
@@ -36,7 +36,7 @@ module.exports = {
       },
       createdAt: { type: Sequelize.DATE, allowNull: false },
       updatedAt: { type: Sequelize.DATE, allowNull: false },
-    });
+    }, { transaction });
 
     await queryInterface.addColumn("restaurant_reservations", "tableId", {
       type: Sequelize.UUID,
@@ -44,13 +44,13 @@ module.exports = {
       references: { model: "restaurant_tables", key: "id" },
       onUpdate: "CASCADE",
       onDelete: "SET NULL",
-    });
+    }, { transaction });
 
     await queryInterface.addIndex("restaurant_tables", ["enterpriseId", "status"], {
-      name: "restaurant_tables_enterprise_status_idx",
+      name: "restaurant_tables_enterprise_status_idx", transaction,
     });
     await queryInterface.addIndex("restaurant_reservations", ["enterpriseId", "reservationDate", "reservationTime", "status"], {
-      name: "restaurant_reservations_availability_idx",
+      name: "restaurant_reservations_availability_idx", transaction,
     });
   },
 
